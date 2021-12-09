@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "fmmap-dart",
+  "fmmap-js",
+  "fmmap-py",
+  "fmmap-rs",
+  "fmmap-uniffi"
+]

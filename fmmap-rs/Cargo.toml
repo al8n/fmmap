@@ -1,0 +1,28 @@
+[package]
+name = "fmmap"
+version = "0.1.0"
+edition = "2021"
+description = "a placeholder"
+license = "MIT OR Apcache-2.0"
+
+[features]
+default = ["sync"]
+nightly = []
+sync = []
+tokio-async = ["async-trait", "pin-project", "tokio/io-std", "tokio/io-util", "tokio/fs"]
+smol-async = ["async-trait", "pin-project", "smol"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { version = "0.1", optional = true }
+bytes = "1.1"
+byteorder = "0.5"
+enum_dispatch = "0.3"
+futures = { version = "0.3", optional = true }
+memmap2 = "0.5"
+parse-display = "0.5"
+pin-project = { version = "1", optional = true }
+smol = { version = "0.4", optional = true }
+thiserror = "1"
+tokio = { version = "1.14", optional = true }
