@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use async_trait::async_trait;
 use bytes::{Bytes, BytesMut};
 use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, MetaData};
 use crate::metadata::MemoryMetaData;
@@ -21,6 +22,7 @@ pub struct AsyncMemoryMmapFileMut {
 
 impl_async_mmap_file_ext!(AsyncMemoryMmapFileMut);
 
+#[async_trait]
 impl AsyncMmapFileMutExt for AsyncMemoryMmapFileMut {
     fn as_mut_slice(&mut self) -> &mut [u8] {
         self.mmap.as_mut()

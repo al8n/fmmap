@@ -1,24 +1,109 @@
 use std::fs::{File, remove_file};
 use std::path::{Path, PathBuf};
 use std::ptr::{drop_in_place, write};
-use memmap2::{Mmap, MmapMut};
+use memmap2::{Mmap, MmapMut, MmapOptions};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
 use crate::error::Error;
-use crate::metadata::DiskMetaData;
+use crate::options::Options;
+use crate::utils::{create_file, open_exist_file_with_append, open_read_only_file, sync_dir};
 
+/// DiskMmapFile contains an immutable mmap buffer
+/// and a read-only file.
 pub struct DiskMmapFile {
-    mmap: Mmap,
-    file: File,
-    path: PathBuf,
+    pub(crate) mmap: Mmap,
+    pub(crate) file: File,
+    pub(crate) path: PathBuf,
 }
 
 impl_mmap_file_ext!(DiskMmapFile);
 
+impl DiskMmapFile {
+    /// Open a readable memory map backed by a file
+    pub fn open<P: AsRef<Path>>(path: P,) -> Result<Self, Error> {
+        Self::open_in(path, None)
+    }
+
+    /// Open a readable memory map backed by a file with [`Options`]
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+        Self::open_in(path, Some(opts))
+    }
+
+    /// Open a readable and executable memory map backed by a file
+    pub fn open_exec<P: AsRef<Path>>(path: P,) -> Result<Self, Error> {
+        Self::open_exec_in(path, None)
+    }
+
+    /// Open a readable and executable memory map backed by a file with [`Options`].
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+        Self::open_exec_in(path, Some(opts))
+    }
+
+    fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        let file = open_read_only_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+        match opts  {
+            None => {
+                let mmap = unsafe {
+                    Mmap::map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                })
+            }
+            Some(opts) => {
+                let mmap = unsafe {
+                    opts.mmap_opts.map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                })
+            }
+        }
+    }
+
+    fn open_exec_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        let file = open_read_only_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+        match opts  {
+            None => {
+                let mmap = unsafe {
+                    MmapOptions::new().map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                })
+            }
+            Some(opts) => {
+                let mmap = unsafe {
+                    opts.mmap_opts.map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                })
+            }
+        }
+    }
+}
+
+/// DiskMmapFile contains a mutable mmap buffer
+/// and a writable file.
 pub struct DiskMmapFileMut {
-    mmap: MmapMut,
-    file: File,
-    path: PathBuf,
-    remove_on_drop: bool,
+    pub(crate) mmap: MmapMut,
+    pub(crate) file: File,
+    pub(crate) path: PathBuf,
+    pub(crate) remove_on_drop: bool,
 }
 
 impl_mmap_file_ext!(DiskMmapFileMut);
@@ -99,3 +184,226 @@ impl MmapFileMutExt for DiskMmapFileMut {
     }
 }
 
+impl DiskMmapFileMut {
+    /// Create a new file and mmap this file
+    pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        Self::create_in(path, None)
+    }
+
+    /// Create a new file and mmap this file with [`Options`]
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn create_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+         Self::create_in(path, Some(opts))
+    }
+
+    /// Open a file and mmap this file.
+    /// The file will be open by [`File::open`].
+    ///
+    /// [`File::open`]: https://doc.rust-lang.org/std/fs/struct.File.html#method.open
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        Self::open_in(path, None)
+    }
+
+    /// Open a file and mmap this file with [`Options`].
+    /// The file will be open by [OpenOptions::open]
+    ///
+    /// [`Options`]: structs.Options.html
+    /// [`OpenOptions::open`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.open
+    pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+        Self::open_in(path, Some(opts))
+    }
+
+    /// Open an existing file and mmap this file
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_exist<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        Self::open_exist_in(path, None)
+    }
+
+    /// Open an existing file and mmap this file with [`Options`]
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_exist_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+        Self::open_in(path, Some(opts))
+    }
+
+    /// Open and mmap an existing file in copy-on-write mode.
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_cow<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        Self::open_in(path, None)
+    }
+
+    /// Open and mmap an existing file in copy-on-write mode with [`Options`].
+    /// Data written to the memory map will not be visible by other processes, and will not be carried through to the underlying file
+    ///
+    /// [`Options`]: structs.Options.html
+    pub fn open_cow_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
+        Self::open_in(path, Some(opts))
+    }
+
+    /// Returns an immutable version of this memory mapped buffer.
+    /// If the memory map is file-backed, the file must have been opened with read permissions.
+    ///
+    /// # Errors
+    /// This method returns an error when the underlying system call fails,
+    /// which can happen for a variety of reasons,
+    /// such as when the file has not been opened with read permissions.
+    pub fn freeze(self) -> Result<DiskMmapFile, Error> {
+        Ok(DiskMmapFile {
+            mmap: self.mmap.make_read_only().map_err(Error::IO)?,
+            file: self.file,
+            path: self.path,
+        })
+    }
+
+    /// Transition the memory map to be readable and executable.
+    /// If the memory map is file-backed, the file must have been opened with execute permissions.
+    ///
+    /// # Errors
+    /// This method returns an error when the underlying system call fails,
+    /// which can happen for a variety of reasons,
+    /// such as when the file has not been opened with execute permissions
+    pub fn freeze_exec(self) -> Result<DiskMmapFile, Error> {
+        Ok(DiskMmapFile {
+            mmap: self.mmap.make_exec().map_err(Error::IO)?,
+            file: self.file,
+            path: self.path,
+        })
+    }
+
+    fn create_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        let file = create_file(&path)
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+        match opts {
+            None => {
+                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: false,
+                })
+            }
+            Some(opts) => {
+                if opts.max_size > 0 {
+                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    let parent = path.as_ref().parent().unwrap();
+                    sync_dir(parent)?;
+                }
+
+                let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: opts.remove_on_drop,
+                })
+            }
+        }
+    }
+
+    fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        match opts {
+            None => {
+                let file = File::open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: false,
+                })
+            }
+            Some(opts) => {
+                let file = opts.file_opts.open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                let mmap = unsafe {
+                    opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: opts.remove_on_drop
+                })
+            }
+        }
+    }
+
+    fn open_exist_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        let file = open_exist_file_with_append(&path)
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+        match opts {
+            None => {
+                let mmap = unsafe { MmapMut::map_mut(&file)? };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: false,
+                })
+            }
+            Some(opts) => {
+                let meta = file.metadata()?;
+                let file_sz = meta.len();
+                if file_sz == 0 && opts.max_size > 0 {
+                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    let parent = path.as_ref().parent().unwrap();
+                    sync_dir(parent)?;
+                }
+
+                let mmap = unsafe {
+                    opts.mmap_opts.map_mut(&file)? };
+
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: opts.remove_on_drop,
+                })
+            }
+        }
+    }
+
+    fn open_cow_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
+        let file = open_exist_file_with_append(&path)
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+
+        match opts {
+            None => {
+                let mmap = unsafe { MmapOptions::new().map_copy(&file)? };
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: false,
+                })
+            }
+            Some(opts) => {
+                let meta = file.metadata()?;
+                let file_sz = meta.len();
+                if file_sz == 0 && opts.max_size > 0 {
+                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    let parent = path.as_ref().parent().unwrap();
+                    sync_dir(parent)?;
+                }
+
+                let mmap = unsafe {
+                    opts.mmap_opts.map_copy(&file)? };
+
+                Ok(Self {
+                    mmap,
+                    file,
+                    path: path.as_ref().to_path_buf(),
+                    remove_on_drop: opts.remove_on_drop,
+                })
+            }
+        }
+    }
+}

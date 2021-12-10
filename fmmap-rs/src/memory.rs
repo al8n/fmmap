@@ -26,6 +26,7 @@ cfg_sync!(
 cfg_tokio!(
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
+            #[async_trait]
             impl AsyncMmapFileExt for $name {
                 fn len(&self) -> usize {
                     self.mmap.len()

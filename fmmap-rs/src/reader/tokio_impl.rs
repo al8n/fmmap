@@ -53,7 +53,7 @@ impl<'a> AsyncRead for AsyncMmapFileReader<'a> {
     }
 }
 
-impl<'a> AsyncReadExt for AsyncMmapFileReader<'a> {}
+// impl<'a> AsyncReadExt for AsyncMmapFileReader<'a> {}
 
 impl<'a> AsyncSeek for AsyncMmapFileReader<'a> {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
@@ -65,7 +65,7 @@ impl<'a> AsyncSeek for AsyncMmapFileReader<'a> {
     }
 }
 
-impl<'a> AsyncSeekExt for AsyncMmapFileReader<'a> {}
+// impl<'a> AsyncSeekExt for AsyncMmapFileReader<'a> {}
 
 impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
@@ -77,4 +77,4 @@ impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
     }
 }
 
-impl<'a> AsyncBufReadExt for AsyncMmapFileReader<'a> {}
+// impl<'a> AsyncBufReadExt for AsyncMmapFileReader<'a> {}

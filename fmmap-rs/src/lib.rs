@@ -65,6 +65,8 @@ mod disk;
 mod empty;
 mod writer;
 mod reader;
+mod options;
+mod utils;
 
 cfg_sync!(
     pub use reader::MmapFileReader;

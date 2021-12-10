@@ -25,6 +25,9 @@ pub enum Error {
     #[error("sync dir failed: {0}")]
     SyncDirFailed(String),
 
+    #[error("mmap failed: {0}")]
+    MmapFailed(String),
+
     #[error("remmap failed: {0}")]
     RemmapFailed(String),
 }

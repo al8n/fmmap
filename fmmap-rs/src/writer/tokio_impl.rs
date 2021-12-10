@@ -3,7 +3,7 @@ use std::io::{Error, SeekFrom, Cursor};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use bytes::BytesMut;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use pin_project::pin_project;
 
 /// AsyncMmapFileWriter helps read or write data from mmap file
@@ -60,13 +60,14 @@ impl Debug for AsyncMmapFileWriter<'_> {
 }
 
 impl<'a> AsyncRead for AsyncMmapFileWriter<'a> {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         self.project().w.poll_read(cx, buf)
     }
 }
 
-impl<'a> AsyncReadExt for AsyncMmapFileWriter<'a>  {}
 
+// impl<'a> AsyncReadExt for AsyncMmapFileWriter<'a>  {}
+//
 impl<'a> AsyncBufRead for AsyncMmapFileWriter<'a> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
         self.project().w.poll_fill_buf(cx)
@@ -76,9 +77,9 @@ impl<'a> AsyncBufRead for AsyncMmapFileWriter<'a> {
         self.project().w.consume(amt)
     }
 }
-
-impl<'a> AsyncBufReadExt for AsyncMmapFileWriter<'a> {}
-
+//
+// impl<'a> AsyncBufReadExt for AsyncMmapFileWriter<'a> {}
+//
 impl<'a> AsyncSeek for AsyncMmapFileWriter<'a> {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
         self.project().w.start_seek(position)
@@ -88,8 +89,8 @@ impl<'a> AsyncSeek for AsyncMmapFileWriter<'a> {
         self.project().w.poll_complete(cx)
     }
 }
-
-impl<'a> AsyncSeekExt for AsyncMmapFileWriter<'a> {}
+//
+// impl<'a> AsyncSeekExt for AsyncMmapFileWriter<'a> {}
 
 impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
@@ -106,5 +107,5 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     }
 }
 
-impl<'a> AsyncWriteExt for AsyncMmapFileWriter<'a> {}
+// impl<'a> AsyncWriteExt for AsyncMmapFileWriter<'a> {}
 
