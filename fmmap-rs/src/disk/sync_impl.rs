@@ -14,6 +14,7 @@ pub struct DiskMmapFile {
     pub(crate) mmap: Mmap,
     pub(crate) file: File,
     pub(crate) path: PathBuf,
+    exec: bool,
 }
 
 impl_mmap_file_ext!(DiskMmapFile);
@@ -55,6 +56,7 @@ impl DiskMmapFile {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
+                    exec: false
                 })
             }
             Some(opts) => {
@@ -65,6 +67,7 @@ impl DiskMmapFile {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
+                    exec: false
                 })
             }
         }
@@ -82,6 +85,7 @@ impl DiskMmapFile {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
+                    exec: true,
                 })
             }
             Some(opts) => {
@@ -92,6 +96,7 @@ impl DiskMmapFile {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
+                    exec: true,
                 })
             }
         }
@@ -108,11 +113,15 @@ pub struct DiskMmapFileMut {
     typ: MmapFileMutType,
 }
 
-impl_mmap_file_ext!(DiskMmapFileMut);
+impl_mmap_file_ext_for_mut!(DiskMmapFileMut);
 
 impl MmapFileMutExt for DiskMmapFileMut {
     fn as_mut_slice(&mut self) -> &mut [u8] {
         self.mmap.as_mut()
+    }
+
+    fn is_cow(&self) -> bool {
+        matches!(self.typ, MmapFileMutType::Cow)
     }
 
     impl_flush!();
@@ -243,6 +252,7 @@ impl DiskMmapFileMut {
             mmap: self.mmap.make_read_only().map_err(Error::IO)?,
             file: self.file,
             path: self.path,
+            exec: false
         })
     }
 
@@ -258,6 +268,7 @@ impl DiskMmapFileMut {
             mmap: self.mmap.make_exec().map_err(Error::IO)?,
             file: self.file,
             path: self.path,
+            exec: true,
         })
     }
 
@@ -379,7 +390,7 @@ impl DiskMmapFileMut {
                     file,
                     path: path.as_ref().to_path_buf(),
                     opts: None,
-                    typ: MmapFileMutType::COW,
+                    typ: MmapFileMutType::Cow,
                 })
             }
             Some(opts) => {
@@ -399,7 +410,7 @@ impl DiskMmapFileMut {
                     file,
                     path: path.as_ref().to_path_buf(),
                     opts: Some(opts_bk),
-                    typ: MmapFileMutType::COW,
+                    typ: MmapFileMutType::Cow,
                 })
             }
         }

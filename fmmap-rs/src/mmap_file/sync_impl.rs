@@ -10,7 +10,9 @@ use crate::empty::EmptyMmapFile;
 use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
 use crate::options::Options;
 
-
+/// Utility methods to [`MmapFile`]
+///
+/// [`MmapFile`]: structs.MmapFile.html
 #[enum_dispatch]
 pub trait MmapFileExt {
     /// Returns the current mmap length
@@ -72,6 +74,9 @@ pub trait MmapFileExt {
     /// symlink_metadata function or method and represents
     /// known metadata about a file such as its permissions, size, modification times, etc
     fn metadata(&self) -> Result<MetaData>;
+
+    /// Whether the mmap is executable.
+    fn is_exec(&self) -> bool;
 
     /// Copy the content of the mmap file to Vec
     #[inline]
@@ -340,6 +345,9 @@ pub trait MmapFileExt {
     }
 }
 
+/// Utility methods to [`MmapFileMut`]
+///
+/// [`MmapFileMut`]: structs.MmapFileMut.html
 #[enum_dispatch]
 pub trait MmapFileMutExt {
     /// Returns the mutable underlying slice of the mmap
@@ -353,6 +361,9 @@ pub trait MmapFileMutExt {
     fn slice_mut(&mut self, offset: usize, sz: usize) -> &mut [u8] {
         &mut self.as_mut_slice()[offset..offset+sz]
     }
+
+    /// Whether mmap is copy on write
+    fn is_cow(&self) -> bool;
 
     /// bytes_mut returns mutable data starting from offset off of size sz.
     ///
@@ -416,8 +427,10 @@ pub trait MmapFileMutExt {
     /// do re-mmap and sync_dir if the inner is a real file.
     fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
+    /// Remove the underlying file
     fn remove(self) -> Result<()>;
 
+    /// Close and truncate the underlying file
     fn close_with_truncate(self, max_sz: i64) -> Result<()>;
 
     /// Returns a [`MmapFileWriter`] base on the given `offset`, which helps read or write data from mmap like a normal File.
@@ -646,6 +659,13 @@ enum MmapFileInner {
     Disk(DiskMmapFile)
 }
 
+/// A read-only memory map file.
+/// There is 3 status of this struct:
+/// - __Disk__: mmap to a real file
+/// - __Memory__: use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine
+/// - __Empty__: a state represents null mmap, which is helpful for drop, close the `MmapFile`. This state cannot be constructed directly.
+///
+/// [`Bytes`]: https://docs.rs/bytes/1.1.0/bytes/struct.Bytes.html
 #[repr(transparent)]
 pub struct MmapFile {
     inner: MmapFileInner,
@@ -662,6 +682,13 @@ enum MmapFileMutInner {
     Disk(DiskMmapFileMut)
 }
 
+/// A writable memory map file.
+/// There is 3 status of this struct:
+/// - __Disk__: mmap to a real file
+/// - __Memory__: use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine
+/// - __Empty__: a state represents null mmap, which is helpful for drop, remove, close the `MmapFileMut`. This state cannot be constructed directly.
+///
+/// [`BytesMut`]: https://docs.rs/bytes/1.1.0/bytes/struct.BytesMut.html
 pub struct MmapFileMut {
     inner: MmapFileMutInner,
     remove_on_drop: bool,
@@ -675,6 +702,10 @@ impl_mmap_file_ext!(MmapFileMut);
 impl MmapFileMutExt for MmapFileMut {
     fn as_mut_slice(&mut self) -> &mut [u8] {
         self.inner.as_mut_slice()
+    }
+
+    fn is_cow(&self) -> bool {
+        self.inner.is_cow()
     }
 
     impl_flush!();

@@ -45,11 +45,6 @@ impl AsyncDiskMmapFile {
         Self::open_exec_in(path, Some(opts)).await
     }
 
-    #[inline]
-    pub fn is_exec(&self) -> bool {
-        self.exec
-    }
-
     async fn open_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
         let file = open_read_only_file_async(&path).await.map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
 
@@ -121,12 +116,16 @@ pub struct AsyncDiskMmapFileMut {
     typ: MmapFileMutType,
 }
 
-impl_async_mmap_file_ext!(AsyncDiskMmapFileMut);
+impl_async_mmap_file_ext_for_mut!(AsyncDiskMmapFileMut);
 
 #[async_trait]
 impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     fn as_mut_slice(&mut self) -> &mut [u8] {
         self.mmap.as_mut()
+    }
+
+    fn is_cow(&self) -> bool {
+        matches!(self.typ, MmapFileMutType::Cow)
     }
 
     impl_flush!();
@@ -278,11 +277,6 @@ impl AsyncDiskMmapFileMut {
         })
     }
 
-    #[inline]
-    pub fn is_cow(&self) -> bool {
-        matches!(self.typ, MmapFileMutType::COW)
-    }
-
     async fn create_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
         let file = create_file_async(&path)
             .await
@@ -390,7 +384,7 @@ impl AsyncDiskMmapFileMut {
                     file,
                     path: path.as_ref().to_path_buf(),
                     opts: Some(opts_bk),
-                    typ: MmapFileMutType::COW,
+                    typ: MmapFileMutType::Normal,
                 })
             }
         }
@@ -409,7 +403,7 @@ impl AsyncDiskMmapFileMut {
                     file,
                     path: path.as_ref().to_path_buf(),
                     opts: None,
-                    typ: MmapFileMutType::COW,
+                    typ: MmapFileMutType::Cow,
                 })
             }
             Some(opts) => {
@@ -432,7 +426,7 @@ impl AsyncDiskMmapFileMut {
                     file,
                     path: path.as_ref().to_path_buf(),
                     opts: Some(opts_bk),
-                    typ: MmapFileMutType::COW,
+                    typ: MmapFileMutType::Cow,
                 })
             }
         }

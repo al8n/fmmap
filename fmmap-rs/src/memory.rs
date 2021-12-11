@@ -14,6 +14,10 @@ cfg_sync!(
                     self.path.as_path()
                 }
 
+                fn is_exec(&self) -> bool {
+                    false
+                }
+
                 fn metadata(&self) -> crate::error::Result<MetaData> {
                     Ok(MetaData::memory(MemoryMetaData::new(
                         self.mmap.len() as u64,
@@ -42,6 +46,10 @@ cfg_tokio!(
 
                 fn path(&self) -> &Path {
                     self.path.as_path()
+                }
+
+                fn is_exec(&self) -> bool {
+                    false
                 }
 
                 async fn metadata(&self) -> crate::error::Result<MetaData> {

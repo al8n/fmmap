@@ -12,7 +12,9 @@ use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
 use crate::options::AsyncOptions;
 
-
+/// Utility methods to [`AsyncMmapFile`]
+///
+/// [`AsyncMmapFile`]: structs.AsyncMmapFile.html
 #[async_trait]
 #[enum_dispatch]
 pub trait AsyncMmapFileExt {
@@ -68,6 +70,15 @@ pub trait AsyncMmapFileExt {
         self.path_lossy().to_string()
     }
 
+    /// Whether the mmap is executable
+    fn is_exec(&self) -> bool;
+
+    /// Returns the metadata of file metadata
+    ///
+    /// Metadata information about a file.
+    /// This structure is returned from the metadata or
+    /// symlink_metadata function or method and represents
+    /// known metadata about a file such as its permissions, size, modification times, etc
     async fn metadata(&self) -> Result<MetaData>;
 
     /// Copy the content of the mmap file to Vec
@@ -317,6 +328,9 @@ pub trait AsyncMmapFileExt {
     }
 }
 
+/// Utility methods to [`AsyncMmapFileMut`]
+///
+/// [`AsyncMmapFileMut`]: structs.AsyncMmapFileMut.html
 #[async_trait]
 #[enum_dispatch]
 pub trait AsyncMmapFileMutExt {
@@ -331,6 +345,9 @@ pub trait AsyncMmapFileMutExt {
     fn slice_mut(&mut self, offset: usize, sz: usize) -> &mut [u8] {
         &mut self.as_mut_slice()[offset..offset+sz]
     }
+
+    /// Whether mmap is copy on write
+    fn is_cow(&self) -> bool;
 
     /// bytes_mut returns mutable data starting from offset off of size sz.
     ///
@@ -394,8 +411,10 @@ pub trait AsyncMmapFileMutExt {
     /// do re-mmap and sync_dir if the inner is a real file.
     async fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
+    /// Remove the underlying file
     async fn remove(self) -> Result<()>;
 
+    /// Close and truncate the underlying file
     async fn close_with_truncate(self, max_sz: i64) -> Result<()>;
 
     /// Returns a [`MmapFileWriter`] base on the given `offset`, which helps read or write data from mmap like a normal File.
@@ -604,7 +623,13 @@ enum AsyncMmapFileInner {
     Disk(AsyncDiskMmapFile)
 }
 
-
+/// A read-only memory map file.
+/// There is 3 status of this struct:
+/// - __Disk__: mmap to a real file
+/// - __Memory__: use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine
+/// - __Empty__: a state represents null mmap, which is helpful for drop, close the `AsyncMmapFile`. This state cannot be constructed directly.
+///
+/// [`Bytes`]: https://docs.rs/bytes/1.1.0/bytes/struct.Bytes.html
 #[repr(transparent)]
 pub struct AsyncMmapFile {
     inner: AsyncMmapFileInner
@@ -621,6 +646,13 @@ enum AsyncMmapFileMutInner {
     Disk(AsyncDiskMmapFileMut)
 }
 
+/// A writable memory map file.
+/// There is 3 status of this struct:
+/// - __Disk__: mmap to a real file
+/// - __Memory__: use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine
+/// - __Empty__: a state represents null mmap, which is helpful for drop, remove, close the `AsyncMmapFileMut`. This state cannot be constructed directly.
+///
+/// [`BytesMut`]: https://docs.rs/bytes/1.1.0/bytes/struct.BytesMut.html
 pub struct AsyncMmapFileMut {
     inner: AsyncMmapFileMutInner,
     remove_on_drop: bool,
@@ -633,15 +665,23 @@ impl_async_mmap_file_ext!(AsyncMmapFileMut);
 
 #[async_trait]
 impl AsyncMmapFileMutExt for AsyncMmapFileMut {
+    #[inline]
     fn as_mut_slice(&mut self) -> &mut [u8] {
         self.inner.as_mut_slice()
     }
 
+    #[inline]
+    fn is_cow(&self) -> bool {
+        self.inner.is_cow()
+    }
+
     impl_flush!();
 
+    #[inline]
     async fn truncate(&mut self, max_sz: u64) -> Result<()> {
         self.inner.truncate(max_sz).await
     }
+
 
     async fn remove(mut self) -> Result<()> {
         let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
@@ -670,6 +710,7 @@ impl AsyncMmapFileMut {
     /// If `remove_on_drop` is set to `true`, then the underlying file will not be removed on drop if this function is invoked. [Read more]
     ///
     /// [Read more]: structs.AsyncMmapFileMut.html#methods.set_remove_on_drop
+    #[inline]
     pub fn freeze(mut self) -> Result<AsyncMmapFile> {
         let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
         // swap the inner to empty

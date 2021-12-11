@@ -1,12 +1,12 @@
-#![cfg_attr(feature = "nightly", feature(is_symlink))]
+//! A high level wrapper for memory map with flexible and convenient methods.
+#![cfg_attr(feature = "nightly", feature(is_symlink), feature(io_error_more))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![allow(
+    unused_macros,
     clippy::len_without_is_empty,
     clippy::upper_case_acronyms
 )]
-#[macro_use]
-extern crate thiserror;
 
 #[macro_use]
 extern crate enum_dispatch;
@@ -87,12 +87,15 @@ macro_rules! noop_flush {
 
 mod disk;
 mod empty;
+/// Errors in this crate
 pub mod error;
 mod memory;
 mod metadata;
 mod mmap_file;
+#[allow(dead_code)]
 mod options;
 mod reader;
+/// File I/O utils function
 pub mod utils;
 mod writer;
 
@@ -112,16 +115,20 @@ cfg_tokio!(
 
 pub use metadata::{MetaData, MetaDataExt};
 
+/// Inner structs of [`MmapFile`], [`MmapFileMut`], [`AsyncMmapFile`], [`AsyncMmapFileMut`]
+///
+/// [`MmapFile`]: structs.MmapFile.html
+/// [`MmapFileMut`]: structs.MmapFileMut.html
+/// [`AsyncMmapFile`]: structs.AsyncMmapFile.html
+/// [`AsyncMmapFileMut`]: structs.AsyncMmapFileMut.html
 pub mod raw {
     cfg_sync!(
         pub use crate::disk::{DiskMmapFile, DiskMmapFileMut};
         pub use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
-        pub use crate::empty::EmptyMmapFile;
     );
 
     cfg_tokio!(
         pub use crate::disk::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
         pub use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
-        pub use crate::empty::AsyncEmptyMmapFile;
     );
 }

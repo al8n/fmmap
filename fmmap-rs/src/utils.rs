@@ -1,15 +1,25 @@
 use crate::error::{Error, Result};
+#[cfg(feature = "nightly")]
+use std::io;
 use std::ops::{Bound, RangeBounds};
 use std::path::Path;
 
 cfg_sync!(
     use std::fs::{File as SyncFile, OpenOptions as SyncOpenOptions};
 
+    /// Sync directory
     pub fn sync_dir<P: AsRef<Path>>(path: P) -> Result<()> {
-        SyncFile::open(&path)
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?
+        let path = path.as_ref();
+        if !path.is_dir() {
+            #[cfg(feature = "nightly")]
+            return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+            #[cfg(not(feature = "nightly"))]
+            return Err(Error::NotADirectory);
+        }
+        SyncFile::open(path)
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
             .sync_all()
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
     }
 
     /// Open a read-only file
@@ -64,13 +74,22 @@ cfg_sync!(
 cfg_tokio!(
     use tokio::fs::{File as TokioFile, OpenOptions as TokioOpenOptions};
 
+    /// Sync directory
     pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
-        TokioFile::open(&path)
+        let path = path.as_ref();
+        if !path.is_dir() {
+            #[cfg(feature = "nightly")]
+            return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+            #[cfg(not(feature = "nightly"))]
+            return Err(Error::NotADirectory);
+        }
+
+        TokioFile::open(path)
             .await
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
             .sync_all()
             .await
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
     }
 
     /// Open a read-only file

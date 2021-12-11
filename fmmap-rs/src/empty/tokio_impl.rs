@@ -54,6 +54,10 @@ impl AsyncMmapFileExt for AsyncEmptyMmapFile {
         self.path.as_path()
     }
 
+    fn is_exec(&self) -> bool {
+        false
+    }
+
     async fn metadata(&self) -> Result<MetaData> {
         Ok(MetaData::empty(EmptyMetaData))
     }
@@ -103,6 +107,11 @@ impl AsyncMmapFileMutExt for AsyncEmptyMmapFile {
     }
 
     #[inline(always)]
+    fn is_cow(&self) -> bool {
+        false
+    }
+
+    #[inline(always)]
     fn bytes_mut(&mut self, _offset: usize, _len: usize) -> Result<&mut [u8]> {
         Err(Error::InvokeEmptyMmap)
     }
@@ -127,10 +136,12 @@ impl AsyncMmapFileMutExt for AsyncEmptyMmapFile {
         Err(Error::InvokeEmptyMmap)
     }
 
+    #[inline(always)]
     fn writer(&mut self, _offset: usize) -> Result<AsyncMmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }
 
+    #[inline(always)]
     fn range_writer(&mut self, _offset: usize, _len: usize) -> Result<AsyncMmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }

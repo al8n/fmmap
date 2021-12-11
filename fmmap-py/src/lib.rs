@@ -1,5 +1,5 @@
-
-
+use fmmap::raw::DiskMmapFileMut;
+use fmmap::MmapFileMut;
 
 #[test]
 fn test() {

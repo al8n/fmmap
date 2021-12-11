@@ -13,9 +13,14 @@ use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
 use std::time::SystemTime;
 
+/// Empty MetaData
 #[derive(Default, Copy, Clone)]
 pub struct EmptyMetaData;
 
+/// MetaData for [`MemoryMmapFile`]/[`MemoryMmapFileMut`]
+///
+/// [`MemoryMmapFile`]: structs.MemoryMmapFile.html
+/// [`MemoryMmapFileMut`]: structs.MemoryMmapFileMut.html
 #[derive(Copy, Clone)]
 pub struct MemoryMetaData {
     size: u64,
@@ -28,6 +33,10 @@ impl MemoryMetaData {
     }
 }
 
+/// MetaData for [`DiskMmapFile`]/[`DiskMmapFileMut`]
+///
+/// [`DiskMmapFile`]: structs.DiskMmapFile.html
+/// [`DiskMmapFileMut`]: structs.DiskMmapFileMut.html
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct DiskMetaData {

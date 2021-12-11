@@ -58,6 +58,10 @@ impl MmapFileExt for EmptyMmapFile {
         Ok(MetaData::empty(EmptyMetaData))
     }
 
+    fn is_exec(&self) -> bool {
+        false
+    }
+
     fn copy_all_to_vec(&self) -> Vec<u8> {
         self.inner.to_vec()
     }
@@ -101,6 +105,12 @@ impl MmapFileMutExt for EmptyMmapFile {
         &mut self.inner
     }
 
+    #[inline(always)]
+    fn is_cow(&self) -> bool {
+        false
+    }
+
+    #[inline(always)]
     fn bytes_mut(&mut self, _offset: usize, _sz: usize) -> Result<&mut [u8]> {
          Err(Error::InvokeEmptyMmap)
     }
@@ -125,10 +135,12 @@ impl MmapFileMutExt for EmptyMmapFile {
         Ok(())
     }
 
+    #[inline(always)]
     fn writer(&mut self, _offset: usize) -> Result<MmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }
 
+    #[inline(always)]
     fn range_writer(&mut self, _offset: usize, _len: usize) -> Result<MmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }

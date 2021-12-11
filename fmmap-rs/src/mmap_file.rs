@@ -81,18 +81,27 @@ cfg_sync!(
     macro_rules! impl_mmap_file_ext {
         ($name: ident) => {
             impl MmapFileExt for $name {
+                #[inline]
                 fn len(&self) -> usize {
                     self.inner.len()
                 }
 
+                #[inline]
                 fn as_slice(&self) -> &[u8] {
                     self.inner.as_slice()
                 }
 
+                #[inline]
                 fn path(&self) -> &Path {
                     self.inner.path()
                 }
 
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    self.inner.is_exec()
+                }
+
+                #[inline]
                 fn metadata(&self) -> Result<MetaData> {
                     self.inner.metadata()
                 }
@@ -109,18 +118,27 @@ cfg_tokio!(
         ($name: ident) => {
             #[async_trait]
             impl AsyncMmapFileExt for $name {
+                #[inline]
                 fn len(&self) -> usize {
                     self.inner.len()
                 }
 
+                #[inline]
                 fn as_slice(&self) -> &[u8] {
                     self.inner.as_slice()
                 }
 
+                #[inline]
                 fn path(&self) -> &Path {
                     self.inner.path()
                 }
 
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    self.inner.is_exec()
+                }
+
+                #[inline]
                 async fn metadata(&self) -> Result<MetaData> {
                     self.inner.metadata().await
                 }

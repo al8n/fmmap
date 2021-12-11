@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[derive(Copy, Clone)]
 enum MmapFileMutType {
-    COW,
+    Cow,
     Normal,
 }
 
@@ -18,13 +18,13 @@ fn remmap<T: MmapAsRawDesc>(
     unsafe {
         match opts {
             None => match typ {
-                MmapFileMutType::COW => MmapOptions::new().map_copy(file),
+                MmapFileMutType::Cow => MmapOptions::new().map_copy(file),
                 MmapFileMutType::Normal => MmapMut::map_mut(file),
             },
             Some(opts) => {
                 let opts = opts.clone();
                 match typ {
-                    MmapFileMutType::COW => opts.map_copy(file),
+                    MmapFileMutType::Cow => opts.map_copy(file),
                     MmapFileMutType::Normal => opts.map_mut(file),
                 }
             }
@@ -62,23 +62,49 @@ macro_rules! impl_flush {
 }
 
 cfg_sync!(
+    macro_rules! impl_mmap_file_ext_base {
+        () => {
+            fn len(&self) -> usize {
+                self.mmap.len()
+            }
+
+            fn as_slice(&self) -> &[u8] {
+                self.mmap.as_ref()
+            }
+
+            fn path(&self) -> &Path {
+                self.path.as_path()
+            }
+
+            fn metadata(&self) -> crate::error::Result<MetaData> {
+                self.file.metadata().map(MetaData::disk).map_err(Error::IO)
+            }
+        };
+    }
+
     macro_rules! impl_mmap_file_ext {
         ($name: ident) => {
             impl MmapFileExt for $name {
-                fn len(&self) -> usize {
-                    self.mmap.len()
-                }
+                impl_mmap_file_ext_base!();
 
-                fn as_slice(&self) -> &[u8] {
-                    self.mmap.as_ref()
+                /// Whether the mmap is executable.
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    self.exec
                 }
+            }
+        };
+    }
 
-                fn path(&self) -> &Path {
-                    self.path.as_path()
-                }
+    macro_rules! impl_mmap_file_ext_for_mut {
+        ($name: ident) => {
+            impl MmapFileExt for $name {
+                impl_mmap_file_ext_base!();
 
-                fn metadata(&self) -> crate::error::Result<MetaData> {
-                    self.file.metadata().map(MetaData::disk).map_err(Error::IO)
+                /// Whether the mmap is executable.
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    false
                 }
             }
         };
@@ -105,12 +131,53 @@ cfg_tokio!(
                     self.path.as_path()
                 }
 
+                #[inline]
                 async fn metadata(&self) -> crate::error::Result<MetaData> {
                     self.file
                         .metadata()
                         .await
                         .map(MetaData::disk)
                         .map_err(Error::IO)
+                }
+
+                /// Whether the mmap is executable.
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    self.exec
+                }
+            }
+        };
+    }
+
+    macro_rules! impl_async_mmap_file_ext_for_mut {
+        ($name: ident) => {
+            #[async_trait]
+            impl AsyncMmapFileExt for $name {
+                fn len(&self) -> usize {
+                    self.mmap.len()
+                }
+
+                fn as_slice(&self) -> &[u8] {
+                    self.mmap.as_ref()
+                }
+
+                fn path(&self) -> &Path {
+                    self.path.as_path()
+                }
+
+                #[inline]
+                async fn metadata(&self) -> crate::error::Result<MetaData> {
+                    self.file
+                        .metadata()
+                        .await
+                        .map(MetaData::disk)
+                        .map_err(Error::IO)
+                }
+
+                /// Whether the mmap is executable.
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    false
                 }
             }
         };

@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::error::{Error, Result};
 use crate::metadata::{DiskMetaData, EmptyMetaData, MemoryMetaData};
 
+/// Utility methods to MetaData
 #[enum_dispatch]
 pub trait MetaDataExt {
     /// Returns the last access time of this metadata.
