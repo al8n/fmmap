@@ -2,6 +2,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileReader, AsyncMmapFileWriter, MetaData};
 use crate::error::{Error, Result};
+use crate::metadata::EmptyMetaData;
 
 #[derive(Default)]
 pub struct AsyncEmptyMmapFile {
@@ -54,7 +55,7 @@ impl AsyncMmapFileExt for AsyncEmptyMmapFile {
     }
 
     async fn metadata(&self) -> Result<MetaData> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(MetaData::empty(EmptyMetaData))
     }
 
     fn copy_all_to_vec(&self) -> Vec<u8> {

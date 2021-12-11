@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
-use crate::metadata::MetaData;
+use crate::metadata::{EmptyMetaData, MetaData};
 use crate::mmap_file::{MmapFileExt, MmapFileMutExt};
 use crate::{MmapFileReader, MmapFileWriter};
 
@@ -55,7 +55,7 @@ impl MmapFileExt for EmptyMmapFile {
     }
 
     fn metadata(&self) -> Result<MetaData> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(MetaData::empty(EmptyMetaData))
     }
 
     fn copy_all_to_vec(&self) -> Vec<u8> {

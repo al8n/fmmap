@@ -1,6 +1,10 @@
 #![cfg_attr(feature = "nightly", feature(is_symlink))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
+#![allow(
+    clippy::len_without_is_empty,
+    clippy::upper_case_acronyms
+)]
 #[macro_use]
 extern crate thiserror;
 
