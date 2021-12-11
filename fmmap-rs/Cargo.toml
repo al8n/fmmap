@@ -6,7 +6,7 @@ description = "a placeholder"
 license = "MIT OR Apache-2.0"
 
 [features]
-default = ["sync", "tokio-async"]
+default = ["sync"]
 nightly = []
 sync = []
 tokio-async = ["async-trait", "pin-project", "tokio/io-std", "tokio/io-util", "tokio/fs"]

@@ -9,7 +9,7 @@ use crate::utils::{create_file_async, open_exist_file_with_append_async, open_re
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use tokio::fs::{File, remove_file};
 
-/// DiskMmapFile contains an immutable mmap buffer
+/// AsyncDiskMmapFile contains an immutable mmap buffer
 /// and a read-only file.
 pub struct AsyncDiskMmapFile {
     pub(crate) mmap: Mmap,
@@ -106,7 +106,7 @@ impl AsyncDiskMmapFile {
     }
 }
 
-/// DiskMmapFile contains a mutable mmap buffer
+/// AsyncDiskMmapFileMut contains a mutable mmap buffer
 /// and a writable file.
 pub struct AsyncDiskMmapFileMut {
     pub(crate) mmap: MmapMut,

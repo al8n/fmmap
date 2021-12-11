@@ -1,5 +1,6 @@
 macro_rules! declare_and_impl_options {
     ($name: ident, $file_open_options: ident) => {
+        /// A memory map builder, providing advanced options and flags for specifying memory map file behavior.
         #[derive(Clone)]
         pub struct $name {
             pub(crate) mmap_opts: MmapOptions,
@@ -62,31 +63,49 @@ macro_rules! declare_and_impl_options {
                 self
             }
 
+            /// Sets the option for read access. For details, please see [`std::fs::OpenOptions::read`]
+            ///
+            /// [`std::fs::OpenOptions::read`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.read
             pub fn read(&mut self, val: bool) -> &mut Self {
                 self.file_opts.read(val);
                 self
             }
 
+            /// Sets the option for write access. For details, please see [`std::fs::OpenOptions::write`]
+            ///
+            /// [`std::fs::OpenOptions::write`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.write
             pub fn write(&mut self, val: bool) -> &mut Self {
                 self.file_opts.write(val);
                 self
             }
 
+            /// Sets the option to create a new file, or open it if it already exists. For details, please see [`std::fs::OpenOptions::create`]
+            ///
+            /// [`std::fs::OpenOptions::create`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create
             pub fn create(&mut self, val: bool) -> &mut Self {
                 self.file_opts.create(val);
                 self
             }
 
+            /// Sets the option to create a new file, failing if it already exists. For details, please see [`std::fs::OpenOptions::create_new`]
+            ///
+            /// [`std::fs::OpenOptions::create_new`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create_new
             pub fn create_new(&mut self, val: bool) -> &mut Self {
                 self.file_opts.create_new(val);
                 self
             }
 
+            /// Sets the option for the append mode. For details, please see [`std::fs::OpenOptions::append`]
+            ///
+            /// [`std::fs::OpenOptions::append`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.append
             pub fn append(&mut self, val: bool) -> &mut Self {
                 self.file_opts.append(val);
                 self
             }
 
+            /// Sets the option for truncating a previous file. For details, please see [`std::fs::OpenOptions::truncate`]
+            ///
+            /// [`std::fs::OpenOptions::truncate`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.truncate
             pub fn truncate(&mut self, val: bool) -> &mut Self {
                 self.file_opts.truncate(val);
                 self

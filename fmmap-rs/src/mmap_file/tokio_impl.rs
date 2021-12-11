@@ -624,6 +624,7 @@ enum AsyncMmapFileInner {
 }
 
 /// A read-only memory map file.
+///
 /// There is 3 status of this struct:
 /// - __Disk__: mmap to a real file
 /// - __Memory__: use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine
@@ -647,6 +648,7 @@ enum AsyncMmapFileMutInner {
 }
 
 /// A writable memory map file.
+///
 /// There is 3 status of this struct:
 /// - __Disk__: mmap to a real file
 /// - __Memory__: use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine

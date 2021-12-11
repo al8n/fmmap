@@ -3,6 +3,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![allow(
+    rustdoc::broken_intra_doc_links,
     unused_macros,
     clippy::len_without_is_empty,
     clippy::upper_case_acronyms
@@ -103,6 +104,7 @@ cfg_sync!(
     pub use reader::MmapFileReader;
     pub use writer::MmapFileWriter;
     pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
+    pub use options::Options;
 );
 
 cfg_tokio!(
@@ -111,6 +113,7 @@ cfg_tokio!(
     pub use reader::tokio_impl::AsyncMmapFileReader;
     pub use writer::tokio_impl::AsyncMmapFileWriter;
     pub use mmap_file::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
+    pub use options::AsyncOptions;
 );
 
 pub use metadata::{MetaData, MetaDataExt};
