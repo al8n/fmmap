@@ -1,10 +1,14 @@
 use std::borrow::Cow;
 use std::mem;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::metadata::MetaData;
 use crate::{MmapFileReader, MmapFileWriter};
+use crate::disk::{DiskMmapFile, DiskMmapFileMut};
+use crate::empty::EmptyMmapFile;
+use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
+use crate::options::Options;
 
 
 #[enum_dispatch]
@@ -61,7 +65,52 @@ pub trait MmapFileExt {
         self.path_lossy().to_string()
     }
 
-    fn stat(&self) -> Result<MetaData>;
+    /// Returns the metadata of file metadata
+    ///
+    /// Metadata information about a file.
+    /// This structure is returned from the metadata or
+    /// symlink_metadata function or method and represents
+    /// known metadata about a file such as its permissions, size, modification times, etc
+    fn metadata(&self) -> Result<MetaData>;
+
+    /// Copy the content of the mmap file to Vec
+    #[inline]
+    fn copy_all_to_vec(&self) -> Vec<u8> {
+        self.as_slice().to_vec()
+    }
+
+    /// Copy a range of content of the mmap file to Vec
+    #[inline]
+    fn copy_range_to_vec(&self, offset: usize, len: usize) -> Vec<u8> {
+        self.slice(offset, len).to_vec()
+    }
+
+    /// Write the content of the mmap file to a new file.
+    #[inline]
+    fn write_all_to_new_file<P: AsRef<Path>>(&self, new_file_path: P) -> Result<()> {
+        let buf = self.as_slice();
+        let mut opts = Options::new();
+        opts.max_size(buf.len() as u64 + 1);
+
+        let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
+        mmap.writer(0)?.write_all(buf)?;
+        mmap.flush()
+    }
+
+    /// Write a range of content of the mmap file to new file.
+    #[inline]
+    fn write_range_to_new_file<P: AsRef<Path>>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
+        let buf = self.as_slice();
+        if buf.len() <= offset + len {
+            return Err(Error::EOF)
+        }
+        let mut opts = Options::new();
+        opts.max_size(len as u64 + 1);
+
+        let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
+        mmap.writer(0)?.write_all(&buf[offset..offset + len])?;
+        mmap.flush()
+    }
 
     /// Returns a [`MmapFileReader`] which helps read data from mmap like a normal File.
     ///
@@ -86,7 +135,7 @@ pub trait MmapFileExt {
     ///  `Err(Error::EOF)`.
     ///
     /// [`MmapFileReader`]: structs.MmapFileReader.html
-    fn reader_range(&self, offset: usize, len: usize) -> Result<MmapFileReader> {
+    fn range_reader(&self, offset: usize, len: usize) -> Result<MmapFileReader> {
         let buf = self.as_slice();
         if buf.len() <= offset + len {
             Err(Error::EOF)
@@ -159,6 +208,16 @@ pub trait MmapFileExt {
         read_impl!(self, offset, i16::from_le_bytes)
     }
 
+    /// Read a signed integer from offset in big-endian byte order.
+    fn read_isize(&self, offset: usize) -> Result<isize> {
+        read_impl!(self, offset, isize::from_be_bytes)
+    }
+
+    /// Read a signed integer from offset in little-endian byte order.
+    fn read_isize_le(&self, offset: usize) -> Result<isize> {
+        read_impl!(self, offset, isize::from_le_bytes)
+    }
+    
     /// Read a signed 32 bit integer from offset in big-endian byte order.
     fn read_i32(&self, offset: usize) -> Result<i32> {
         read_impl!(self, offset, i32::from_be_bytes)
@@ -216,6 +275,16 @@ pub trait MmapFileExt {
         read_impl!(self, offset, u16::from_le_bytes)
     }
 
+    /// Read an unsigned integer from offset in big-endian byte order.
+    fn read_usize(&self, offset: usize) -> Result<usize> {
+        read_impl!(self, offset, usize::from_be_bytes)
+    }
+
+    /// Read an unsigned integer from offset in little-endian byte order.
+    fn read_usize_le(&self, offset: usize) -> Result<usize> {
+        read_impl!(self, offset, usize::from_le_bytes)
+    }
+    
     /// Read an unsigned 32 bit integer from offset in big-endian.
     fn read_u32(&self, offset: usize) -> Result<u32> {
         read_impl!(self, offset, u32::from_be_bytes)
@@ -347,7 +416,7 @@ pub trait MmapFileMutExt {
     /// do re-mmap and sync_dir if the inner is a real file.
     fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
-    fn delete(self) -> Result<()>;
+    fn remove(self) -> Result<()>;
 
     fn close_with_truncate(self, max_sz: i64) -> Result<()>;
 
@@ -393,7 +462,7 @@ pub trait MmapFileMutExt {
     /// [`flush_async`]: traits.MmapFileMutExt.html#methods.flush_async
     /// [`flush_async_range`]: traits.MmapFileMutExt.html#methods.flush_async_range
     /// [`MmapFileWriter`]: structs.MmapFileWriter.html
-    fn writer_range(&mut self, offset: usize, len: usize) -> Result<MmapFileWriter> {
+    fn range_writer(&mut self, offset: usize, len: usize) -> Result<MmapFileWriter> {
         let buf = self.as_mut_slice();
         if buf.len() <= offset + len {
             Err(Error::EOF)
@@ -454,6 +523,16 @@ pub trait MmapFileMutExt {
         self.write_all(&val.to_le_bytes(), offset)
     }
 
+    /// Writes a signed integer to mmap from the offset in the big-endian byte order.
+    fn write_isize(&mut self, val: isize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_be_bytes(), offset)
+    }
+
+    /// Writes a signed integer to mmap from the offset in the little-endian byte order.
+    fn write_isize_le(&mut self, val: isize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_le_bytes(), offset)
+    }
+
     /// Writes a signed 32 bit integer to mmap from the offset in the big-endian byte order.
     fn write_i32(&mut self, val: i32, offset: usize) -> Result<()> {
         self.write_all(&val.to_be_bytes(), offset)
@@ -499,6 +578,16 @@ pub trait MmapFileMutExt {
         self.write_all(&val.to_le_bytes(), offset)
     }
 
+    /// Writes an unsigned integer to mmap from the offset in the big-endian byte order.
+    fn write_usize(&mut self, val: usize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_be_bytes(), offset)
+    }
+
+    /// Writes an unsigned integer to mmap from the offset in the little-endian byte order.
+    fn write_usize_le(&mut self, val: usize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_le_bytes(), offset)
+    }
+    
     /// Writes an unsigned 32 bit integer to mmap from the offset in the big-endian byte order.
     fn write_u32(&mut self, val: u32, offset: usize) -> Result<()> {
         self.write_all(&val.to_be_bytes(), offset)
@@ -550,4 +639,107 @@ pub trait MmapFileMutExt {
     }
 }
 
+#[enum_dispatch(MmapFileExt)]
+enum MmapFileInner {
+    Empty(EmptyMmapFile),
+    Memory(MemoryMmapFile),
+    Disk(DiskMmapFile)
+}
+
+#[repr(transparent)]
+pub struct MmapFile {
+    inner: MmapFileInner,
+}
+
+impl_mmap_file_ext!(MmapFile);
+
+impl_from!(MmapFile, MmapFileInner, [EmptyMmapFile, MemoryMmapFile, DiskMmapFile]);
+
+#[enum_dispatch(MmapFileExt, MmapFileMutExt)]
+enum MmapFileMutInner {
+    Empty(EmptyMmapFile),
+    Memory(MemoryMmapFileMut),
+    Disk(DiskMmapFileMut)
+}
+
+pub struct MmapFileMut {
+    inner: MmapFileMutInner,
+    remove_on_drop: bool,
+    deleted: bool,
+}
+
+impl_from_mut!(MmapFileMut, MmapFileMutInner, [EmptyMmapFile, MemoryMmapFileMut, DiskMmapFileMut]);
+
+impl_mmap_file_ext!(MmapFileMut);
+
+impl MmapFileMutExt for MmapFileMut {
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.inner.as_mut_slice()
+    }
+
+    impl_flush!();
+
+    fn truncate(&mut self, max_sz: u64) -> Result<()> {
+        self.inner.truncate(max_sz)
+    }
+
+    fn remove(mut self) -> Result<()> {
+        let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        if self.remove_on_drop {
+            // do remove
+            inner.remove()?;
+            self.deleted = true;
+        }
+        Ok(())
+    }
+
+    fn close_with_truncate(mut self, max_sz: i64) -> Result<()> {
+        let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        inner.close_with_truncate(max_sz)
+    }
+}
+
+impl MmapFileMut {
+    /// Make the mmap file read-only.
+    ///
+    /// # Notes
+    /// If `remove_on_drop` is set to `true`, then the underlying file will not be removed on drop if this function is invoked. [Read more]
+    ///
+    /// [Read more]: structs.MmapFileMut.html#methods.set_remove_on_drop
+    pub fn freeze(mut self) -> Result<MmapFile> {
+        let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        match inner {
+            MmapFileMutInner::Empty(empty) => Ok(MmapFile::from(empty)),
+            MmapFileMutInner::Memory(memory) => Ok(MmapFile::from(memory.freeze())),
+            MmapFileMutInner::Disk(disk) => Ok(MmapFile::from(disk.freeze()?)),
+        }
+    }
+
+    /// Returns whether remove the underlying file on drop.
+    #[inline]
+    pub fn get_remove_on_drop(&self) -> bool {
+        self.remove_on_drop
+    }
+
+    /// Whether remove the underlying file on drop.
+    /// Default is false.
+    ///
+    /// # Notes
+    /// If invoke [`MmapFileMut::freeze`], then the file will
+    /// not be removed even though the field `remove_on_drop` is true.
+    ///
+    /// [`MmapFileMut::freeze`]: structs.MmapFileMut.html#methods.freeze
+    #[inline]
+    pub fn set_remove_on_drop(&mut self, val: bool) {
+        self.remove_on_drop = val;
+    }
+}
+
+impl_drop!(MmapFileMut, MmapFileMutInner, EmptyMmapFile);
 

@@ -8,10 +8,10 @@ cfg_unix!(
     pub use unix::MetaDataExt;
 );
 
+use crate::error::Error;
 use std::fs::Metadata;
 use std::ops::{Deref, DerefMut};
 use std::time::SystemTime;
-use crate::error::Error;
 
 #[derive(Default, Copy, Clone)]
 pub struct EmptyMetaData;
@@ -24,10 +24,7 @@ pub struct MemoryMetaData {
 
 impl MemoryMetaData {
     pub(crate) fn new(size: u64, create_at: SystemTime) -> Self {
-        Self {
-            size,
-            create_at
-        }
+        Self { size, create_at }
     }
 }
 
@@ -57,6 +54,10 @@ impl DerefMut for DiskMetaData {
     }
 }
 
+/// Metadata information about a file.
+/// This structure is returned from the metadata or
+/// symlink_metadata function or method and represents
+/// known metadata about a file such as its permissions, size, modification times, etc
 #[enum_dispatch(MetaDataExt)]
 pub enum MetaData {
     Empty(EmptyMetaData),
@@ -77,5 +78,3 @@ impl MetaData {
         Self::Disk(DiskMetaData::new(meta))
     }
 }
-
-

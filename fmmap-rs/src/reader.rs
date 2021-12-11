@@ -1,4 +1,3 @@
-
 cfg_sync!(
     mod sync_impl;
     pub use sync_impl::MmapFileReader;

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::ptr::{drop_in_place, write};
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
+use crate::disk::{MmapFileMutType, remmap};
 use crate::error::Error;
 use crate::options::Options;
 use crate::utils::{create_file, open_exist_file_with_append, open_read_only_file, sync_dir};
@@ -103,7 +104,8 @@ pub struct DiskMmapFileMut {
     pub(crate) mmap: MmapMut,
     pub(crate) file: File,
     pub(crate) path: PathBuf,
-    pub(crate) remove_on_drop: bool,
+    opts: Option<MmapOptions>,
+    typ: MmapFileMutType,
 }
 
 impl_mmap_file_ext!(DiskMmapFileMut);
@@ -113,21 +115,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
         self.mmap.as_mut()
     }
 
-    fn flush(&self) -> crate::error::Result<()> {
-        self.mmap.flush().map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
-    }
-
-    fn flush_async(&self) -> crate::error::Result<()> {
-        self.mmap.flush_async().map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
-    }
-
-    fn flush_range(&self, offset: usize, len: usize) -> crate::error::Result<()> {
-        self.mmap.flush_range(offset, len).map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
-    }
-
-    fn flush_async_range(&self, offset: usize, len: usize) -> crate::error::Result<()> {
-        self.mmap.flush_async_range(offset, len).map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
-    }
+    impl_flush!();
 
     #[cfg(not(target_os = "linux"))]
     fn truncate(&mut self, max_sz: u64) -> crate::error::Result<()> {
@@ -142,7 +130,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
             self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
 
             // remap
-            let mmap = MmapMut::map_mut(&self.file).map_err(|e| Error::RemmapFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+            let mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
 
             write(&mut self.mmap, mmap);
         }
@@ -159,12 +147,12 @@ impl MmapFileMutExt for DiskMmapFileMut {
         self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
 
         // remap
-        self.mmap = unsafe { MmapMut::map_mut(&self.file).map_err(|e| Error::RemmapFailed(format!("path: {:?}, err: {}", self.path(), e)))? };
+        self.mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
 
         Ok(())
     }
 
-    fn delete(self) -> crate::error::Result<()> {
+    fn remove(self) -> crate::error::Result<()> {
         let path = self.path;
         drop(self.mmap);
         self.file.set_len(0).map_err(Error::IO)?;
@@ -225,14 +213,14 @@ impl DiskMmapFileMut {
     ///
     /// [`Options`]: structs.Options.html
     pub fn open_exist_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
-        Self::open_in(path, Some(opts))
+        Self::open_exist_in(path, Some(opts))
     }
 
     /// Open and mmap an existing file in copy-on-write mode.
     ///
     /// [`Options`]: structs.Options.html
     pub fn open_cow<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        Self::open_in(path, None)
+        Self::open_cow_in(path, None)
     }
 
     /// Open and mmap an existing file in copy-on-write mode with [`Options`].
@@ -240,7 +228,7 @@ impl DiskMmapFileMut {
     ///
     /// [`Options`]: structs.Options.html
     pub fn open_cow_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
-        Self::open_in(path, Some(opts))
+        Self::open_cow_in(path, Some(opts))
     }
 
     /// Returns an immutable version of this memory mapped buffer.
@@ -285,7 +273,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: false,
+                    opts: None,
+                    typ: MmapFileMutType::Normal,
                 })
             }
             Some(opts) => {
@@ -295,13 +284,15 @@ impl DiskMmapFileMut {
                     sync_dir(parent)?;
                 }
 
+                let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
 
                 Ok(Self {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: opts.remove_on_drop,
+                    opts: Some(opts_bk),
+                    typ: MmapFileMutType::Normal,
                 })
             }
         }
@@ -317,11 +308,13 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: false,
+                    opts: None,
+                    typ: MmapFileMutType::Normal,
                 })
             }
             Some(opts) => {
                 let file = opts.file_opts.open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
                     opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
                 };
@@ -329,7 +322,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: opts.remove_on_drop
+                    opts: Some(opts_bk),
+                    typ: MmapFileMutType::Normal,
                 })
             }
         }
@@ -346,7 +340,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: false,
+                    opts: None,
+                    typ: MmapFileMutType::Normal,
                 })
             }
             Some(opts) => {
@@ -357,7 +352,7 @@ impl DiskMmapFileMut {
                     let parent = path.as_ref().parent().unwrap();
                     sync_dir(parent)?;
                 }
-
+                let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
                     opts.mmap_opts.map_mut(&file)? };
 
@@ -365,7 +360,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: opts.remove_on_drop,
+                    opts: Some(opts_bk),
+                    typ: MmapFileMutType::Normal,
                 })
             }
         }
@@ -382,7 +378,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: false,
+                    opts: None,
+                    typ: MmapFileMutType::COW,
                 })
             }
             Some(opts) => {
@@ -393,7 +390,7 @@ impl DiskMmapFileMut {
                     let parent = path.as_ref().parent().unwrap();
                     sync_dir(parent)?;
                 }
-
+                let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
                     opts.mmap_opts.map_copy(&file)? };
 
@@ -401,7 +398,8 @@ impl DiskMmapFileMut {
                     mmap,
                     file,
                     path: path.as_ref().to_path_buf(),
-                    remove_on_drop: opts.remove_on_drop,
+                    opts: Some(opts_bk),
+                    typ: MmapFileMutType::COW,
                 })
             }
         }

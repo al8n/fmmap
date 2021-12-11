@@ -3,7 +3,7 @@ use std::io::{Cursor, SeekFrom};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use pin_project::pin_project;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, ReadBuf};
+use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 
 /// AsyncMmapFileReader helps read data from mmap file
 /// like a normal file.
@@ -49,7 +49,7 @@ impl Debug for AsyncMmapFileReader<'_> {
 
 impl<'a> AsyncRead for AsyncMmapFileReader<'a> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
-        self.r.poll_read(cx, buf)
+        self.project().r.poll_read(cx, buf)
     }
 }
 

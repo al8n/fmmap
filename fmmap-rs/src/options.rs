@@ -5,7 +5,6 @@ macro_rules! declare_and_impl_options {
             pub(crate) mmap_opts: MmapOptions,
             pub(crate) file_opts: $file_open_options,
             pub(crate) max_size: u64,
-            pub(crate) remove_on_drop: bool,
         }
 
         impl Default for $name {
@@ -21,7 +20,6 @@ macro_rules! declare_and_impl_options {
                     mmap_opts: MmapOptions::new(),
                     file_opts: <$file_open_options>::new(),
                     max_size: 0,
-                    remove_on_drop: false,
                 }
             }
 
@@ -29,7 +27,7 @@ macro_rules! declare_and_impl_options {
             /// This option has no effect on anonymous memory maps.
             /// By default, the offset is 0.
             pub fn offset(&mut self, offset: u64) -> &mut Self {
-                &self.mmap_opts = self.mmap_opts.offset(offset);
+                self.mmap_opts.offset(offset);
                 self
             }
 
@@ -37,7 +35,7 @@ macro_rules! declare_and_impl_options {
             /// This option is mandatory for anonymous memory maps.
             /// For file-backed memory maps, the length will default to the file length.
             pub fn len(&mut self, len: usize) -> &mut Self {
-                &self.mmap_opts = self.mmap_opts.len(len);
+                self.mmap_opts.len(len);
                 self
             }
 
@@ -45,7 +43,7 @@ macro_rules! declare_and_impl_options {
             /// For a file mapping, this causes read-ahead on the file. This will help to reduce blocking on page faults later.
             /// This option corresponds to the MAP_POPULATE flag on Linux. It has no effect on Windows
             pub fn populate(&mut self) -> &mut Self {
-                &self.mmap_opts = self.mmap_opts.populate();
+                self.mmap_opts.populate();
                 self
             }
 
@@ -53,7 +51,7 @@ macro_rules! declare_and_impl_options {
             /// This option corresponds to the MAP_STACK flag on Linux. It has no effect on Windows.
             /// This option has no effect on file-backed memory maps
             pub fn stack(&mut self) -> &mut Self {
-                &self.mmap_opts = self.mmap_opts.stack();
+                self.mmap_opts.stack();
                 self
             }
 
@@ -64,40 +62,33 @@ macro_rules! declare_and_impl_options {
                 self
             }
 
-            /// Configures whether remove the file when .
-            /// This option only has effect when mmaping a real file in write mode.
-            pub fn remove_on_drop(&mut self, val: bool) -> &mut Self {
-                self.remove_on_drop = val;
-                self
-            }
-
             pub fn read(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.read(val);
+                self.file_opts.read(val);
                 self
             }
 
             pub fn write(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.write(val);
+                self.file_opts.write(val);
                 self
             }
 
             pub fn create(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.create(val);
+                self.file_opts.create(val);
                 self
             }
 
             pub fn create_new(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.create_new(val);
+                self.file_opts.create_new(val);
                 self
             }
 
             pub fn append(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.append(val);
+                self.file_opts.append(val);
                 self
             }
 
             pub fn truncate(&mut self, val: bool) -> &mut Self {
-                &self.file_opts = self.file_opts.truncate(val);
+                self.file_opts.truncate(val);
                 self
             }
 
@@ -106,7 +97,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.mode
             #[cfg(unix)]
             pub fn mode(&mut self, mode: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.mode(mode);
+                self.file_opts.mode(mode);
                 self
             }
 
@@ -115,7 +106,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.mode
             #[cfg(unix)]
             pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
-                &self.file_opts = self.file_opts.custom_flags(flags);
+                self.file_opts.custom_flags(flags);
                 self
             }
 
@@ -125,7 +116,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn access_mode(&mut self, access: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.access_mode(access);
+                self.file_opts.access_mode(access);
                 self
             }
 
@@ -135,7 +126,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn share_mode(&mut self, val: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.share_mode(val);
+                self.file_opts.share_mode(val);
                 self
             }
 
@@ -148,7 +139,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn custom_flags(&mut self, flag: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.custom_flags(flag);
+                self.file_opts.custom_flags(flag);
                 self
             }
 
@@ -158,7 +149,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn attributes(&mut self, val: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.attributes(val);
+                self.file_opts.attributes(val);
                 self
             }
 
@@ -171,7 +162,7 @@ macro_rules! declare_and_impl_options {
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn security_qos_flags(&mut self, flags: u32) -> &mut Self {
-                &self.file_opts = self.file_opts.security_qos_flags(flags);
+                self.file_opts.security_qos_flags(flags);
                 self
             }
         }

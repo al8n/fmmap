@@ -2,8 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::{Error, SeekFrom, Cursor};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use bytes::BytesMut;
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
 use pin_project::pin_project;
 
 /// AsyncMmapFileWriter helps read or write data from mmap file
@@ -102,7 +101,7 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Error>> {
-        self.project().w.poll_shutdown()
+        self.project().w.poll_shutdown(cx)
 
     }
 }

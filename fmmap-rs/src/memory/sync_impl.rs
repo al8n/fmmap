@@ -25,32 +25,28 @@ impl MmapFileMutExt for MemoryMmapFileMut {
         self.mmap.as_mut()
     }
 
-    fn flush(&self) -> crate::error::Result<()> {
-        Ok(())
-    }
-
-    fn flush_async(&self) -> crate::error::Result<()> {
-        Ok(())
-    }
-
-    fn flush_range(&self, _offset: usize, _len: usize) -> crate::error::Result<()> {
-        Ok(())
-    }
-
-    fn flush_async_range(&self, _offset: usize, _len: usize) -> crate::error::Result<()> {
-        Ok(())
-    }
+    noop_flush!();
 
     fn truncate(&mut self, max_sz: u64) -> crate::error::Result<()> {
         self.mmap.resize(max_sz as usize, 0);
         Ok(())
     }
 
-    fn delete(self) -> crate::error::Result<()> {
+    fn remove(self) -> crate::error::Result<()> {
         Ok(())
     }
 
     fn close_with_truncate(self, _max_sz: i64) -> crate::error::Result<()> {
         Ok(())
+    }
+}
+
+impl MemoryMmapFileMut {
+    pub fn freeze(self) -> MemoryMmapFile {
+        MemoryMmapFile {
+            mmap: self.mmap.freeze(),
+            path: self.path,
+            create_at: self.create_at,
+        }
     }
 }

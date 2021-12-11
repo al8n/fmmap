@@ -57,28 +57,67 @@ macro_rules! cfg_unix {
     }
 }
 
-mod mmap_file;
-pub mod error;
-mod metadata;
-mod memory;
+macro_rules! noop_flush {
+    () => {
+        #[inline(always)]
+        fn flush(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline(always)]
+        fn flush_async(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline(always)]
+        fn flush_range(&self, _offset: usize, _len: usize) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline(always)]
+        fn flush_async_range(&self, _offset: usize, _len: usize) -> crate::error::Result<()> {
+            Ok(())
+        }
+    };
+}
+
 mod disk;
 mod empty;
-mod writer;
-mod reader;
+pub mod error;
+mod memory;
+mod metadata;
+mod mmap_file;
 mod options;
-mod utils;
+mod reader;
+pub mod utils;
+mod writer;
 
 cfg_sync!(
     pub use reader::MmapFileReader;
     pub use writer::MmapFileWriter;
-    pub use mmap_file::{MmapFileExt, MmapFileMutExt};
+    pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
 );
 
 cfg_tokio!(
+    #[macro_use]
+    extern crate async_trait;
     pub use reader::tokio_impl::AsyncMmapFileReader;
     pub use writer::tokio_impl::AsyncMmapFileWriter;
-    pub use mmap_file::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    pub use mmap_file::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
 );
 
 pub use metadata::{MetaData, MetaDataExt};
 
+pub mod raw {
+    cfg_sync!(
+        pub use crate::disk::{DiskMmapFile, DiskMmapFileMut};
+        pub use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
+        pub use crate::empty::EmptyMmapFile;
+    );
+
+    cfg_tokio!(
+        pub use crate::disk::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+        pub use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+        pub use crate::empty::AsyncEmptyMmapFile;
+    );
+}

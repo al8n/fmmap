@@ -3,9 +3,14 @@ use std::mem;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use async_trait::async_trait;
+use tokio::io::AsyncWriteExt;
 use crate::{AsyncMmapFileReader, AsyncMmapFileWriter};
+use crate::disk::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+use crate::empty::AsyncEmptyMmapFile;
 use crate::error::{Error, Result};
+use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
+use crate::options::AsyncOptions;
 
 
 #[async_trait]
@@ -63,7 +68,46 @@ pub trait AsyncMmapFileExt {
         self.path_lossy().to_string()
     }
 
-    async fn stat(&self) -> Result<MetaData>;
+    async fn metadata(&self) -> Result<MetaData>;
+
+    /// Copy the content of the mmap file to Vec
+    #[inline]
+    fn copy_all_to_vec(&self) -> Vec<u8> {
+        self.as_slice().to_vec()
+    }
+
+    /// Copy a range of content of the mmap file to Vec
+    #[inline]
+    fn copy_range_to_vec(&self, offset: usize, len: usize) -> Vec<u8> {
+        self.slice(offset, len).to_vec()
+    }
+
+    /// Write the content of the mmap file to a new file.
+    #[inline]
+    async fn write_all_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P) -> Result<()> {
+        let buf = self.as_slice();
+        let mut opts = AsyncOptions::new();
+        opts.max_size(buf.len() as u64 + 1);
+
+        let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
+        mmap.writer(0)?.write_all(buf).await?;
+        mmap.flush()
+    }
+
+    /// Write a range of content of the mmap file to new file.
+    #[inline]
+    async fn write_range_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
+        let buf = self.as_slice();
+        if buf.len() <= offset + len {
+            return Err(Error::EOF);
+        }
+        let mut opts = AsyncOptions::new();
+        opts.max_size(len as u64 + 1);
+
+        let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
+        mmap.writer(0)?.write_all(&buf[offset..offset + len]).await?;
+        mmap.flush()
+    }
 
     /// Returns a [`MmapFileReader`] which helps read data from mmap like a normal File.
     ///
@@ -88,7 +132,7 @@ pub trait AsyncMmapFileExt {
     ///  `Err(Error::EOF)`.
     ///
     /// [`MmapFileReader`]: structs.MmapFileReader.html
-    fn reader_range(&self, offset: usize, len: usize) -> Result<AsyncMmapFileReader> {
+    fn range_reader(&self, offset: usize, len: usize) -> Result<AsyncMmapFileReader> {
         let buf = self.as_slice();
         if buf.len() <= offset + len {
             Err(Error::EOF)
@@ -350,7 +394,7 @@ pub trait AsyncMmapFileMutExt {
     /// do re-mmap and sync_dir if the inner is a real file.
     async fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
-    async fn delete(self) -> Result<()>;
+    async fn remove(self) -> Result<()>;
 
     async fn close_with_truncate(self, max_sz: i64) -> Result<()>;
 
@@ -396,7 +440,7 @@ pub trait AsyncMmapFileMutExt {
     /// [`flush_async`]: traits.AsyncMmapFileMutExt.html#methods.flush_async
     /// [`flush_async_range`]: traits.AsyncMmapFileMutExt.html#methods.flush_async_range
     /// [`AsyncMmapFileWriter`]: structs.AsyncMmapFileWriter.html
-    fn writer_range(&mut self, offset: usize, len: usize) -> Result<AsyncMmapFileWriter> {
+    fn range_writer(&mut self, offset: usize, len: usize) -> Result<AsyncMmapFileWriter> {
         let buf = self.as_mut_slice();
         if buf.len() <= offset + len {
             Err(Error::EOF)
@@ -416,10 +460,10 @@ pub trait AsyncMmapFileMutExt {
             let src_len = src.len();
             if remaining > src_len {
                 buf[offset..offset + src_len].copy_from_slice(src);
-                Ok(src_len)
+                src_len
             } else {
                 buf[offset..offset + remaining].copy_from_slice(&src[..remaining]);
-                Ok(remaining)
+                remaining
             }
         }
     }
@@ -552,3 +596,109 @@ pub trait AsyncMmapFileMutExt {
         self.write_all(&val.to_le_bytes(), offset)
     }
 }
+
+#[enum_dispatch(AsyncMmapFileExt)]
+enum AsyncMmapFileInner {
+    Empty(AsyncEmptyMmapFile),
+    Memory(AsyncMemoryMmapFile),
+    Disk(AsyncDiskMmapFile)
+}
+
+
+#[repr(transparent)]
+pub struct AsyncMmapFile {
+    inner: AsyncMmapFileInner
+}
+
+impl_async_mmap_file_ext!(AsyncMmapFile);
+
+impl_from!(AsyncMmapFile, AsyncMmapFileInner, [AsyncEmptyMmapFile, AsyncMemoryMmapFile, AsyncDiskMmapFile]);
+
+#[enum_dispatch(AsyncMmapFileExt, AsyncMmapFileMutExt)]
+enum AsyncMmapFileMutInner {
+    Empty(AsyncEmptyMmapFile),
+    Memory(AsyncMemoryMmapFileMut),
+    Disk(AsyncDiskMmapFileMut)
+}
+
+pub struct AsyncMmapFileMut {
+    inner: AsyncMmapFileMutInner,
+    remove_on_drop: bool,
+    deleted: bool,
+}
+
+impl_from_mut!(AsyncMmapFileMut, AsyncMmapFileMutInner, [AsyncEmptyMmapFile, AsyncMemoryMmapFileMut, AsyncDiskMmapFileMut]);
+
+impl_async_mmap_file_ext!(AsyncMmapFileMut);
+
+#[async_trait]
+impl AsyncMmapFileMutExt for AsyncMmapFileMut {
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.inner.as_mut_slice()
+    }
+
+    impl_flush!();
+
+    async fn truncate(&mut self, max_sz: u64) -> Result<()> {
+        self.inner.truncate(max_sz).await
+    }
+
+    async fn remove(mut self) -> Result<()> {
+        let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        if self.remove_on_drop {
+            // do remove
+            inner.remove().await?;
+            self.deleted = true;
+        }
+        Ok(())
+    }
+
+    async fn close_with_truncate(mut self, max_sz: i64) -> Result<()> {
+        let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        inner.close_with_truncate(max_sz).await
+    }
+}
+
+impl AsyncMmapFileMut {
+    /// Make the mmap file read-only.
+    ///
+    /// # Notes
+    /// If `remove_on_drop` is set to `true`, then the underlying file will not be removed on drop if this function is invoked. [Read more]
+    ///
+    /// [Read more]: structs.AsyncMmapFileMut.html#methods.set_remove_on_drop
+    pub fn freeze(mut self) -> Result<AsyncMmapFile> {
+        let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        match inner {
+            AsyncMmapFileMutInner::Empty(empty) => Ok(AsyncMmapFile::from(empty)),
+            AsyncMmapFileMutInner::Memory(memory) => Ok(AsyncMmapFile::from(memory.freeze())),
+            AsyncMmapFileMutInner::Disk(disk) => Ok(AsyncMmapFile::from(disk.freeze()?)),
+        }
+    }
+
+    /// Returns whether remove the underlying file on drop.
+    #[inline]
+    pub fn get_remove_on_drop(&self) -> bool {
+        self.remove_on_drop
+    }
+
+    /// Whether remove the underlying file on drop.
+    /// Default is false.
+    ///
+    /// # Notes
+    /// If invoke [`AsyncMmapFileMut::freeze`], then the file will
+    /// not be removed even though the field `remove_on_drop` is true.
+    ///
+    /// [`AsyncMmapFileMut::freeze`]: structs.AsyncMmapFileMut.html#methods.freeze
+    #[inline]
+    pub fn set_remove_on_drop(&mut self, val: bool) {
+        self.remove_on_drop = val;
+    }
+}
+
+impl_drop!(AsyncMmapFileMut, AsyncMmapFileMutInner, AsyncEmptyMmapFile);

@@ -6,7 +6,7 @@ description = "a placeholder"
 license = "MIT OR Apache-2.0"
 
 [features]
-default = ["sync"]
+default = ["sync", "tokio-async"]
 nightly = []
 sync = []
 tokio-async = ["async-trait", "pin-project", "tokio/io-std", "tokio/io-util", "tokio/fs"]
@@ -26,3 +26,7 @@ pin-project = { version = "1", optional = true }
 smol = { version = "0.4", optional = true }
 thiserror = "1"
 tokio = { version = "1.14", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

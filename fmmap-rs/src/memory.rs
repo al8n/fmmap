@@ -14,13 +14,17 @@ cfg_sync!(
                     self.path.as_path()
                 }
 
-                fn stat(&self) -> crate::error::Result<MetaData> {
-                    Ok(MetaData::memory(MemoryMetaData::new(self.mmap.len() as u64, self.create_at)))
+                fn metadata(&self) -> crate::error::Result<MetaData> {
+                    Ok(MetaData::memory(MemoryMetaData::new(
+                        self.mmap.len() as u64,
+                        self.create_at,
+                    )))
                 }
             }
         };
     }
-    pub(crate) mod sync_impl;
+    mod sync_impl;
+    pub use sync_impl::{MemoryMmapFile, MemoryMmapFileMut};
 );
 
 cfg_tokio!(
@@ -40,14 +44,16 @@ cfg_tokio!(
                     self.path.as_path()
                 }
 
-                async fn stat(&self) -> crate::error::Result<MetaData> {
-                    Ok(MetaData::memory(MemoryMetaData::new(self.mmap.len() as u64, self.create_at)))
+                async fn metadata(&self) -> crate::error::Result<MetaData> {
+                    Ok(MetaData::memory(MemoryMetaData::new(
+                        self.mmap.len() as u64,
+                        self.create_at,
+                    )))
                 }
             }
         };
     }
 
-    pub(crate) mod tokio_impl;
+    mod tokio_impl;
+    pub use tokio_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 );
-
-

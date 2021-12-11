@@ -30,4 +30,13 @@ pub enum Error {
 
     #[error("remmap failed: {0}")]
     RemmapFailed(String),
+
+    #[error("range start must not be greater than end: {0} <= {1}")]
+    InvalidBound(usize, usize),
+
+    #[error("range end out of bounds: {0} <= {1}")]
+    OutOfBound(usize, usize),
+
+    #[error("call on an empty mmap file")]
+    InvokeEmptyMmap,
 }

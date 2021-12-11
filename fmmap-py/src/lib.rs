@@ -1,8 +1,7 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
+use fmmap::raw::DiskMmapFileMut;
+use fmmap::MmapFileMut;
+
+#[test]
+fn test() {
+    let m: MmapFileMut = DiskMmapFileMut::create("asd/vva.txt").unwrap().into();
 }
