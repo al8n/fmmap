@@ -2,16 +2,24 @@ name: CI
 
 on:
   push:
+    # Ignore bors branches, since they are covered by `clippy_bors.yml`
     branches:
       - main
-    paths:
-      - 'fmmap-rs'
-      - '.github/workflows'
-
+    # Don't run Clippy tests, when only textfiles were modified
+    paths-ignore:
+    - 'README'
+    - 'COPYRIGHT'
+    - 'LICENSE-*'
+    - '**.md'
+    - '**.txt'
   pull_request:
-    paths:
-      - 'fmmap-rs'
-      - '.github/workflows'
+    # Don't run Clippy tests, when only textfiles were modified
+    paths-ignore:
+    - 'README'
+    - 'COPYRIGHT'
+    - 'LICENSE-*'
+    - '**.md'
+    - '**.txt'
 
 env:
   CARGO_TERM_COLOR: always
