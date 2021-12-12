@@ -45,7 +45,7 @@ pub trait AsyncMmapFileExt {
     /// `Err(Error::EOF)`.
     fn bytes(&self, offset: usize, sz: usize) -> Result<&[u8]> {
         let buf = self.as_slice();
-        if buf.len() <= offset + sz {
+        if buf.len() < offset + sz {
             Err(Error::EOF)
         } else {
             Ok(&buf[offset..offset+sz])
@@ -109,7 +109,7 @@ pub trait AsyncMmapFileExt {
     #[inline]
     async fn write_range_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
         let buf = self.as_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             return Err(Error::EOF);
         }
         let mut opts = AsyncOptions::new();
@@ -129,7 +129,7 @@ pub trait AsyncMmapFileExt {
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn reader(&self, offset: usize) -> Result<AsyncMmapFileReader> {
         let buf = self.as_slice();
-        if buf.len() <= offset {
+        if buf.len() < offset {
             Err(Error::EOF)
         } else {
             Ok(AsyncMmapFileReader::new(Cursor::new(&buf[offset..]), offset, buf.len() - offset))
@@ -145,7 +145,7 @@ pub trait AsyncMmapFileExt {
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn range_reader(&self, offset: usize, len: usize) -> Result<AsyncMmapFileReader> {
         let buf = self.as_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             Err(Error::EOF)
         } else {
             Ok(AsyncMmapFileReader::new(Cursor::new(&buf[offset.. offset + len]), offset, len))
@@ -156,7 +156,7 @@ pub trait AsyncMmapFileExt {
     fn read(&self, dst: &mut [u8], offset: usize) -> usize {
         let buf = self.as_slice();
 
-        if buf.len() <= offset {
+        if buf.len() < offset {
             0
         } else {
             let remaining = buf.len() - offset;

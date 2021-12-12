@@ -7,7 +7,7 @@ macro_rules! read_impl {
         let mut buf = [0; SIZE];
         $this
             .read_exact(&mut buf, $offset)
-            .map(|src| unsafe { $typ::$conv(*(&src as *const _ as *const [_; SIZE])) })
+            .map(|_| unsafe { $typ::$conv(*(&buf as *const _ as *const [_; SIZE])) })
     }};
 }
 

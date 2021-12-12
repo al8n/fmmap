@@ -8,6 +8,7 @@ on:
     # Don't run Clippy tests, when only textfiles were modified
     paths:
       - 'fmmap-rs'
+      - '.github/workflows'
 
   pull_request:
     # Don't run Clippy tests, when only textfiles were modified

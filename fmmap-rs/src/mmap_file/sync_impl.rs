@@ -42,7 +42,7 @@ pub trait MmapFileExt {
     /// `Err(Error::EOF)`.
     fn bytes(&self, offset: usize, sz: usize) -> Result<&[u8]> {
         let buf = self.as_slice();
-        if buf.len() <= offset + sz {
+        if buf.len() < offset + sz {
             Err(Error::EOF)
         } else {
             Ok(&buf[offset..offset+sz])
@@ -106,7 +106,7 @@ pub trait MmapFileExt {
     #[inline]
     fn write_range_to_new_file<P: AsRef<Path>>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
         let buf = self.as_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             return Err(Error::EOF)
         }
         let mut opts = Options::new();
@@ -126,7 +126,7 @@ pub trait MmapFileExt {
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn reader(&self, offset: usize) -> Result<MmapFileReader> {
         let buf = self.as_slice();
-        if buf.len() <= offset {
+        if buf.len() < offset {
             Err(Error::EOF)
         } else {
             Ok(MmapFileReader::new(Cursor::new(&buf[offset..]), offset, buf.len() - offset))
@@ -142,7 +142,7 @@ pub trait MmapFileExt {
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn range_reader(&self, offset: usize, len: usize) -> Result<MmapFileReader> {
         let buf = self.as_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             Err(Error::EOF)
         } else {
             Ok(MmapFileReader::new(Cursor::new(&buf[offset.. offset + len]), offset, len))
@@ -153,7 +153,7 @@ pub trait MmapFileExt {
     fn read(&self, dst: &mut [u8], offset: usize) -> usize {
         let buf = self.as_slice();
 
-        if buf.len() <= offset {
+        if buf.len() < offset {
             0
         } else {
             let remaining = buf.len() - offset;
@@ -477,7 +477,7 @@ pub trait MmapFileMutExt {
     /// [`MmapFileWriter`]: structs.MmapFileWriter.html
     fn range_writer(&mut self, offset: usize, len: usize) -> Result<MmapFileWriter> {
         let buf = self.as_mut_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             Err(Error::EOF)
         } else {
             Ok(MmapFileWriter::new(
