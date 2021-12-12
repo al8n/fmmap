@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use bytes::{Bytes, BytesMut};
-use crate::{MmapFileExt, MmapFileMutExt, MetaData, MmapFileWriter};
+use crate::{MmapFileExt, MmapFileMutExt, MetaData};
 use crate::metadata::MemoryMetaData;
 
 /// Use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine.

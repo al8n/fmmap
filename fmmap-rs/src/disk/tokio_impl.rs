@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "linux"))]
 use std::ptr::{drop_in_place, write};
 use async_trait::async_trait;
 use crate::{MetaData, AsyncMmapFileExt, AsyncMmapFileMutExt};
@@ -131,7 +132,7 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     impl_flush!();
 
     #[cfg(not(target_os = "linux"))]
-    async fn truncate(&mut self, max_sz: u64) -> crate::error::Result<()> {
+    async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
         self.flush()?;
 
@@ -152,7 +153,7 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     }
 
     #[cfg(target_os = "linux")]
-    async fn truncate(&mut self, max_sz: u64) -> Result<()> {
+    async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
         self.flush()?;
 

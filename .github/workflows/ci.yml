@@ -35,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - unit-tests
+      - tarpaulin-unit-tests
       - miri
       - docs
       - valgrind
@@ -48,9 +49,28 @@ jobs:
       matrix:
         os:
           - windows-latest
-          - ubuntu-latest
           - macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust
+        run: rustup update stable
+      - uses: Swatinem/rust-cache@v1
 
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: test fmmap all features
+        run: cargo test --all-features
+        working-directory: fmmap-rs
+
+  tarpaulin-unit-tests:
+    name: unit tests
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust
@@ -66,10 +86,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/tarpaulin@v0.1
-      - name: test fmmap all features
+      - name: Run cargo tarpaulin
         run: cargo tarpaulin --all-features --workspace --run-types Tests,Doctests --out Xml
         working-directory: fmmap-rs
-
 
       # Build benchmarks. Run of benchmarks is done by bench.yml workflow.
       # - name: build benches

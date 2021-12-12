@@ -1,5 +1,6 @@
 use std::fs::{File, remove_file};
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "linux"))]
 use std::ptr::{drop_in_place, write};
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
@@ -127,7 +128,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     impl_flush!();
 
     #[cfg(not(target_os = "linux"))]
-    fn truncate(&mut self, max_sz: u64) -> crate::error::Result<()> {
+    fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
         self.flush()?;
 
@@ -148,7 +149,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     }
 
     #[cfg(target_os = "linux")]
-    fn truncate(&mut self, max_sz: u64) -> Result<()> {
+    fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
         self.flush()?;
 
