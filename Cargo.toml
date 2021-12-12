@@ -4,5 +4,8 @@ members = [
   "fmmap-js",
   "fmmap-py",
   "fmmap-rs",
-  "fmmap-uniffi"
+  "fmmap-uniffi",
+
+  # internal
+  "tests-integration"
 ]

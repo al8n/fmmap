@@ -20,7 +20,7 @@ English | [简体中文](README-zh_CN.md)
 
 </div>
 
-## License
+### License
 
 <sup>
 Licensed under either of <a href="https://opensource.org/licenses/Apache-2.0">Apache License, Version
@@ -45,4 +45,3 @@ shall be dual licensed as above, without any additional terms or conditions.
 [rustc-url]: https://github.com/rust-lang/rust/blob/master/RELEASES.md
 [license-apache-url]: https://opensource.org/licenses/Apache-2.0
 [license-mit-url]: https://opensource.org/licenses/MIT
-

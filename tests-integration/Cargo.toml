@@ -1,0 +1,22 @@
+[package]
+name = "tests-integration"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test-sync"
+required-features = ["sync"]
+
+[[bin]]
+name = "test-tokio-async"
+required-features = ["tokio-async"]
+
+[features]
+sync = ["fmmap/sync"]
+tokio-async = ["fmmap/tokio-async", "tokio/full"]
+full = ["sync", "tokio-async"]
+
+[dependencies]
+doc-comment = "0.3.3"
+fmmap = { path = "../fmmap-rs" }
+tokio = {version = "1.14.0", optional = true}
