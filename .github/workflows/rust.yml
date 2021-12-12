@@ -58,8 +58,8 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - uses: actions-rs/tarpaulin@v0.1
       - name: test fmmap all features
-        uses: actions-rs/tarpaulin@v0.1
         run: cargo tarpaulin --all-features --workspace --run-types Tests,Doctests --out Xml
         working-directory: fmmap-rs
 
