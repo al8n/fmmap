@@ -1,19 +1,17 @@
-name: Rust
+name: CI
 
 on:
   push:
-    # Ignore bors branches, since they are covered by `clippy_bors.yml`
     branches:
       - main
-    # Don't run Clippy tests, when only textfiles were modified
     paths:
       - 'fmmap-rs'
       - '.github/workflows'
 
   pull_request:
-    # Don't run Clippy tests, when only textfiles were modified
     paths:
       - 'fmmap-rs'
+      - '.github/workflows'
 
 env:
   CARGO_TERM_COLOR: always
