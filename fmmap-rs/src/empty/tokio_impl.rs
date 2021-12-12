@@ -4,7 +4,7 @@ use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileReader, AsyncMma
 use crate::error::{Error, Result};
 use crate::metadata::EmptyMetaData;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AsyncEmptyMmapFile {
     inner: [u8; 0],
     path: PathBuf,
@@ -123,17 +123,17 @@ impl AsyncMmapFileMutExt for AsyncEmptyMmapFile {
 
     #[inline(always)]
     async fn truncate(&mut self, _max_sz: u64) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(())
     }
 
     #[inline(always)]
     async fn remove(self) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(())
     }
 
     #[inline(always)]
     async fn close_with_truncate(self, _max_sz: i64) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(())
     }
 
     #[inline(always)]
@@ -152,5 +152,49 @@ impl AsyncMmapFileMutExt for AsyncEmptyMmapFile {
     #[inline(always)]
     fn write_all(&mut self, _src: &[u8], _offset: usize) -> Result<()> {
         Err(Error::InvokeEmptyMmap)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_async_empty() {
+        let mut file = AsyncEmptyMmapFile::default();
+        file.slice(0, 0);
+        file.as_slice();
+        file.as_mut_slice();
+        file.bytes(0,0).unwrap_err();
+        file.bytes_mut(0,0).unwrap_err();
+        file.metadata().await.unwrap();
+        file.copy_range_to_vec(0,0);
+        file.copy_all_to_vec();
+        file.write_all_to_new_file("test").await.unwrap_err();
+        file.write_range_to_new_file("test", 0, 0).await.unwrap_err();
+        assert!(!file.is_exec());
+        assert!(!file.is_cow());
+        assert_eq!(file.len(), 0);
+        file.path();
+        file.path_lossy();
+        file.path_string();
+        file.flush().unwrap();
+        file.flush_async().unwrap();
+        file.flush_range(0, 0).unwrap();
+        file.flush_async_range(0, 0).unwrap();
+        let mut buf = [0; 10];
+        file.reader(0).unwrap_err();
+        file.range_reader(0, 0).unwrap_err();
+        file.read_i8(0).unwrap_err();
+        file.read_u8(0).unwrap_err();
+        file.read_exact(&mut buf, 0).unwrap_err();
+        file.write(&buf, 0);
+        file.write_all(&[0], 0).unwrap_err();
+        file.writer(0).unwrap_err();
+        file.range_writer(0, 0).unwrap_err();
+        file.zero_range(0, 0);
+        file.clone().close_with_truncate(0).await.unwrap();
+        file.truncate(0).await.unwrap();
+        file.clone().remove().await.unwrap();
     }
 }

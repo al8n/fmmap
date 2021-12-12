@@ -5,7 +5,7 @@ use crate::metadata::{EmptyMetaData, MetaData};
 use crate::mmap_file::{MmapFileExt, MmapFileMutExt};
 use crate::{MmapFileReader, MmapFileWriter};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EmptyMmapFile {
     inner: [u8; 0],
     path: PathBuf,
@@ -47,7 +47,7 @@ impl MmapFileExt for EmptyMmapFile {
     }
 
     fn bytes(&self, _offset: usize, _sz: usize) -> Result<&[u8]> {
-        Err(Error::InvokeEmptyMmap)
+        Ok(&self.inner)
     }
 
     fn path(&self) -> &Path {
@@ -112,7 +112,7 @@ impl MmapFileMutExt for EmptyMmapFile {
 
     #[inline(always)]
     fn bytes_mut(&mut self, _offset: usize, _sz: usize) -> Result<&mut [u8]> {
-         Err(Error::InvokeEmptyMmap)
+         Ok(&mut self.inner)
     }
 
     #[inline(always)]
@@ -151,5 +151,49 @@ impl MmapFileMutExt for EmptyMmapFile {
     #[inline(always)]
     fn write_all(&mut self, _src: &[u8], _offset: usize) -> Result<()> {
         Err(Error::InvokeEmptyMmap)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty() {
+        let mut file = EmptyMmapFile::default();
+        file.slice(0, 0);
+        file.as_slice();
+        file.as_mut_slice();
+        file.bytes(0,0).unwrap();
+        file.bytes_mut(0,0).unwrap();
+        file.metadata().unwrap();
+        file.copy_range_to_vec(0,0);
+        file.copy_all_to_vec();
+        file.write_all_to_new_file("test").unwrap_err();
+        file.write_range_to_new_file("test", 0, 0).unwrap_err();
+        assert!(!file.is_exec());
+        assert!(!file.is_cow());
+        assert_eq!(file.len(), 0);
+        file.path();
+        file.path_lossy();
+        file.path_string();
+        file.flush().unwrap();
+        file.flush_async().unwrap();
+        file.flush_range(0, 0).unwrap();
+        file.flush_async_range(0, 0).unwrap();
+        let mut buf = [0; 10];
+        file.reader(0).unwrap_err();
+        file.range_reader(0, 0).unwrap_err();
+        file.read_i8(0).unwrap_err();
+        file.read_u8(0).unwrap_err();
+        file.read_exact(&mut buf, 0).unwrap_err();
+        file.write(&buf, 0);
+        file.write_all(&[0], 0).unwrap_err();
+        file.writer(0).unwrap_err();
+        file.range_writer(0, 0).unwrap_err();
+        file.zero_range(0, 0);
+        file.clone().close_with_truncate(0).unwrap();
+        file.truncate(0).unwrap();
+        file.clone().remove().unwrap();
     }
 }
