@@ -43,7 +43,7 @@ jobs:
       - run: exit 0
 
   unit-tests:
-    name: unit tests
+    name: windows and macOS unit tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -75,7 +75,11 @@ jobs:
         working-directory: fmmap-rs
 
   tarpaulin-unit-tests:
-    name: unit tests
+    name: linux unit tests
+    strategy:
+      matrix:
+        rust:
+          - nightly
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
