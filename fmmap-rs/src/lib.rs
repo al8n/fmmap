@@ -46,7 +46,8 @@
 //! [license-apache-url]: https://opensource.org/licenses/Apache-2.0
 //! [license-mit-url]: https://opensource.org/licenses/MIT
 //!
-#![cfg_attr(feature = "nightly", feature(is_symlink), feature(io_error_more))]
+#![cfg_attr(feature = "nightly", feature(io_error_more))]
+#![cfg_attr(all(feature = "nightly", windows), feature(windows_by_handle))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![allow(

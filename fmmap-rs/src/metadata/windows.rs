@@ -1,4 +1,3 @@
-use std::fs::Metadata;
 use std::os::windows::fs::MetadataExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::error::{Error, Result};
@@ -164,6 +163,7 @@ impl MetaDataExt for DiskMetaData {
     }
 
     #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
     fn is_symlink(&self) -> bool {
         self.inner.is_symlink()
     }
