@@ -79,8 +79,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update stable
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v1
 
       - uses: actions/cache@v2
