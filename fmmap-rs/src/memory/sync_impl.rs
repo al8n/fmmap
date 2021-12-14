@@ -174,8 +174,6 @@ impl MmapFileMutExt for MemoryMmapFileMut {
     fn close_with_truncate(self, _max_sz: i64) -> crate::error::Result<()> {
         Ok(())
     }
-
-
 }
 
 impl MemoryMmapFileMut {
@@ -271,16 +269,16 @@ mod tests {
         assert_eq!(64, file.read_usize(1061).unwrap());
         assert_eq!(64, file.read_usize_le(1069).unwrap());
 
-        assert_eq!(-8,file.read_i8(2000).unwrap());
-        assert_eq!(-16,file.read_i16(2001).unwrap());
-        assert_eq!(-32,file.read_i32(2003).unwrap());
-        assert_eq!(-64,file.read_i64(2007).unwrap());
-        assert_eq!(-128,file.read_i128(2015).unwrap());
-        assert_eq!(-16,file.read_i16_le(2031).unwrap());
-        assert_eq!(-32,file.read_i32_le(2033).unwrap());
-        assert_eq!(-64,file.read_i64_le(2037).unwrap());
-        assert_eq!(-128,file.read_i128_le(2045).unwrap());
-        assert_eq!(-64,file.read_isize(2061).unwrap());
-        assert_eq!(-64,file.read_isize_le(2069).unwrap());
+        assert_eq!(-8, file.read_i8(2000).unwrap());
+        assert_eq!(-16, file.read_i16(2001).unwrap());
+        assert_eq!(-32, file.read_i32(2003).unwrap());
+        assert_eq!(-64, file.read_i64(2007).unwrap());
+        assert_eq!(-128, file.read_i128(2015).unwrap());
+        assert_eq!(-16, file.read_i16_le(2031).unwrap());
+        assert_eq!(-32, file.read_i32_le(2033).unwrap());
+        assert_eq!(-64, file.read_i64_le(2037).unwrap());
+        assert_eq!(-128, file.read_i128_le(2045).unwrap());
+        assert_eq!(-64, file.read_isize(2061).unwrap());
+        assert_eq!(-64, file.read_isize_le(2069).unwrap());
     }
 }

@@ -47,15 +47,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        rust:
+          - nightly
         os:
           - windows-latest
           - macos-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update stable
-      - uses: Swatinem/rust-cache@v1
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
 
+      - uses: Swatinem/rust-cache@v1
       - uses: actions/cache@v2
         with:
           path: |
