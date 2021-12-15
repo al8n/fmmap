@@ -147,6 +147,8 @@ mod reader;
 /// File I/O utils function
 pub mod utils;
 mod writer;
+#[cfg(test)]
+mod tests;
 
 cfg_sync!(
     pub use reader::MmapFileReader;

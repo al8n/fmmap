@@ -192,7 +192,11 @@ impl MemoryMmapFileMut {
 mod tests {
     use std::io::{Read, Seek, SeekFrom, Write};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use scopeguard::defer;
     use super::*;
+
+    const SANITY_TEXT: &'static str = "Hello, sync memory file!";
+    const MODIFIED_SANITY_TEXT: &'static str = "Hello, modified sync memory file!";
 
     #[test]
     fn test_memory_file() {
@@ -200,7 +204,7 @@ mod tests {
         assert_eq!(file.as_mut_slice().len(), 0);
         file.truncate(8096).unwrap(); // 1 KB
         let mut writter = file.writer(0).unwrap();
-        writter.write_all("memory file test".as_bytes()).unwrap();
+        writter.write_all(SANITY_TEXT.as_bytes()).unwrap();
         writter.seek(SeekFrom::Start(100)).unwrap();
         writter.write_i8(-8).unwrap();
         writter.write_i16::<BigEndian>(-16).unwrap();
@@ -210,9 +214,9 @@ mod tests {
         writter.seek(SeekFrom::End(0)).unwrap();
         drop(writter);
         let mut reader = file.reader(0).unwrap();
-        let mut buf = [0; "memory file test".len()];
+        let mut buf = [0; SANITY_TEXT.len()];
         reader.read_exact(&mut buf).unwrap();
-        assert!(buf.eq("memory file test".as_bytes()));
+        assert!(buf.eq(SANITY_TEXT.as_bytes()));
         reader.seek(SeekFrom::Start(100)).unwrap();
         assert_eq!(-8, reader.read_i8().unwrap());
         assert_eq!(-16, reader.read_i16::<BigEndian>().unwrap());
@@ -245,18 +249,6 @@ mod tests {
         file.write_usize(64, 1061).unwrap();
         file.write_usize_le(64, 1069).unwrap();
 
-        file.write_i8(-8, 2000).unwrap();
-        file.write_i16(-16, 2001).unwrap();
-        file.write_i32(-32, 2003).unwrap();
-        file.write_i64(-64, 2007).unwrap();
-        file.write_i128(-128, 2015).unwrap();
-        file.write_i16_le(-16, 2031).unwrap();
-        file.write_i32_le(-32, 2033).unwrap();
-        file.write_i64_le(-64, 2037).unwrap();
-        file.write_i128_le(-128, 2045).unwrap();
-        file.write_isize(-64, 2061).unwrap();
-        file.write_isize_le(-64, 2069).unwrap();
-
         assert_eq!(8, file.read_u8(1000).unwrap());
         assert_eq!(16, file.read_u16(1001).unwrap());
         assert_eq!(32, file.read_u32(1003).unwrap());
@@ -269,6 +261,18 @@ mod tests {
         assert_eq!(64, file.read_usize(1061).unwrap());
         assert_eq!(64, file.read_usize_le(1069).unwrap());
 
+        file.write_i8(-8, 2000).unwrap();
+        file.write_i16(-16, 2001).unwrap();
+        file.write_i32(-32, 2003).unwrap();
+        file.write_i64(-64, 2007).unwrap();
+        file.write_i128(-128, 2015).unwrap();
+        file.write_i16_le(-16, 2031).unwrap();
+        file.write_i32_le(-32, 2033).unwrap();
+        file.write_i64_le(-64, 2037).unwrap();
+        file.write_i128_le(-128, 2045).unwrap();
+        file.write_isize(-64, 2061).unwrap();
+        file.write_isize_le(-64, 2069).unwrap();
+
         assert_eq!(-8, file.read_i8(2000).unwrap());
         assert_eq!(-16, file.read_i16(2001).unwrap());
         assert_eq!(-32, file.read_i32(2003).unwrap());
@@ -280,5 +284,72 @@ mod tests {
         assert_eq!(-128, file.read_i128_le(2045).unwrap());
         assert_eq!(-64, file.read_isize(2061).unwrap());
         assert_eq!(-64, file.read_isize_le(2069).unwrap());
+
+        file.write_f32(32.0, 3000).unwrap();
+        file.write_f32_le(32.0, 3004).unwrap();
+        file.write_f64(64.0, 3008).unwrap();
+        file.write_f64_le(64.0, 3016).unwrap();
+        assert_eq!(32.0, file.read_f32(3000).unwrap());
+        assert_eq!(32.0, file.read_f32_le(3004).unwrap());
+        assert_eq!(64.0, file.read_f64(3008).unwrap());
+        assert_eq!(64.0, file.read_f64_le(3016).unwrap());
+
+        file.zero_range(3000, 3024);
+
+        file.truncate(0).unwrap();
+        file.truncate(100).unwrap();
+
+        let st = file.bytes_mut(0, SANITY_TEXT.len()).unwrap();
+        st.copy_from_slice(SANITY_TEXT.as_bytes());
+
+        let n = file.write(MODIFIED_SANITY_TEXT.as_bytes(), 0);
+        assert_eq!(n, MODIFIED_SANITY_TEXT.len());
+
+        let mst = file.bytes(0, MODIFIED_SANITY_TEXT.len()).unwrap();
+        assert_eq!(mst, MODIFIED_SANITY_TEXT.as_bytes());
+
+        let mut vec = vec![0; MODIFIED_SANITY_TEXT.len()];
+        let n = file.read(vec.as_mut_slice(), 0);
+        assert_eq!(n, MODIFIED_SANITY_TEXT.len());
+
+        let sm = file.slice_mut(MODIFIED_SANITY_TEXT.len(), 4);
+        sm.copy_from_slice(&32u32.to_be_bytes());
+
+        let buf = file.slice(MODIFIED_SANITY_TEXT.len(), 4);
+        let n = u32::from_be_bytes(buf.try_into().unwrap());
+        assert_eq!(n, 32);
+
+        let v = file.copy_all_to_vec();
+        assert_eq!(v.len(), 100);
+        assert_eq!(&v[..MODIFIED_SANITY_TEXT.len()], MODIFIED_SANITY_TEXT.as_bytes());
+        let v = file.copy_range_to_vec(0, MODIFIED_SANITY_TEXT.len());
+        assert_eq!(v.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
+
+        let mut pb = std::env::temp_dir();
+        pb.push("sync_memory_file_test_all");
+        pb.set_extension("mem");
+
+        file.write_all_to_new_file(&pb).unwrap();
+        defer!(let _ = std::fs::remove_file(&pb););
+
+        let mut pb1 = std::env::temp_dir();
+        pb1.push("sync_memory_file_test_range");
+        pb1.set_extension("mem");
+        defer!(let _ = std::fs::remove_file(&pb1););
+        file.write_range_to_new_file(&pb1, 0, MODIFIED_SANITY_TEXT.len()).unwrap();
+
+        let mut file = std::fs::File::open(&pb).unwrap();
+        assert_eq!(file.metadata().unwrap().len(), 100);
+        let mut buf = vec![0; MODIFIED_SANITY_TEXT.len()];
+        file.read_exact(&mut buf).unwrap();
+        assert_eq!(buf.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
+        drop(file);
+
+        let mut file = std::fs::File::open(&pb1).unwrap();
+        assert_eq!(file.metadata().unwrap().len(), MODIFIED_SANITY_TEXT.len() as u64);
+        let mut buf = vec![0; MODIFIED_SANITY_TEXT.len()];
+        file.read_exact(&mut buf).unwrap();
+        assert_eq!(buf.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
+        drop(file);
     }
 }

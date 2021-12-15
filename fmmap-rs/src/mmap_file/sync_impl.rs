@@ -95,7 +95,7 @@ pub trait MmapFileExt {
     fn write_all_to_new_file<P: AsRef<Path>>(&self, new_file_path: P) -> Result<()> {
         let buf = self.as_slice();
         let mut opts = Options::new();
-        opts.max_size(buf.len() as u64 + 1);
+        opts.max_size(buf.len() as u64);
 
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
         mmap.writer(0)?.write_all(buf)?;
@@ -110,7 +110,7 @@ pub trait MmapFileExt {
             return Err(Error::EOF)
         }
         let mut opts = Options::new();
-        opts.max_size(len as u64 + 1);
+        opts.max_size(len as u64);
 
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
         mmap.writer(0)?.write_all(&buf[offset..offset + len])?;
