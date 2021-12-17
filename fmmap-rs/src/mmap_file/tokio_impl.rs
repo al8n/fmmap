@@ -98,7 +98,7 @@ pub trait AsyncMmapFileExt {
     async fn write_all_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P) -> Result<()> {
         let buf = self.as_slice();
         let mut opts = AsyncOptions::new();
-        opts.max_size(buf.len() as u64 + 1);
+        opts.max_size(buf.len() as u64);
 
         let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
         mmap.writer(0)?.write_all(buf).await?;
@@ -113,7 +113,7 @@ pub trait AsyncMmapFileExt {
             return Err(Error::EOF);
         }
         let mut opts = AsyncOptions::new();
-        opts.max_size(len as u64 + 1);
+        opts.max_size(len as u64);
 
         let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
         mmap.writer(0)?.write_all(&buf[offset..offset + len]).await?;
@@ -216,6 +216,16 @@ pub trait AsyncMmapFileExt {
         read_impl!(self, offset, i16::from_le_bytes)
     }
 
+    /// Read a signed integer from offset in big-endian byte order.
+    fn read_isize(&self, offset: usize) -> Result<isize> {
+        read_impl!(self, offset, isize::from_be_bytes)
+    }
+
+    /// Read a signed integer from offset in little-endian byte order.
+    fn read_isize_le(&self, offset: usize) -> Result<isize> {
+        read_impl!(self, offset, isize::from_le_bytes)
+    }
+
     /// Read a signed 32 bit integer from offset in big-endian byte order.
     fn read_i32(&self, offset: usize) -> Result<i32> {
         read_impl!(self, offset, i32::from_be_bytes)
@@ -271,6 +281,16 @@ pub trait AsyncMmapFileExt {
     /// Read an unsigned 16 bit integer from offset in little-endian.
     fn read_u16_le(&self, offset: usize) -> Result<u16> {
         read_impl!(self, offset, u16::from_le_bytes)
+    }
+
+    /// Read an unsigned integer from offset in big-endian byte order.
+    fn read_usize(&self, offset: usize) -> Result<usize> {
+        read_impl!(self, offset, usize::from_be_bytes)
+    }
+
+    /// Read an unsigned integer from offset in little-endian byte order.
+    fn read_usize_le(&self, offset: usize) -> Result<usize> {
+        read_impl!(self, offset, usize::from_le_bytes)
     }
 
     /// Read an unsigned 32 bit integer from offset in big-endian.
@@ -356,7 +376,7 @@ pub trait AsyncMmapFileMutExt {
     /// `Err(Error::EOF)`.
     fn bytes_mut(&mut self, offset: usize, sz: usize) -> Result<&mut [u8]> {
         let buf = self.as_mut_slice();
-        if buf.len() <= offset + sz {
+        if buf.len() < offset + sz {
             Err(Error::EOF)
         } else {
             Ok(&mut buf[offset..offset+sz])
@@ -436,7 +456,7 @@ pub trait AsyncMmapFileMutExt {
     fn writer(&mut self, offset: usize) -> Result<AsyncMmapFileWriter> {
         let buf = self.as_mut_slice();
         let buf_len = buf.len();
-        if buf_len <= offset {
+        if buf_len < offset {
             Err(Error::EOF)
         } else {
             Ok(AsyncMmapFileWriter::new(Cursor::new(&mut buf[offset..]), offset, buf_len - offset))
@@ -461,7 +481,7 @@ pub trait AsyncMmapFileMutExt {
     /// [`AsyncMmapFileWriter`]: structs.AsyncMmapFileWriter.html
     fn range_writer(&mut self, offset: usize, len: usize) -> Result<AsyncMmapFileWriter> {
         let buf = self.as_mut_slice();
-        if buf.len() <= offset + len {
+        if buf.len() < offset + len {
             Err(Error::EOF)
         } else {
             Ok(AsyncMmapFileWriter::new(
@@ -472,7 +492,7 @@ pub trait AsyncMmapFileMutExt {
     /// Write bytes to the mmap from the offset.
     fn write(&mut self, src: &[u8], offset: usize) -> usize {
         let buf = self.as_mut_slice();
-        if buf.len() <= offset {
+        if buf.len() < offset {
             0
         } else {
             let remaining = buf.len() - offset;
@@ -520,6 +540,16 @@ pub trait AsyncMmapFileMutExt {
         self.write_all(&val.to_le_bytes(), offset)
     }
 
+    /// Writes a signed integer to mmap from the offset in the big-endian byte order.
+    fn write_isize(&mut self, val: isize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_be_bytes(), offset)
+    }
+
+    /// Writes a signed integer to mmap from the offset in the little-endian byte order.
+    fn write_isize_le(&mut self, val: isize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_le_bytes(), offset)
+    }
+
     /// Writes a signed 32 bit integer to mmap from the offset in the big-endian byte order.
     fn write_i32(&mut self, val: i32, offset: usize) -> Result<()> {
         self.write_all(&val.to_be_bytes(), offset)
@@ -562,6 +592,16 @@ pub trait AsyncMmapFileMutExt {
 
     /// Writes an unsigned 16 bit integer to mmap from the offset in the little-endian byte order.
     fn write_u16_le(&mut self, val: u16, offset: usize) -> Result<()> {
+        self.write_all(&val.to_le_bytes(), offset)
+    }
+
+    /// Writes an unsigned integer to mmap from the offset in the big-endian byte order.
+    fn write_usize(&mut self, val: usize, offset: usize) -> Result<()> {
+        self.write_all(&val.to_be_bytes(), offset)
+    }
+
+    /// Writes an unsigned integer to mmap from the offset in the little-endian byte order.
+    fn write_usize_le(&mut self, val: usize, offset: usize) -> Result<()> {
         self.write_all(&val.to_le_bytes(), offset)
     }
 

@@ -6,7 +6,6 @@ mod sync {
             use std::sync::atomic::{AtomicUsize, Ordering};
             use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
             use scopeguard::defer;
-            use super::*;
 
             const SANITY_TEXT: &'static str = "Hello, sync file!";
             const MODIFIED_SANITY_TEXT: &'static str = "Hello, modified sync file!";
@@ -174,6 +173,7 @@ mod sync {
 
     use crate::raw::MemoryMmapFileMut;
     use crate::raw::DiskMmapFileMut;
+    use crate::{MmapFileMut, MmapFileExt, MmapFileMutExt};
 
     const UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
@@ -200,7 +200,6 @@ mod axync {
             use std::io::SeekFrom;
             use std::sync::atomic::Ordering;
             use scopeguard::defer;
-            use super::*;
             use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
             const SANITY_TEXT: &'static str = "Hello, async file!";
@@ -213,12 +212,12 @@ mod axync {
                     assert_eq!(file.as_mut_slice().len(), 0);
                     file.truncate(8096).await.unwrap(); // 1 KB
                     let mut writter = file.writer(0).unwrap();
-                    writter.write_all(SANITY_TEXT.as_bytes()).await.unwrap();
-                    writter.seek(SeekFrom::Start(100)).await.unwrap();
-                    writter.write_i8(-8).await.unwrap();
-                    writter.write_i16(-16).await.unwrap();
-                    writter.write_i32(-32).await.unwrap();
-                    writter.write_i64(-64).await.unwrap();
+                    AsyncWriteExt::write_all(&mut writter, SANITY_TEXT.as_bytes()).await.unwrap();
+                    AsyncSeekExt::seek(&mut writter, SeekFrom::Start(100)).await.unwrap();
+                    AsyncWriteExt::write_i8(&mut writter, -8).await.unwrap();
+                    AsyncWriteExt::write_i16(&mut writter, -16).await.unwrap();
+                    AsyncWriteExt::write_i32(&mut writter, -32).await.unwrap();
+                    AsyncWriteExt::write_i64(&mut writter, -64).await.unwrap();
                     writter.flush().await.unwrap();
                     writter.seek(SeekFrom::End(0)).await.unwrap();
                     drop(writter);
@@ -226,24 +225,24 @@ mod axync {
                     let mut buf = [0; SANITY_TEXT.len()];
                     reader.read_exact(&mut buf).await.unwrap();
                     assert!(buf.eq(SANITY_TEXT.as_bytes()));
-                    reader.seek(SeekFrom::Start(100)).await.unwrap();
-                    assert_eq!(-8, reader.read_i8().await.unwrap());
-                    assert_eq!(-16, reader.read_i16().await.unwrap());
-                    assert_eq!(-32, reader.read_i32().await.unwrap());
-                    assert_eq!(-64, reader.read_i64().await.unwrap());
+                    AsyncSeekExt::seek(&mut reader, SeekFrom::Start(100)).await.unwrap();
+                    assert_eq!(-8, AsyncReadExt::read_i8(&mut reader).await.unwrap());
+                    assert_eq!(-16, AsyncReadExt::read_i16(&mut reader).await.unwrap());
+                    assert_eq!(-32, AsyncReadExt::read_i32(&mut reader).await.unwrap());
+                    assert_eq!(-64, AsyncReadExt::read_i64(&mut reader).await.unwrap());
 
                     let mut range_writer = file.range_writer(8000, 96).unwrap();
-                    range_writer.write_u8(8).await.unwrap();
-                    range_writer.write_u16(16).await.unwrap();
-                    range_writer.write_u32(32).await.unwrap();
-                    range_writer.write_u64(64).await.unwrap();
+                    AsyncWriteExt::write_u8(&mut range_writer, 8).await.unwrap();
+                    AsyncWriteExt::write_u16(&mut range_writer, 16).await.unwrap();
+                    AsyncWriteExt::write_u32(&mut range_writer, 32).await.unwrap();
+                    AsyncWriteExt::write_u64(&mut range_writer, 64).await.unwrap();
                     range_writer.flush().await.unwrap();
 
                     let mut range_reader = file.range_reader(8000, 96).unwrap();
-                    assert_eq!(8, range_reader.read_u8().await.unwrap());
-                    assert_eq!(16, range_reader.read_u16().await.unwrap());
-                    assert_eq!(32, range_reader.read_u32().await.unwrap());
-                    assert_eq!(64, range_reader.read_u64().await.unwrap());
+                    assert_eq!(8, AsyncReadExt::read_u8(&mut range_reader).await.unwrap());
+                    assert_eq!(16, AsyncReadExt::read_u16(&mut range_reader).await.unwrap());
+                    assert_eq!(32, AsyncReadExt::read_u32(&mut range_reader).await.unwrap());
+                    assert_eq!(64, AsyncReadExt::read_u64(&mut range_reader).await.unwrap());
 
                     file.write_u8(8, 1000).unwrap();
                     file.write_u16(16, 1001).unwrap();
@@ -370,7 +369,7 @@ mod axync {
     use std::sync::atomic::AtomicUsize;
     use crate::raw::AsyncMemoryMmapFileMut;
     use crate::raw::AsyncDiskMmapFileMut;
-    use crate::AsyncMmapFileMut;
+    use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileMut};
 
     const UNIQUE: AtomicUsize = AtomicUsize::new(0);
 

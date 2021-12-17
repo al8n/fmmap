@@ -43,8 +43,3 @@ impl AsyncMmapFileMutExt for AsyncMemoryMmapFileMut {
         Ok(())
     }
 }
-
-
-mod test {
-
-}
