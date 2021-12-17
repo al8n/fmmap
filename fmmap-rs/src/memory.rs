@@ -50,9 +50,26 @@ macro_rules! define_impl_constructor_for_mmap_file {
             #[doc = concat!("use fmmap::raw::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
-            #[doc = concat!($name_str, "::from_string(\"foo.mem\", data);")]
+            #[doc = concat!($name_str, "::from_string(\"foo.mem\", data.to_string());")]
             #[doc = "```"]
             pub fn from_string<P: AsRef<Path>>(path: P, src: String) -> Self {
+                Self {
+                    mmap: Bytes::from(src),
+                    path: path.as_ref().to_path_buf(),
+                    create_at: SystemTime::now()
+                }
+            }
+
+            #[doc = concat!("Create a ", $name_str, " from static slice")]
+            #[doc = "# Examples"]
+            #[doc = "```rust"]
+            #[doc = "use bytes::Bytes;"]
+            #[doc = concat!("use fmmap::raw::", $name_str, ";")]
+            #[doc = ""]
+            #[doc = "let data: &'static [u8] = \"some data...\".as_bytes();"]
+            #[doc = concat!($name_str, "::from_slice(\"foo.mem\", data);")]
+            #[doc = "```"]
+            pub fn from_slice<P: AsRef<Path>>(path: P, src: &'static [u8]) -> Self {
                 Self {
                     mmap: Bytes::from(src),
                     path: path.as_ref().to_path_buf(),
@@ -69,7 +86,7 @@ macro_rules! define_impl_constructor_for_mmap_file {
             #[doc = "let data: &'static str = \"some data...\";"]
             #[doc = concat!($name_str, "::from_str(\"foo.mem\", data);")]
             #[doc = "```"]
-            pub fn from_str<P: AsRef<Path>>(path: P, src: &'static [u8]) -> Self {
+            pub fn from_str<P: AsRef<Path>>(path: P, src: &'static str) -> Self {
                 Self {
                     mmap: Bytes::from(src),
                     path: path.as_ref().to_path_buf(),
@@ -180,7 +197,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
             #[doc = concat!("use fmmap::raw::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
-            #[doc = concat!($name_str, "::from_string(\"foo.mem\", data);")]
+            #[doc = concat!($name_str, "::from_string(\"foo.mem\", data.to_string());")]
             #[doc = "```"]
             pub fn from_string<P: AsRef<Path>>(path: P, src: String) -> Self {
                 Self {
@@ -229,7 +246,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
             #[doc = concat!("use fmmap::raw::", $name_str, ";")]
             #[doc = ""]
             #[doc = concat!("let b1 = ", $name_str, "::from_slice(\"foo.mem\", \"some data...\".as_bytes()).into_bytes();")]
-            #[doc = "assert_eq!(b1, BytesMut::from_slice(\"some data...\".as_bytes()));"]
+            #[doc = "assert_eq!(b1, BytesMut::from(\"some data...\".as_bytes()));"]
             #[doc = "```"]
             pub fn into_bytes_mut(self) -> BytesMut {
                 self.mmap
@@ -241,7 +258,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
             #[doc = "use bytes::Bytes;"]
             #[doc = concat!("use fmmap::raw::", $name_str, ";")]
             #[doc = ""]
-            #[doc = concat!("let b1 = ", $name_str, "::copy_from_slice(\"foo.mem\", \"some data...\".as_bytes()).into_bytes();")]
+            #[doc = concat!("let b1 = ", $name_str, "::from_slice(\"foo.mem\", \"some data...\".as_bytes()).into_bytes();")]
             #[doc = "assert_eq!(b1, Bytes::copy_from_slice(\"some data...\".as_bytes()));"]
             #[doc = "```"]
             pub fn into_bytes(self) -> Bytes {

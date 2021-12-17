@@ -172,18 +172,18 @@ macro_rules! sync_tests {
 use crate::raw::MemoryMmapFileMut;
 use crate::raw::DiskMmapFileMut;
 
-const UNIQUE: AtomicUsize = AtomicUsize::new(0);
+// const UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
-sync_tests!(
-    [test_memory_file_mut, {
-        MemoryMmapFileMut::new("memory.mem")
-    }],
-    [test_mmap_file_mut, {
-        let mut pb = std::env::temp_dir();
-        pb.push("disk");
-        pb.set_extension("mem");
-        let mut file = MmapFileMut::from(DiskMmapFileMut::create(&pb).unwrap());
-        file.set_remove_on_drop(true);
-        file
-    }],
-);
+// sync_tests!(
+//     [test_memory_file_mut, {
+//         MemoryMmapFileMut::new("memory.mem")
+//     }],
+//     [test_mmap_file_mut, {
+//         let mut pb = std::env::temp_dir();
+//         pb.push("disk");
+//         pb.set_extension("mem");
+//         let mut file = MmapFileMut::from(DiskMmapFileMut::create(&pb).unwrap());
+//         file.set_remove_on_drop(true);
+//         file
+//     }],
+// );
