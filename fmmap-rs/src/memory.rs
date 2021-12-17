@@ -126,7 +126,7 @@ macro_rules! define_impl_constructor_for_mmap_file {
 }
 
 macro_rules! define_and_impl_constructor_for_mmap_file_mut {
-    ($name: ident, $name_str: literal) => {
+    ($name: ident, $name_str: literal, $immutable: ident) => {
         #[doc = "Use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine."]
         #[doc = ""]
         #[doc = "# Notes"]
@@ -241,11 +241,11 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
 
             #[doc = "Returns the inner mutable bytes"]
             #[doc = "# Examples"]
-            #[doc =  "```rust"]
+            #[doc = "```rust"]
             #[doc = "use bytes::BytesMut;"]
             #[doc = concat!("use fmmap::raw::", $name_str, ";")]
             #[doc = ""]
-            #[doc = concat!("let b1 = ", $name_str, "::from_slice(\"foo.mem\", \"some data...\".as_bytes()).into_bytes();")]
+            #[doc = concat!("let b1 = ", $name_str, "::from_slice(\"foo.mem\", \"some data...\".as_bytes()).into_bytes_mut();")]
             #[doc = "assert_eq!(b1, BytesMut::from(\"some data...\".as_bytes()));"]
             #[doc = "```"]
             pub fn into_bytes_mut(self) -> BytesMut {
@@ -263,6 +263,16 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
             #[doc = "```"]
             pub fn into_bytes(self) -> Bytes {
                 self.mmap.freeze()
+            }
+
+            /// Make the memory mmap file immutable
+            #[inline(always)]
+            pub fn freeze(self) -> $immutable {
+                $immutable {
+                    mmap: self.mmap.freeze(),
+                    path: self.path,
+                    create_at: self.create_at,
+                }
             }
         }
     };
