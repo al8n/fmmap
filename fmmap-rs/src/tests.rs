@@ -175,7 +175,7 @@ mod sync {
     use crate::raw::MemoryMmapFileMut;
     use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
 
-    const UNIQUE: AtomicUsize = AtomicUsize::new(0);
+    static UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
     sync_tests!(
         [test_memory_file_mut, {
@@ -375,7 +375,7 @@ mod axync {
     use crate::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
     use std::sync::atomic::AtomicUsize;
 
-    const UNIQUE: AtomicUsize = AtomicUsize::new(0);
+    static UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
     tokio_async_tests!(
         [test_async_memory_file_mut, {
