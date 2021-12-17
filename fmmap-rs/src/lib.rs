@@ -144,11 +144,11 @@ mod mmap_file;
 #[allow(dead_code)]
 mod options;
 mod reader;
+#[cfg(test)]
+mod tests;
 /// File I/O utils function
 pub mod utils;
 mod writer;
-#[cfg(test)]
-mod tests;
 
 cfg_sync!(
     pub use reader::MmapFileReader;

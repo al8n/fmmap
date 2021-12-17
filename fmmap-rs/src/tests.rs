@@ -171,9 +171,9 @@ mod sync {
         };
     }
 
-    use crate::raw::MemoryMmapFileMut;
     use crate::raw::DiskMmapFileMut;
-    use crate::{MmapFileMut, MmapFileExt, MmapFileMutExt};
+    use crate::raw::MemoryMmapFileMut;
+    use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
 
     const UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
@@ -182,7 +182,11 @@ mod sync {
             MemoryMmapFileMut::new("memory.mem")
         }],
         [test_mmap_file_mut, {
-            let mut pb = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
+            let mut pb = std::env::current_dir()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf();
             pb.push("scripts");
             pb.push("disk");
             pb.set_extension("mem");
@@ -366,10 +370,10 @@ mod axync {
         }
     }
 
-    use std::sync::atomic::AtomicUsize;
-    use crate::raw::AsyncMemoryMmapFileMut;
     use crate::raw::AsyncDiskMmapFileMut;
-    use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileMut};
+    use crate::raw::AsyncMemoryMmapFileMut;
+    use crate::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    use std::sync::atomic::AtomicUsize;
 
     const UNIQUE: AtomicUsize = AtomicUsize::new(0);
 
@@ -378,7 +382,11 @@ mod axync {
             AsyncMemoryMmapFileMut::new("memory.mem")
         }],
         [test_async_mmap_file_mut, {
-            let mut pb = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
+            let mut pb = std::env::current_dir()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf();
             pb.push("scripts");
             pb.push("disk");
             pb.set_extension("mem");
