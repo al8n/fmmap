@@ -1,4 +1,3 @@
-use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::metadata::{EmptyMetaData, MetaData};
@@ -9,32 +8,6 @@ use crate::{MmapFileReader, MmapFileWriter};
 pub struct EmptyMmapFile {
     inner: [u8; 0],
     path: PathBuf,
-}
-
-impl DerefMut for EmptyMmapFile {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
-}
-
-impl Deref for EmptyMmapFile {
-    type Target = [u8];
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl AsMut<Self> for EmptyMmapFile {
-    fn as_mut(&mut self) -> &mut Self {
-        self
-    }
-}
-
-impl AsRef<Self> for EmptyMmapFile {
-    fn as_ref(&self) -> &Self {
-        self
-    }
 }
 
 impl MmapFileExt for EmptyMmapFile {
