@@ -5,25 +5,11 @@ use bytes::{Bytes, BytesMut};
 use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, MetaData};
 use crate::metadata::MemoryMetaData;
 
-/// Use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine.
-///
-/// [`Bytes`]: https://docs.rs/bytes/1.1.0/bytes/struct.Bytes.html
-pub struct AsyncMemoryMmapFile {
-    mmap: Bytes,
-    path: PathBuf,
-    create_at: SystemTime,
-}
+define_impl_constructor_for_mmap_file!(AsyncMemoryMmapFile, "AsyncMemoryMmapFile");
 
 impl_async_mmap_file_ext!(AsyncMemoryMmapFile);
 
-/// Use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine
-///
-/// [`BytesMut`]: https://docs.rs/bytes/1.1.0/bytes/struct.BytesMut.html
-pub struct AsyncMemoryMmapFileMut {
-    mmap: BytesMut,
-    path: PathBuf,
-    create_at: SystemTime,
-}
+define_and_impl_constructor_for_mmap_file_mut!(AsyncMemoryMmapFileMut, "AsyncMemoryMmapFileMut");
 
 impl_async_mmap_file_ext!(AsyncMemoryMmapFileMut);
 
