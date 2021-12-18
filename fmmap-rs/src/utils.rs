@@ -60,6 +60,16 @@ cfg_sync!(
             .map_err(Error::IO)
     }
 
+    /// Open or create a file
+    pub fn open_or_create_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
+        SyncOpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(Error::IO)
+    }
+
     /// Create a new file
     pub fn create_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
         SyncOpenOptions::new()
@@ -129,6 +139,17 @@ cfg_tokio!(
             .read(true)
             .write(true)
             .truncate(true)
+            .open(path)
+            .await
+            .map_err(Error::IO)
+    }
+
+    /// Open or create a file
+    pub async fn open_or_create_file_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
+        TokioOpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
             .open(path)
             .await
             .map_err(Error::IO)

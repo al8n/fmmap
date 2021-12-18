@@ -1,3 +1,14 @@
+use std::path::PathBuf;
+use rand::{Rng, thread_rng};
+
+fn get_random_filename() -> PathBuf {
+    let mut rng = thread_rng();
+    let mut filename = PathBuf::from("../scripts");
+    filename.push(rng.gen::<u32>().to_string());
+    filename.set_extension("txt");
+    filename
+}
+
 #[cfg(feature = "sync")]
 mod sync {
     macro_rules! sync_tests {
@@ -137,19 +148,11 @@ mod sync {
                 let v = file.copy_range_to_vec(0, MODIFIED_SANITY_TEXT.len());
                 assert_eq!(v.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
 
-                let unique = UNIQUE.fetch_add(1, Ordering::SeqCst);
-                let mut pb = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
-                pb.push("scripts");
-                pb.push(format!("sync_file_test_all_{}", unique));
-                pb.set_extension("mem");
-
+                let pb = get_random_filename();
                 file.write_all_to_new_file(&pb).unwrap();
                 defer!(let _ = std::fs::remove_file(&pb););
 
-                let mut pb1 = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
-                pb1.push("scripts");
-                pb1.push(format!("sync_file_test_range_{}", unique));
-                pb1.set_extension("mem");
+                let pb1 = get_random_filename();
                 defer!(let _ = std::fs::remove_file(&pb1););
                 file.write_range_to_new_file(&pb1, 0, MODIFIED_SANITY_TEXT.len()).unwrap();
 
@@ -174,23 +177,14 @@ mod sync {
     use crate::raw::DiskMmapFileMut;
     use crate::raw::MemoryMmapFileMut;
     use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
-
-    static UNIQUE: AtomicUsize = AtomicUsize::new(0);
+    use super::*;
 
     sync_tests!(
         [test_memory_file_mut, {
-            MemoryMmapFileMut::new("memory.mem")
+            MemoryMmapFileMut::new("memory.txt")
         }],
         [test_mmap_file_mut, {
-            let mut pb = std::env::current_dir()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_path_buf();
-            pb.push("scripts");
-            pb.push("disk");
-            pb.set_extension("mem");
-            let mut file = MmapFileMut::from(DiskMmapFileMut::create(&pb).unwrap());
+            let mut file = MmapFileMut::from(DiskMmapFileMut::create(get_random_filename()).unwrap());
             file.set_remove_on_drop(true);
             file
         }],
@@ -336,19 +330,11 @@ mod axync {
                     let v = file.copy_range_to_vec(0, MODIFIED_SANITY_TEXT.len());
                     assert_eq!(v.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
 
-                    let unique = UNIQUE.fetch_add(1, Ordering::SeqCst);
-                    let mut pb = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
-                    pb.push("scripts");
-                    pb.push(format!("async_file_test_all_{}", unique));
-                    pb.set_extension("mem");
-
+                    let pb = get_random_filename();
                     file.write_all_to_new_file(&pb).await.unwrap();
                     defer!(let _ = std::fs::remove_file(&pb););
 
-                    let mut pb1 = std::env::current_dir().unwrap().parent().unwrap().to_path_buf();
-                    pb1.push("scripts");
-                    pb1.push(format!("async_file_test_range_{}", unique));
-                    pb1.set_extension("mem");
+                    let pb1 = get_random_filename();
                     defer!(let _ = std::fs::remove_file(&pb1););
                     file.write_range_to_new_file(&pb1, 0, MODIFIED_SANITY_TEXT.len()).await.unwrap();
 
@@ -373,24 +359,14 @@ mod axync {
     use crate::raw::AsyncDiskMmapFileMut;
     use crate::raw::AsyncMemoryMmapFileMut;
     use crate::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
-    use std::sync::atomic::AtomicUsize;
-
-    static UNIQUE: AtomicUsize = AtomicUsize::new(0);
+    use super::*;
 
     tokio_async_tests!(
         [test_async_memory_file_mut, {
-            AsyncMemoryMmapFileMut::new("memory.mem")
+            AsyncMemoryMmapFileMut::new("memory.txt")
         }],
         [test_async_mmap_file_mut, {
-            let mut pb = std::env::current_dir()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_path_buf();
-            pb.push("scripts");
-            pb.push("disk");
-            pb.set_extension("mem");
-            let mut file = AsyncMmapFileMut::from(AsyncDiskMmapFileMut::create(&pb).await.unwrap());
+            let mut file = AsyncMmapFileMut::from(AsyncDiskMmapFileMut::create(get_random_filename()).await.unwrap());
             file.set_remove_on_drop(true);
             file
         }],

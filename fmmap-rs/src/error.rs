@@ -33,6 +33,10 @@ pub enum Error {
     FlushFailed(String),
 
     /// sync dir failed
+    #[error("sync file failed: {0}")]
+    SyncFileFailed(String),
+
+    /// sync dir failed
     #[error("sync dir failed: {0}")]
     SyncDirFailed(String),
 

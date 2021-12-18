@@ -7,7 +7,7 @@ use crate::{MetaData, MmapFileExt, MmapFileMutExt};
 use crate::disk::{MmapFileMutType, remmap};
 use crate::error::Error;
 use crate::options::Options;
-use crate::utils::{create_file, open_exist_file_with_append, open_read_only_file, sync_dir};
+use crate::utils::{create_file, open_exist_file_with_append, open_or_create_file, open_read_only_file, sync_dir};
 
 /// DiskMmapFile contains an immutable mmap buffer
 /// and a read-only file.
@@ -138,6 +138,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
 
             // truncate
             self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+            self.file.sync_all().map_err(|e| Error::SyncFileFailed(e.to_string()))?;
 
             // remap
             let mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -155,6 +156,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
 
         // truncate
         self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+        self.file.sync_all().map_err(|e| Error::SyncFileFailed(e.to_string()))?;
 
         // remap
         self.mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -214,6 +216,40 @@ impl DiskMmapFileMut {
 
     /// Open an existing file and mmap this file
     ///
+    /// # Examples
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{create_dir, File};
+    /// use std::io::{Read, Write};
+    /// use scopeguard::defer;
+    ///
+    /// // create a temp file
+    /// let mut file = File::create("../scripts/disk_open_existing_test.txt").unwrap();
+    /// defer!(remove_file("../scripts/disk_open_existing_test.txt").unwrap());
+    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// drop(file);
+    ///
+    /// // mmap the file
+    /// let mut file = DiskMmapFileMut::open_exist("../scripts/disk_open_existing_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("../scripts/disk_open_existing_test.txt").unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
+    ///
     /// [`Options`]: structs.Options.html
     pub fn open_exist<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::open_exist_in(path, None)
@@ -227,6 +263,43 @@ impl DiskMmapFileMut {
     }
 
     /// Open and mmap an existing file in copy-on-write mode.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{create_dir, File};
+    /// use std::io::{Read, Write};
+    /// use scopeguard::defer;
+    ///
+    /// // create a temp file
+    /// let mut file = File::create("../scripts/disk_open_cow_test.txt").unwrap();
+    /// defer!(remove_file("../scripts/disk_open_cow_test.txt").unwrap());
+    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// drop(file);
+    ///
+    /// // mmap the file
+    /// let mut file = DiskMmapFileMut::open_cow("../scripts/disk_open_cow_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    ///
+    /// // cow, change will only be seen in current caller
+    /// assert_eq!(file.as_slice(), "some modified data...".as_bytes());
+    /// drop(file);
+    ///
+    /// // reopen to check content, cow will not change the content.
+    /// let mut file = File::open("../scripts/disk_open_cow_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
     ///
     /// [`Options`]: structs.Options.html
     pub fn open_cow<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
@@ -313,8 +386,7 @@ impl DiskMmapFileMut {
     fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         match opts {
             None => {
-                let file = File::open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
-
+                let file = open_or_create_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
                 let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
                 Ok(Self {
                     mmap,
@@ -415,5 +487,44 @@ impl DiskMmapFileMut {
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::{File, remove_file};
+    use std::io::{Read, Write};
+    use scopeguard::defer;
+    use crate::disk::DiskMmapFileMut;
+    use crate::{MmapFileExt, MmapFileMutExt};
+
+    #[test]
+    fn test_open_existing() {
+        // create a temp file
+        let mut file = File::create("../scripts/disk_open_cow_test.txt").unwrap();
+        defer!(remove_file("../scripts/disk_open_cow_test.txt").unwrap());
+        file.write_all("some data...".as_bytes()).unwrap();
+        drop(file);
+
+        // mmap the file
+        let mut file = DiskMmapFileMut::open_cow("../scripts/disk_open_cow_test.txt").unwrap();
+        let mut buf = vec![0; "some data...".len()];
+        file.read_exact(buf.as_mut_slice(), 0).unwrap();
+        assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+        // modify the file data
+        file.truncate("some modified data...".len() as u64).unwrap();
+        file.write_all("some modified data...".as_bytes(), 0).unwrap();
+        file.flush().unwrap();
+
+        // cow, change will only be seen in current caller
+        assert_eq!(file.as_slice(), "some modified data...".as_bytes());
+        drop(file);
+
+        // reopen to check content, cow will not change the content.
+        let mut file = File::open("../scripts/disk_open_cow_test.txt").unwrap();
+        let mut buf = vec![0; "some data...".len()];
+        file.read_exact(buf.as_mut_slice()).unwrap();
+        assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }
 }
