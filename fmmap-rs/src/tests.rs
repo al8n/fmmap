@@ -1,5 +1,5 @@
+use rand::{thread_rng, Rng};
 use std::path::PathBuf;
-use rand::{Rng, thread_rng};
 
 fn get_random_filename() -> PathBuf {
     let mut rng = thread_rng();
@@ -14,7 +14,6 @@ mod sync {
     macro_rules! sync_tests {
         ($([$test_fn: ident, $init: block]), +$(,)?) => {
             use std::io::{Read, Seek, SeekFrom, Write};
-            use std::sync::atomic::{AtomicUsize, Ordering};
             use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
             use scopeguard::defer;
 
@@ -174,17 +173,18 @@ mod sync {
         };
     }
 
+    use super::*;
     use crate::raw::DiskMmapFileMut;
     use crate::raw::MemoryMmapFileMut;
     use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
-    use super::*;
 
     sync_tests!(
         [test_memory_file_mut, {
             MemoryMmapFileMut::new("memory.txt")
         }],
         [test_mmap_file_mut, {
-            let mut file = MmapFileMut::from(DiskMmapFileMut::create(get_random_filename()).unwrap());
+            let mut file =
+                MmapFileMut::from(DiskMmapFileMut::create(get_random_filename()).unwrap());
             file.set_remove_on_drop(true);
             file
         }],
@@ -196,7 +196,6 @@ mod axync {
     macro_rules! tokio_async_tests {
         ($([$test_fn: ident, $init: block]), +$(,)?) => {
             use std::io::SeekFrom;
-            use std::sync::atomic::Ordering;
             use scopeguard::defer;
             use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -356,17 +355,21 @@ mod axync {
         }
     }
 
+    use super::*;
     use crate::raw::AsyncDiskMmapFileMut;
     use crate::raw::AsyncMemoryMmapFileMut;
     use crate::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
-    use super::*;
 
     tokio_async_tests!(
         [test_async_memory_file_mut, {
             AsyncMemoryMmapFileMut::new("memory.txt")
         }],
         [test_async_mmap_file_mut, {
-            let mut file = AsyncMmapFileMut::from(AsyncDiskMmapFileMut::create(get_random_filename()).await.unwrap());
+            let mut file = AsyncMmapFileMut::from(
+                AsyncDiskMmapFileMut::create(get_random_filename())
+                    .await
+                    .unwrap(),
+            );
             file.set_remove_on_drop(true);
             file
         }],
