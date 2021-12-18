@@ -227,6 +227,7 @@ impl AsyncDiskMmapFileMut {
     /// use scopeguard::defer;
     /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
     ///
+    /// # tokio_test::block_on(async {
     /// // create a temp file
     /// let mut file = File::create("../scripts/disk_open_existing_test.txt").await.unwrap();
     /// defer!(std::fs::remove_file("../scripts/disk_open_existing_test.txt").unwrap());
@@ -251,6 +252,7 @@ impl AsyncDiskMmapFileMut {
     /// let mut file = File::open("../scripts/disk_open_existing_test.txt").await.unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// # })
     /// ```
     ///
     /// [`Options`]: structs.Options.html
@@ -276,6 +278,7 @@ impl AsyncDiskMmapFileMut {
     /// use scopeguard::defer;
     /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
     ///
+    /// # tokio_test::block_on(async {
     /// // create a temp file
     /// let mut file = File::create("../scripts/async_disk_open_cow_test.txt").await.unwrap();
     /// defer!(std::fs::remove_file("../scripts/async_disk_open_cow_test.txt").unwrap());
@@ -302,6 +305,7 @@ impl AsyncDiskMmapFileMut {
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
     /// ```
     ///
     /// [`Options`]: structs.Options.html
