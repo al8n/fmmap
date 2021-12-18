@@ -138,7 +138,6 @@ impl MmapFileMutExt for DiskMmapFileMut {
 
             // truncate
             self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
-            self.file.sync_all().map_err(|e| Error::SyncFileFailed(e.to_string()))?;
 
             // remap
             let mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -156,7 +155,6 @@ impl MmapFileMutExt for DiskMmapFileMut {
 
         // truncate
         self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
-        self.file.sync_all().map_err(|e| Error::SyncFileFailed(e.to_string()))?;
 
         // remap
         self.mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -220,7 +218,7 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{create_dir, File};
+    /// use std::fs::{remove_file, File};
     /// use std::io::{Read, Write};
     /// use scopeguard::defer;
     ///
@@ -269,7 +267,7 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{create_dir, File};
+    /// use std::fs::{remove_file, File};
     /// use std::io::{Read, Write};
     /// use scopeguard::defer;
     ///
@@ -487,44 +485,5 @@ impl DiskMmapFileMut {
                 })
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fs::{File, remove_file};
-    use std::io::{Read, Write};
-    use scopeguard::defer;
-    use crate::disk::DiskMmapFileMut;
-    use crate::{MmapFileExt, MmapFileMutExt};
-
-    #[test]
-    fn test_open_existing() {
-        // create a temp file
-        let mut file = File::create("../scripts/disk_open_cow_test.txt").unwrap();
-        defer!(remove_file("../scripts/disk_open_cow_test.txt").unwrap());
-        file.write_all("some data...".as_bytes()).unwrap();
-        drop(file);
-
-        // mmap the file
-        let mut file = DiskMmapFileMut::open_cow("../scripts/disk_open_cow_test.txt").unwrap();
-        let mut buf = vec![0; "some data...".len()];
-        file.read_exact(buf.as_mut_slice(), 0).unwrap();
-        assert_eq!(buf.as_slice(), "some data...".as_bytes());
-
-        // modify the file data
-        file.truncate("some modified data...".len() as u64).unwrap();
-        file.write_all("some modified data...".as_bytes(), 0).unwrap();
-        file.flush().unwrap();
-
-        // cow, change will only be seen in current caller
-        assert_eq!(file.as_slice(), "some modified data...".as_bytes());
-        drop(file);
-
-        // reopen to check content, cow will not change the content.
-        let mut file = File::open("../scripts/disk_open_cow_test.txt").unwrap();
-        let mut buf = vec![0; "some data...".len()];
-        file.read_exact(buf.as_mut_slice()).unwrap();
-        assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }
 }

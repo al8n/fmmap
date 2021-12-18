@@ -203,6 +203,7 @@ mod axync {
             const MODIFIED_SANITY_TEXT: &'static str = "Hello, modified async file!";
 
             $(
+                #[cfg(feature = "tokio-async")]
                 #[tokio::test]
                 async fn $test_fn() {
                     let mut file = $init;

@@ -218,6 +218,40 @@ impl AsyncDiskMmapFileMut {
     }
 
     /// Open an existing file and mmap this file
+    /// # Examples
+    /// ```rust
+    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use tokio::fs::File;
+    /// use std::io::{Read, Write};
+    /// use scopeguard::defer;
+    /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    ///
+    /// // create a temp file
+    /// let mut file = File::create("../scripts/disk_open_existing_test.txt").await.unwrap();
+    /// defer!(std::fs::remove_file("../scripts/disk_open_existing_test.txt").unwrap());
+    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// drop(file);
+    ///
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFileMut::open_exist("../scripts/disk_open_existing_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).await.unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("../scripts/disk_open_existing_test.txt").await.unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
     ///
     /// [`Options`]: structs.Options.html
     pub async fn open_exist<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
@@ -232,6 +266,43 @@ impl AsyncDiskMmapFileMut {
     }
 
     /// Open and mmap an existing file in copy-on-write mode.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use tokio::fs::File;
+    /// use scopeguard::defer;
+    /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    ///
+    /// // create a temp file
+    /// let mut file = File::create("../scripts/async_disk_open_cow_test.txt").await.unwrap();
+    /// defer!(std::fs::remove_file("../scripts/async_disk_open_cow_test.txt").unwrap());
+    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// drop(file);
+    ///
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFileMut::open_cow("../scripts/async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).await.unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    ///
+    /// // cow, change will only be seen in current caller
+    /// assert_eq!(file.as_slice(), "some modified data...".as_bytes());
+    /// drop(file);
+    ///
+    /// // reopen to check content, cow will not change the content.
+    /// let mut file = File::open("../scripts/async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice()).await.unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
     ///
     /// [`Options`]: structs.Options.html
     pub async fn open_cow<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
