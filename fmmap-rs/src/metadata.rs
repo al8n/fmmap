@@ -67,8 +67,13 @@ impl DerefMut for DiskMetaData {
 /// This structure is returned from the metadata or
 /// symlink_metadata function or method and represents
 /// known metadata about a file such as its permissions, size, modification times, etc
+#[repr(transparent)]
+pub struct MetaData {
+    inner: MetaDataInner,
+}
+
 #[enum_dispatch(MetaDataExt)]
-pub enum MetaData {
+enum MetaDataInner {
     Empty(EmptyMetaData),
     Memory(MemoryMetaData),
     Disk(DiskMetaData),
@@ -76,14 +81,20 @@ pub enum MetaData {
 
 impl MetaData {
     pub(crate) fn empty(meta: EmptyMetaData) -> Self {
-        Self::Empty(meta)
+        Self {
+            inner: MetaDataInner::Empty(meta)
+        }
     }
 
     pub(crate) fn memory(meta: MemoryMetaData) -> Self {
-        Self::Memory(meta)
+        Self {
+            inner: MetaDataInner::Memory(meta)
+        }
     }
 
     pub(crate) fn disk(meta: Metadata) -> Self {
-        Self::Disk(DiskMetaData::new(meta))
+        Self {
+            inner: MetaDataInner::Disk(DiskMetaData::new(meta))
+        }
     }
 }

@@ -56,6 +56,7 @@
     clippy::len_without_is_empty,
     clippy::upper_case_acronyms
 )]
+#![deny(missing_docs)]
 #[doc = include_str!("../README.md")]
 #[macro_use]
 extern crate enum_dispatch;

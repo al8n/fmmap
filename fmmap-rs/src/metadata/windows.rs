@@ -1,6 +1,7 @@
 use std::os::windows::fs::MetadataExt;
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::error::{Error, Result};
+use crate::MetaData;
 use crate::metadata::{DiskMetaData, EmptyMetaData, MemoryMetaData};
 
 /// Utility methods to MetaData
@@ -278,5 +279,71 @@ impl MetaDataExt for EmptyMetaData {
     #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
     fn file_index(&self) -> Option<u64> {
         None
+    }
+}
+
+impl MetaDataExt for MetaData {
+    fn accessed(&self) -> std::result::Result<SystemTime, Error> {
+        self.inner.accessed()
+    }
+
+    fn created(&self) -> std::result::Result<SystemTime, Error> {
+        self.inner.created()
+    }
+
+    fn is_file(&self) -> bool {
+        self.inner.is_file()
+    }
+
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
+    fn is_symlink(&self) -> bool {
+        self.inner.is_symlink()
+    }
+
+    fn len(&self) -> u64 {
+        self.inner.len()
+    }
+
+    fn modified(&self) -> std::result::Result<SystemTime, Error> {
+        self.inner.modified()
+    }
+
+    fn file_attributes(&self) -> u32 {
+        self.inner.file_attributes()
+    }
+
+    fn creation_time(&self) -> u64 {
+        self.inner.creation_time()
+    }
+
+    fn last_access_time(&self) -> u64 {
+        self.inner.last_access_time()
+    }
+
+    fn last_write_time(&self) -> u64 {
+        self.inner.last_write_time()
+    }
+
+    fn file_size(&self) -> u64 {
+        self.inner.file_size()
+    }
+
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
+    fn volume_serial_number(&self) -> Option<u32> {
+        self.inner.volume_serial_number()
+    }
+
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
+    fn number_of_links(&self) -> Option<u32> {
+        self.inner.number_of_links()
+    }
+
+    #[cfg(feature = "nightly")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
+    fn file_index(&self) -> Option<u64> {
+        self.inner.file_index()
     }
 }

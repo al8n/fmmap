@@ -225,13 +225,12 @@ impl AsyncDiskMmapFileMut {
     /// use tokio::fs::File;
     /// use std::io::{Read, Write};
     /// use scopeguard::defer;
-    /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
     /// let mut file = File::create("../scripts/disk_open_existing_test.txt").await.unwrap();
     /// defer!(std::fs::remove_file("../scripts/disk_open_existing_test.txt").unwrap());
-    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
     ///
     /// // mmap the file
@@ -250,7 +249,7 @@ impl AsyncDiskMmapFileMut {
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
     /// let mut file = File::open("../scripts/disk_open_existing_test.txt").await.unwrap();
-    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// # })
     /// ```
@@ -276,13 +275,12 @@ impl AsyncDiskMmapFileMut {
     /// use fmmap::raw::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// use scopeguard::defer;
-    /// use tokio::io::{AsyncReadExt, AsyncWriteExt};
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
     /// let mut file = File::create("../scripts/async_disk_open_cow_test.txt").await.unwrap();
     /// defer!(std::fs::remove_file("../scripts/async_disk_open_cow_test.txt").unwrap());
-    /// file.write_all("some data...".as_bytes()).unwrap();
+    /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
     ///
     /// // mmap the file
@@ -303,7 +301,7 @@ impl AsyncDiskMmapFileMut {
     /// // reopen to check content, cow will not change the content.
     /// let mut file = File::open("../scripts/async_disk_open_cow_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
-    /// file.read_exact(buf.as_mut_slice()).await.unwrap();
+    /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
     /// # })
     /// ```
