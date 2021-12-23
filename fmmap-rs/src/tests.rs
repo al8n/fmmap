@@ -1,14 +1,24 @@
 use rand::{thread_rng, Rng};
 use std::path::PathBuf;
 
+#[cfg(not(windows))]
 pub fn get_random_filename() -> PathBuf {
     let mut rng = thread_rng();
-
     let mut filename = std::env::temp_dir();
     filename.push(rng.gen::<u32>().to_string());
     filename.set_extension("txt");
     filename
 }
+
+#[cfg(windows)]
+pub fn get_random_filename() -> PathBuf {
+    let mut rng = thread_rng();
+    let mut filename = std::env::current_dir().unwrap();
+    filename.push(rng.gen::<u32>().to_string());
+    filename.set_extension("txt");
+    filename
+}
+
 
 #[cfg(feature = "sync")]
 mod sync {
