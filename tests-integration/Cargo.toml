@@ -13,7 +13,7 @@ required-features = ["tokio-async"]
 
 [features]
 sync = ["fmmap/sync"]
-tokio-async = ["fmmap/tokio-async", "tokio/full"]
+tokio-async = ["fmmap/tokio-async", "tokio/rt", "tokio/rt-multi-thread", "tokio/fs", "tokio/io-std", "tokio/io-util", "tokio/test-util"]
 full = ["sync", "tokio-async"]
 
 [dependencies]

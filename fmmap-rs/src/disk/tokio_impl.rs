@@ -134,7 +134,8 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     #[cfg(not(target_os = "linux"))]
     async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
-        if self.mmap.len() > 0 {
+        let meta = self.file.metadata().await.map_err(Error::IO)?;
+        if meta.len() > 0 {
             self.flush()?;
         }
 
