@@ -76,6 +76,7 @@ cfg_sync!(
             .create_new(true)
             .read(true)
             .write(true)
+            .append(true)
             .open(path)
             .map_err(Error::IO)
     }
@@ -161,6 +162,7 @@ cfg_tokio!(
             .create_new(true)
             .read(true)
             .write(true)
+            .append(true)
             .open(path)
             .await
             .map_err(Error::IO)

@@ -43,7 +43,7 @@ jobs:
       - run: exit 0
 
   unit-tests:
-    name: macos unit tests
+    name: unit tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

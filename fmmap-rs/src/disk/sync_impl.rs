@@ -222,7 +222,9 @@ impl DiskMmapFileMut {
     /// without truncating.
     ///
     /// # Examples
-    /// - File already exists
+    ///
+    /// File already exists
+    ///
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
@@ -254,7 +256,7 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
     ///
-    /// - File does not exists
+    /// File does not exists
     ///
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
@@ -295,7 +297,9 @@ impl DiskMmapFileMut {
     /// Open or Create(if not exists) a file and mmap this file with [`Options`].
     ///
     /// # Examples
-    /// - File already exists
+    ///
+    /// File already exists
+    ///
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
@@ -341,9 +345,9 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
     ///
-    /// - File does not exists
+    /// File does not exists
     ///
-    /// ```rust
+    /// ```no_run
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::{remove_file, File};
@@ -526,6 +530,7 @@ impl DiskMmapFileMut {
 
     /// Open and mmap an existing file in copy-on-write mode(copy-on-write memory map backed by a file) with [`Options`].
     /// Data written to the memory map will not be visible by other processes, and will not be carried through to the underlying file.
+    ///
     /// # Examples
     ///
     /// ```rust

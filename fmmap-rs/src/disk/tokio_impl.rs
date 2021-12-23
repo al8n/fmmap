@@ -227,7 +227,9 @@ impl AsyncDiskMmapFileMut {
     /// without truncating.
     ///
     /// # Examples
-    /// - File already exists
+    ///
+    /// File already exists
+    ///
     /// ```rust
     /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use fmmap::raw::AsyncDiskMmapFileMut;
@@ -260,9 +262,9 @@ impl AsyncDiskMmapFileMut {
     /// # })
     /// ```
     ///
-    /// - File does not exists
+    /// File does not exists
     ///
-    /// ```rust
+    /// ```no_run
     /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use fmmap::raw::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
@@ -302,7 +304,9 @@ impl AsyncDiskMmapFileMut {
     /// Open or Create(if not exists) a file and mmap this file with [`AsyncOptions`].
     ///
     /// # Examples
-    /// - File already exists
+    ///
+    /// File already exists
+    ///
     /// ```rust
     /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use fmmap::raw::AsyncDiskMmapFileMut;
@@ -351,9 +355,9 @@ impl AsyncDiskMmapFileMut {
     /// # })
     /// ```
     ///
-    /// - File does not exists
+    /// File does not exists
     ///
-    /// ```rust
+    /// ```no_run
     /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use fmmap::raw::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
