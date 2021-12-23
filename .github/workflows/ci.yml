@@ -34,22 +34,25 @@ jobs:
     name: all systems go
     runs-on: ubuntu-latest
     needs:
-      - macos-unit-tests
-      - windows-unit-tests
-      - linux-unit-tests
+      - unit-tests
+      - tarpaulin
       - miri
       - docs
       - valgrind
     steps:
       - run: exit 0
 
-  macos-unit-tests:
+  unit-tests:
     name: macos unit tests
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         rust:
           - nightly
+        os:
+          - macos-latest
+          - windows-latest
+          - ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install latest nightly
@@ -72,48 +75,15 @@ jobs:
         run: cargo test --all-features
         working-directory: fmmap-rs
 
-  windows-unit-tests:
-    name: windows unit tests
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt, clippy
-
-      - uses: Swatinem/rust-cache@v1
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: test fmmap all features
-        run: cargo test --all-features
-        working-directory: fmmap-rs
-
-  linux-unit-tests:
-    name: linux unit tests
-    strategy:
-      matrix:
-        rust:
-          - nightly
+  tarpaulin:
+    name: cargo tarpaulin
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v1
