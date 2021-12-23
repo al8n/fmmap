@@ -1,9 +1,9 @@
 use rand::{thread_rng, Rng};
 use std::path::PathBuf;
 
-fn get_random_filename() -> PathBuf {
+pub fn get_random_filename() -> PathBuf {
     let mut rng = thread_rng();
-    let mut filename = PathBuf::from("../scripts");
+    let mut filename = PathBuf::from("./");
     filename.push(rng.gen::<u32>().to_string());
     filename.set_extension("txt");
     filename

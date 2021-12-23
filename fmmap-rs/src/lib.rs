@@ -146,7 +146,7 @@ mod mmap_file;
 mod options;
 mod reader;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 /// File I/O utils function
 pub mod utils;
 mod writer;

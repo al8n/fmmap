@@ -130,7 +130,9 @@ impl MmapFileMutExt for DiskMmapFileMut {
     #[cfg(not(target_os = "linux"))]
     fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
-        self.flush()?;
+        if self.mmap.len() > 0 {
+            self.flush()?;
+        }
 
         unsafe {
             // unmap
@@ -184,6 +186,14 @@ impl MmapFileMutExt for DiskMmapFileMut {
 
 impl DiskMmapFileMut {
     /// Create a new file and mmap this file
+    ///
+    /// # Notes
+    /// The new file is zero size, so before do write, you should truncate first.
+    /// Or you can use [`create_with_options`] and set `max_size` field for [`Options`] to enable directly write
+    /// without truncating.
+    ///
+    /// [`create_with_options`]: structs.DiskMmapFileMut.html
+    /// [`Options`]: structs.Options.html
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::create_in(path, None)
     }
@@ -223,13 +233,13 @@ impl DiskMmapFileMut {
     /// use scopeguard::defer;
     ///
     /// // create a temp file
-    /// let mut file = File::create("../scripts/disk_open_existing_test.txt").unwrap();
-    /// defer!(remove_file("../scripts/disk_open_existing_test.txt").unwrap());
+    /// let mut file = File::create("disk_open_existing_test.txt").unwrap();
+    /// defer!(remove_file("disk_open_existing_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut file = DiskMmapFileMut::open_exist("../scripts/disk_open_existing_test.txt").unwrap();
+    /// let mut file = DiskMmapFileMut::open_exist("disk_open_existing_test.txt").unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0);
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -243,7 +253,7 @@ impl DiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("../scripts/disk_open_existing_test.txt").unwrap();
+    /// let mut file = File::open("disk_open_existing_test.txt").unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
@@ -260,7 +270,8 @@ impl DiskMmapFileMut {
         Self::open_exist_in(path, Some(opts))
     }
 
-    /// Open and mmap an existing file in copy-on-write mode.
+    /// Open and mmap an existing file in copy-on-write mode(copy-on-write memory map backed by a file).
+    /// Data written to the memory map will not be visible by other processes, and will not be carried through to the underlying file.
     ///
     /// # Examples
     ///
@@ -272,13 +283,13 @@ impl DiskMmapFileMut {
     /// use scopeguard::defer;
     ///
     /// // create a temp file
-    /// let mut file = File::create("../scripts/disk_open_cow_test.txt").unwrap();
-    /// defer!(remove_file("../scripts/disk_open_cow_test.txt").unwrap());
+    /// let mut file = File::create("disk_open_cow_test.txt").unwrap();
+    /// defer!(remove_file("disk_open_cow_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut file = DiskMmapFileMut::open_cow("../scripts/disk_open_cow_test.txt").unwrap();
+    /// let mut file = DiskMmapFileMut::open_cow("disk_open_cow_test.txt").unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -293,7 +304,7 @@ impl DiskMmapFileMut {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("../scripts/disk_open_cow_test.txt").unwrap();
+    /// let mut file = File::open("disk_open_cow_test.txt").unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -304,8 +315,8 @@ impl DiskMmapFileMut {
         Self::open_cow_in(path, None)
     }
 
-    /// Open and mmap an existing file in copy-on-write mode with [`Options`].
-    /// Data written to the memory map will not be visible by other processes, and will not be carried through to the underlying file
+    /// Open and mmap an existing file in copy-on-write mode(copy-on-write memory map backed by a file) with [`Options`].
+    /// Data written to the memory map will not be visible by other processes, and will not be carried through to the underlying file.
     ///
     /// [`Options`]: structs.Options.html
     pub fn open_cow_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
@@ -473,8 +484,7 @@ impl DiskMmapFileMut {
                     sync_dir(parent)?;
                 }
                 let opts_bk = opts.mmap_opts.clone();
-                let mmap = unsafe {
-                    opts.mmap_opts.map_copy(&file)? };
+                let mmap = unsafe { opts.mmap_opts.map_copy(&file)? };
 
                 Ok(Self {
                     mmap,

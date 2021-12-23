@@ -134,7 +134,9 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     #[cfg(not(target_os = "linux"))]
     async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         // sync data
-        self.flush()?;
+        if self.mmap.len() > 0 {
+            self.flush()?;
+        }
 
         unsafe {
             // unmap
@@ -189,6 +191,14 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
 
 impl AsyncDiskMmapFileMut {
     /// Create a new file and mmap this file
+    ///
+    /// # Notes
+    /// The new file is zero size, so, before write, you should truncate first.
+    /// Or you can use [`create_with_options`] and set `max_size` field for [`AsyncOptions`] to enable directly write
+    /// without truncating.
+    ///
+    /// [`create_with_options`]: structs.AsyncDiskMmapFileMut.html
+    /// [`AsyncOptions`]: structs.AsyncOptions.html
     pub async fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::create_in(path, None).await
     }
@@ -278,13 +288,13 @@ impl AsyncDiskMmapFileMut {
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
-    /// let mut file = File::create("../scripts/async_disk_open_cow_test.txt").await.unwrap();
-    /// defer!(std::fs::remove_file("../scripts/async_disk_open_cow_test.txt").unwrap());
+    /// let mut file = File::create("async_disk_open_cow_test.txt").await.unwrap();
+    /// defer!(std::fs::remove_file("async_disk_open_cow_test.txt").unwrap());
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFileMut::open_cow("../scripts/async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_cow("async_disk_open_cow_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -299,7 +309,7 @@ impl AsyncDiskMmapFileMut {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("../scripts/async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut file = File::open("async_disk_open_cow_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
