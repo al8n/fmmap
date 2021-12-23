@@ -7,5 +7,6 @@ members = [
   "fmmap-uniffi",
 
   # internal
-  "tests-integration"
+  "tests-integration",
+  "benchmarks"
 ]

@@ -1,0 +1,10 @@
+[package]
+name = "benches"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+criterion = "0.3.5"
+fmmap = { path = "../fmmap-rs", features = ["sync", "tokio-async"] }
+tokio = { version = "1.14", features = ["full"] }

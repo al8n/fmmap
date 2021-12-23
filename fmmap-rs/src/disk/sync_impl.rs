@@ -201,7 +201,7 @@ impl DiskMmapFileMut {
     /// Or you can use [`create_with_options`] and set `max_size` field for [`Options`] to enable directly write
     /// without truncating.
     ///
-    /// [`create_with_options`]: structs.DiskMmapFileMut.html
+    /// [`create_with_options`]: structs.DiskMmapFileMut.html#method.create_with_options
     /// [`Options`]: structs.Options.html
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::create_in(path, None)
@@ -214,19 +214,176 @@ impl DiskMmapFileMut {
          Self::create_in(path, Some(opts))
     }
 
-    /// Open a file and mmap this file.
-    /// The file will be open by [`File::open`].
+    /// Open or Create(if not exists) a file and mmap this file.
     ///
-    /// [`File::open`]: https://doc.rust-lang.org/std/fs/struct.File.html#method.open
+    /// # Notes
+    /// If the file does not exist, then the new file will be open in zero size, so before do write, you should truncate first.
+    /// Or you can use [`open_with_options`] and set `max_size` field for [`Options`] to enable directly write
+    /// without truncating.
+    ///
+    /// # Examples
+    /// - File already exists
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{remove_file, File};
+    /// use std::io::{Read, Write};
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = File::create("disk_open_test.txt").unwrap();
+    /// # defer!(remove_file("disk_open_test.txt").unwrap());
+    /// # file.write_all("some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // open and mmap the file
+    /// let mut file = DiskMmapFileMut::open("disk_open_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("disk_open_test.txt").unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
+    ///
+    /// - File does not exists
+    ///
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{remove_file, File};
+    /// use std::io::{Read, Write};
+    /// # use scopeguard::defer;
+    ///
+    /// // create and mmap the file
+    /// let mut file = DiskMmapFileMut::open("disk_open_test.txt").unwrap();
+    /// # defer!(remove_file("disk_open_test.txt").unwrap());
+    /// file.truncate(100).unwrap();
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    ///
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("disk_open_test.txt").unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
+    ///
+    /// [`open_with_options`]: structs.DiskMmapFileMut.html#method.open_with_options
+    /// [`Options`]: structs.Options.html
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::open_in(path, None)
     }
 
-    /// Open a file and mmap this file with [`Options`].
-    /// The file will be open by [OpenOptions::open]
+    /// Open or Create(if not exists) a file and mmap this file with [`Options`].
+    ///
+    /// # Examples
+    /// - File already exists
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{remove_file, File};
+    /// use std::io::{Read, Seek, SeekFrom, Write};
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = File::create("disk_open_test_with_options.txt").unwrap();
+    /// # defer!(remove_file("disk_open_test_with_options.txt").unwrap());
+    /// # file.write_all("sanity text".as_bytes()).unwrap();
+    /// # file.write_all("some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file with options
+    /// let mut opts = Options::new();
+    /// opts
+    ///     // allow read
+    ///     .read(true)
+    ///     // allow write
+    ///     .write(true)
+    ///     // allow append
+    ///     .append(true)
+    ///     // truncate to 100
+    ///     .max_size(100)
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// let mut file = DiskMmapFileMut::open_with_options("disk_open_test_with_options.txt", opts).unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate(("some modified data...".len() + "sanity text".len()) as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("disk_open_test_with_options.txt").unwrap();
+    /// file.seek(SeekFrom::Start("sanity text".as_bytes().len() as u64)).unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
+    ///
+    /// - File does not exists
+    ///
+    /// ```rust
+    /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
+    /// use fmmap::raw::DiskMmapFileMut;
+    /// use std::fs::{remove_file, File};
+    /// use std::io::{Read, Write};
+    /// # use scopeguard::defer;
+    ///
+    /// // mmap the file with options
+    /// let mut opts = Options::new();
+    /// opts
+    ///     // allow read
+    ///     .read(true)
+    ///     // allow write
+    ///     .write(true)
+    ///     // allow append
+    ///     .append(true)
+    ///     // truncate to 100
+    ///     .max_size(100);
+    ///
+    /// let mut file = DiskMmapFileMut::open_with_options("disk_open_test_with_options.txt", opts).unwrap();
+    /// # defer!(remove_file("disk_open_test_with_options.txt").unwrap());
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    ///
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    ///
+    /// // modify the file data
+    /// file.truncate("some modified data...".len() as u64).unwrap();
+    /// file.write_all("some modified data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// drop(file);
+    ///
+    /// // reopen to check content
+    /// let mut buf = vec![0; "some modified data...".len()];
+    /// let mut file = File::open("disk_open_test_with_options.txt").unwrap();
+    /// file.read_exact(buf.as_mut_slice()).unwrap();
+    /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+    /// ```
     ///
     /// [`Options`]: structs.Options.html
-    /// [`OpenOptions::open`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.open
     pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_in(path, Some(opts))
     }
@@ -259,15 +416,12 @@ impl DiskMmapFileMut {
     /// file.flush().unwrap();
     /// drop(file);
     ///
-    ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
     /// let mut file = File::open("disk_open_existing_test.txt").unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
-    ///
-    /// [`Options`]: structs.Options.html
     pub fn open_exist<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::open_exist_in(path, None)
     }
@@ -477,7 +631,8 @@ impl DiskMmapFileMut {
             Some(opts) => {
                 if opts.max_size > 0 {
                     file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let parent = path.as_ref().parent().unwrap();
+                    let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
+                    let parent = abs.parent().unwrap();
                     sync_dir(parent)?;
                 }
 
@@ -508,8 +663,17 @@ impl DiskMmapFileMut {
                     typ: MmapFileMutType::Normal,
                 })
             }
-            Some(opts) => {
-                let file = opts.file_opts.open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+            Some(mut opts) => {
+                let file = opts.file_opts.create(true).open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                let meta = file.metadata()?;
+                let file_sz = meta.len();
+                if file_sz == 0 && opts.max_size > 0 {
+                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
+                    let parent = abs.parent().unwrap();
+                    sync_dir(parent)?;
+                }
+
                 let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
                     opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
