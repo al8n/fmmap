@@ -57,7 +57,15 @@ macro_rules! declare_and_impl_options {
             }
 
             /// Configures the max size of the file.
+            ///
             /// This option only has effect when mmaping a real file in write mode.
+            ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             pub fn max_size(&mut self, max_sz: u64) -> &mut Self {
                 self.max_size = max_sz;
                 self
@@ -71,16 +79,28 @@ macro_rules! declare_and_impl_options {
                 self
             }
 
-            /// Sets the option for write access. For details, please see [`std::fs::OpenOptions::write`]
+            /// Sets the option for write access. For details, please see [`std::fs::OpenOptions::write`].
             ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::write`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.write
             pub fn write(&mut self, val: bool) -> &mut Self {
                 self.file_opts.write(val);
                 self
             }
 
-            /// Sets the option to create a new file, or open it if it already exists. For details, please see [`std::fs::OpenOptions::create`]
+            /// Sets the option to create a new file, or open it if it already exists. For details, please see [`std::fs::OpenOptions::create`].
             ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::create`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create
             pub fn create(&mut self, val: bool) -> &mut Self {
                 self.file_opts.create(val);
@@ -89,6 +109,12 @@ macro_rules! declare_and_impl_options {
 
             /// Sets the option to create a new file, failing if it already exists. For details, please see [`std::fs::OpenOptions::create_new`]
             ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::create_new`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create_new
             pub fn create_new(&mut self, val: bool) -> &mut Self {
                 self.file_opts.create_new(val);
@@ -97,6 +123,12 @@ macro_rules! declare_and_impl_options {
 
             /// Sets the option for the append mode. For details, please see [`std::fs::OpenOptions::append`]
             ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::append`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.append
             pub fn append(&mut self, val: bool) -> &mut Self {
                 self.file_opts.append(val);
@@ -105,6 +137,12 @@ macro_rules! declare_and_impl_options {
 
             /// Sets the option for truncating a previous file. For details, please see [`std::fs::OpenOptions::truncate`]
             ///
+            /// This field is ignored when opening [`DiskMmapFile`], [`AsyncDiskMmapFile`], [`MmapFile`] and [`AsyncMmapFile`].
+            ///
+            /// [`DiskMmapFile`]: fmmap::raw::DiskMmapFile
+            /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
+            /// [`MmapFile`]: struct.MmapFile.html
+            /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::truncate`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.truncate
             pub fn truncate(&mut self, val: bool) -> &mut Self {
                 self.file_opts.truncate(val);

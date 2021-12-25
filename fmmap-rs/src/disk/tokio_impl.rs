@@ -23,25 +23,123 @@ impl_async_mmap_file_ext!(AsyncDiskMmapFile);
 
 impl AsyncDiskMmapFile {
     /// Open a readable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::AsyncMmapFileExt;
+    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_disk_open_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_open_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFile::open("async_disk_open_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
     pub async fn open<P: AsRef<Path>>(path: P,) -> Result<Self, Error> {
         Self::open_in(path, None).await
     }
 
     /// Open a readable memory map backed by a file with [`Options`]
     ///
-    /// [`Options`]: structs.Options.html
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncOptions, AsyncMmapFileExt};
+    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_disk_open_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_open_with_options_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file
+    /// let mut opts = AsyncOptions::new();
+    /// opts
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFile::open_with_options("async_disk_open_with_options_test.txt", opts).await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    ///
+    /// [`AsyncOptions`]: structs.AsyncOptions.html
     pub async fn open_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self, Error> {
         Self::open_in(path, Some(opts)).await
     }
 
     /// Open a readable and executable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::AsyncMmapFileExt;
+    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_disk_open_exec_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_open_exec_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFile::open_exec("async_disk_open_exec_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
     pub async fn open_exec<P: AsRef<Path>>(path: P,) -> Result<Self, Error> {
         Self::open_exec_in(path, None).await
     }
 
     /// Open a readable and executable memory map backed by a file with [`Options`].
     ///
-    /// [`Options`]: structs.Options.html
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncOptions, AsyncMmapFileExt};
+    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_disk_open_exec_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_open_exec_with_options_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file
+    /// let mut opts = AsyncOptions::new();
+    /// opts
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // mmap the file
+    /// let mut file = AsyncDiskMmapFile::open_exec_with_options("async_disk_open_exec_with_options_test.txt", opts).await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    ///
+    /// [`AsyncOptions`]: structs.AsyncOptions.html
     pub async fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self, Error> {
         Self::open_exec_in(path, Some(opts)).await
     }
@@ -177,6 +275,23 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
         Ok(())
     }
 
+    /// Remove the underlying file
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use fmmap::AsyncMmapFileMutExt;
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("async_disk_remove_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_remove_test.txt").unwrap());
+    /// file.truncate(100).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// # })
+    /// ```
     async fn remove(mut self) -> crate::error::Result<()> {
         let path = self.path;
         drop(self.mmap);
@@ -186,12 +301,80 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
         Ok(())
     }
 
+    /// Close and truncate the underlying file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{MetaDataExt, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("disk_close_with_truncate_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("disk_close_with_truncate_test.txt").unwrap());
+    /// file.truncate(100).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    ///
+    /// file.close_with_truncate(50).await.unwrap();
+    ///
+    /// let file = AsyncDiskMmapFileMut::open("disk_close_with_truncate_test.txt").await.unwrap();
+    /// let meta = file.metadata().await.unwrap();
+    /// assert_eq!(meta.len(), 50);
+    /// # })
+    /// ```
+    #[cfg(not(target_os = "linux"))]
     async fn close_with_truncate(self, max_sz: i64) -> crate::error::Result<()> {
-        self.flush()?;
+        // sync data
+        let meta = self.file.metadata().await.map_err(Error::IO)?;
+        if meta.len() > 0 {
+            self.flush()?;
+        }
+
         drop(self.mmap);
         if max_sz >= 0 {
             self.file.set_len(max_sz as u64).await.map_err(Error::IO)?;
-            let parent = self.path.parent().unwrap();
+            let abs = self.path.canonicalize().map_err(Error::IO)?;
+            let parent = abs.parent().unwrap();
+            sync_dir_async(parent).await?;
+        }
+        Ok(())
+    }
+
+    /// Close and truncate the underlying file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{MetaDataExt, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("disk_close_with_truncate_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("disk_close_with_truncate_test.txt").unwrap());
+    /// file.truncate(100).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    ///
+    /// file.close_with_truncate(50).await.unwrap();
+    ///
+    /// let file = AsyncDiskMmapFileMut::open("disk_close_with_truncate_test.txt").await.unwrap();
+    /// let meta = file.metadata().await.unwrap();
+    /// assert_eq!(meta.len(), 50);
+    /// # })
+    /// ```
+    #[cfg(target_os = "linux")]
+    async fn close_with_truncate(self, max_sz: i64) -> crate::error::Result<()> {
+        // sync data
+        self.flush()?;
+        drop(self.mmap);
+
+        if max_sz >= 0 {
+            self.file.set_len(max_sz as u64).await.map_err(Error::IO)?;
+            let abs = self.path.canonicalize().map_err(Error::IO)?;
+            let parent = abs.parent().unwrap();
             sync_dir_async(parent).await?;
         }
         Ok(())
@@ -205,14 +388,46 @@ impl AsyncDiskMmapFileMut {
     /// The new file is zero size, so, before write, you should truncate first.
     /// Or you can use [`create_with_options`] and set `max_size` field for [`AsyncOptions`] to enable directly write
     /// without truncating.
+    /// # Examples
     ///
-    /// [`create_with_options`]: structs.AsyncDiskMmapFileMut.html
+    /// ```rust
+    /// use fmmap::AsyncMmapFileMutExt;
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("disk_create_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("disk_create_test.txt").unwrap());
+    /// file.truncate(12).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// # })
+    /// ```
+    ///
+    /// [`create_with_options`]: structs.AsyncDiskMmapFileMut.html#method.create_with_options
     /// [`AsyncOptions`]: structs.AsyncOptions.html
     pub async fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::create_in(path, None).await
     }
 
     /// Create a new file and mmap this file with [`Options`]
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncOptions, AsyncMmapFileMutExt};
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut opts = AsyncOptions::new();
+    /// opts
+    ///     // truncate to 100
+    ///     .max_size(100);
+    /// let mut file = AsyncDiskMmapFileMut::create_with_options("async_disk_create_with_options_test.txt", opts).await.unwrap();
+    /// # defer!(std::fs::remove_file("async_disk_create_with_options_test.txt").unwrap());
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// # })
+    /// ```
     ///
     /// [`Options`]: structs.Options.html
     pub async fn create_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self, Error> {
@@ -467,12 +682,8 @@ impl AsyncDiskMmapFileMut {
     /// // mmap the file
     /// let mut opts = AsyncOptions::new();
     /// opts
-    ///     // allow read
-    ///     .read(true)
-    ///     // allow write
-    ///     .write(true)
-    ///     // allow append
-    ///     .append(true)
+    ///     // truncate to 100
+    ///     .max_size(100)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
@@ -569,12 +780,6 @@ impl AsyncDiskMmapFileMut {
     /// // mmap the file
     /// let mut opts = AsyncOptions::new();
     /// opts
-    ///     // allow read
-    ///     .read(true)
-    ///     // allow write
-    ///     .write(true)
-    ///     // allow append
-    ///     .append(true)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
@@ -613,6 +818,24 @@ impl AsyncDiskMmapFileMut {
     /// This method returns an error when the underlying system call fails,
     /// which can happen for a variety of reasons,
     /// such as when the file has not been opened with read permissions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::AsyncMmapFileMutExt;
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("disk_create_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("disk_create_test.txt").unwrap());
+    /// file.truncate(12).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// // freeze
+    /// file.freeze().unwrap();
+    /// # })
+    /// ```
     pub fn freeze(self) -> Result<AsyncDiskMmapFile, Error> {
         Ok(AsyncDiskMmapFile {
             mmap: self.mmap.make_read_only().map_err(Error::IO)?,
@@ -629,6 +852,23 @@ impl AsyncDiskMmapFileMut {
     /// This method returns an error when the underlying system call fails,
     /// which can happen for a variety of reasons,
     /// such as when the file has not been opened with execute permissions
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::AsyncMmapFileMutExt;
+    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// let mut file = AsyncDiskMmapFileMut::create("disk_create_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("disk_create_test.txt").unwrap());
+    /// file.truncate(12).await;
+    /// file.write_all("some data...".as_bytes(), 0).unwrap();
+    /// file.flush().unwrap();
+    /// // freeze_exec
+    /// file.freeze_exec().unwrap();
+    /// # })
+    /// ```
     pub fn freeze_exec(self) -> Result<AsyncDiskMmapFile, Error> {
         Ok(AsyncDiskMmapFile {
             mmap: self.mmap.make_exec().map_err(Error::IO)?,
@@ -658,7 +898,8 @@ impl AsyncDiskMmapFileMut {
             Some(opts) => {
                 if opts.max_size > 0 {
                     file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let parent = path.as_ref().parent().unwrap();
+                    let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
+                    let parent = abs.parent().unwrap();
                     sync_dir_async(parent).await?;
                 }
 
@@ -778,16 +1019,6 @@ impl AsyncDiskMmapFileMut {
                 })
             }
             Some(opts) => {
-                let meta = file.metadata().await?;
-                let file_sz = meta.len();
-                if file_sz == 0 && opts.max_size > 0 {
-                    file.set_len(opts.max_size)
-                        .await
-                        .map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let parent = path.as_ref().parent().unwrap();
-                    sync_dir_async(parent).await?;
-                }
-
                 let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
                     opts.mmap_opts.map_copy(&file)? };
@@ -801,5 +1032,20 @@ impl AsyncDiskMmapFileMut {
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use scopeguard::defer;
+
+    #[tokio::test]
+    async fn test_close_with_truncate_on_empty_file() {
+        let file = AsyncDiskMmapFileMut::create("async_disk_close_with_truncate_test.txt").await.unwrap();
+        defer!(std::fs::remove_file("async_disk_close_with_truncate_test.txt").unwrap());
+        file.close_with_truncate(10).await.unwrap();
+
+        assert_eq!(10, File::open("async_disk_close_with_truncate_test.txt").await.unwrap().metadata().await.unwrap().len());
     }
 }
