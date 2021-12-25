@@ -676,6 +676,133 @@ impl_mmap_file_ext!(MmapFile);
 
 impl_from!(MmapFile, MmapFileInner, [EmptyMmapFile, MemoryMmapFile, DiskMmapFile]);
 
+impl MmapFile {
+
+    /// Open a readable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{MmapFile, MmapFileExt};
+    /// use std::fs::{remove_file, File};
+    /// use std::io::Write;
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = File::create("open_test.txt").unwrap();
+    /// # defer!(remove_file("open_test.txt").unwrap());
+    /// # file.write_all("some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // open and mmap the file
+    /// let mut file = MmapFile::open("open_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(Self::from(DiskMmapFile::open(path)?))
+    }
+
+    /// Open a readable memory map backed by a file with [`Options`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{Options, MmapFile, MmapFileExt};
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = std::fs::File::create("open_test_with_options.txt").unwrap();
+    /// # defer!(std::fs::remove_file("open_test_with_options.txt").unwrap());
+    /// # std::io::Write::write_all(&mut file, "sanity text".as_bytes()).unwrap();
+    /// # std::io::Write::write_all(&mut file, "some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file with options
+    /// let mut opts = Options::new();
+    /// opts
+    ///     // allow read
+    ///     .read(true)
+    ///     // allow write
+    ///     .write(true)
+    ///     // allow append
+    ///     .append(true)
+    ///     // truncate to 100
+    ///     .max_size(100)
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // open and mmap the file
+    /// let mut file = MmapFile::open_with_options("open_test_with_options.txt", opts).unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
+    ///
+    /// [`Options`]: struct.Options.html
+    pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
+        Ok(Self::from(DiskMmapFile::open_with_options(path, opts)?))
+    }
+
+    /// Open a readable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{MmapFile, MmapFileExt};
+    /// use std::fs::{remove_file, File};
+    /// use std::io::Write;
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = File::create("open_exec_test.txt").unwrap();
+    /// # defer!(remove_file("open_exec_test.txt").unwrap());
+    /// # file.write_all("some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // open and mmap the file
+    /// let mut file = MmapFile::open_exec("open_exec_test.txt").unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
+    pub fn open_exec<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(Self::from(DiskMmapFile::open_exec(path)?))
+    }
+
+    /// Open a readable and executable memory map backed by a file with [`Options`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{Options, MmapFile, MmapFileExt};
+    /// # use scopeguard::defer;
+    ///
+    /// # let mut file = std::fs::File::create("open_exec_test_with_options.txt").unwrap();
+    /// # defer!(std::fs::remove_file("open_exec_test_with_options.txt").unwrap());
+    /// # std::io::Write::write_all(&mut file, "sanity text".as_bytes()).unwrap();
+    /// # std::io::Write::write_all(&mut file, "some data...".as_bytes()).unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file with options
+    /// let mut opts = Options::new();
+    /// opts
+    ///     // allow read
+    ///     .read(true)
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // open and mmap the file
+    /// let mut file = MmapFile::open_exec_with_options("open_exec_test_with_options.txt", opts).unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0);
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// ```
+    ///
+    /// [`Options`]: struct.Options.html
+    pub fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
+        Ok(Self::from(DiskMmapFile::open_exec_with_options(path, opts)?))
+    }
+}
+
+impl_constructor_for_memory_mmap_file!(MemoryMmapFile, MmapFile, "MmapFile");
+
 #[enum_dispatch(MmapFileExt, MmapFileMutExt)]
 enum MmapFileMutInner {
     Empty(EmptyMmapFile),
@@ -787,11 +914,14 @@ impl MmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{Options, MmapFileMut, MmapFileMutExt};
+    /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
     /// let mut file = MmapFileMut::create("create_test.txt").unwrap();
     /// # defer!(std::fs::remove_file("create_test.txt").unwrap());
+    /// assert!(file.is_empty());
+    /// assert_eq!(file.path_string(), String::from("create_test.txt"));
+    ///
     /// file.truncate(100);
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
@@ -808,7 +938,7 @@ impl MmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{Options, MmapFileMut, MmapFileMutExt};
+    /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
     /// let mut opts = Options::new();
@@ -817,6 +947,8 @@ impl MmapFileMut {
     ///     .max_size(100);
     /// let mut file = MmapFileMut::create_with_options("create_with_options_test.txt", opts).unwrap();
     /// # defer!(std::fs::remove_file("create_with_options_test.txt").unwrap());
+    /// assert!(!file.is_empty());
+    ///
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     /// ```
@@ -839,12 +971,12 @@ impl MmapFileMut {
     ///
     /// ```rust
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// # let mut file = File::create("open_test.txt").unwrap();
-    /// # defer!(remove_file("open_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_test.txt").unwrap());
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
     ///
@@ -1103,6 +1235,8 @@ impl MmapFileMut {
     ///
     /// // mmap the file
     /// let mut file = MmapFileMut::open_cow("open_cow_test.txt").unwrap();
+    /// assert!(file.is_cow());
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -1151,6 +1285,8 @@ impl MmapFileMut {
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// let mut file = MmapFileMut::open_cow_with_options("open_cow_with_options_test.txt", opts).unwrap();
+    /// assert!(file.is_cow());
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -1219,7 +1355,7 @@ impl MmapFileMut {
     ///
     /// # Examples
     /// ```rust
-    /// use fmmap::{MmapFileMut, MmapFileMutExt};
+    /// use fmmap::{MmapFileExt, MmapFileMut, MmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// let mut file = MmapFileMut::create("mmap_file_freeze_exec_test.txt").unwrap();
@@ -1228,7 +1364,8 @@ impl MmapFileMut {
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     ///
-    /// file.freeze_exec().unwrap();
+    /// let file = file.freeze_exec().unwrap();
+    /// assert!(file.is_exec());
     /// ```
     pub fn freeze_exec(mut self) -> Result<MmapFile> {
         let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
@@ -1260,5 +1397,7 @@ impl MmapFileMut {
         self.remove_on_drop = val;
     }
 }
+
+impl_constructor_for_memory_mmap_file_mut!(MemoryMmapFileMut, MmapFileMut, "MmapFileMut");
 
 impl_drop!(MmapFileMut, MmapFileMutInner, EmptyMmapFile);

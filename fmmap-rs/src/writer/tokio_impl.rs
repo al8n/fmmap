@@ -13,11 +13,11 @@ use pin_project::pin_project;
 /// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`AsyncMmapFileMutExt`]
 /// to guarantee all data will be durably stored.
 ///
-/// [`flush`]: traits.AsyncMmapFileMutExt.html#methods.flush
-/// [`flush_range`]: traits.AsyncMmapFileMutExt.html#methods.flush_range
-/// [`flush_async`]: traits.AsyncMmapFileMutExt.html#methods.flush_async
-/// [`flush_async_range`]: traits.AsyncMmapFileMutExt.html#methods.flush_async_range
-/// [`AsyncMmapFileMutExt`]: traits.AsyncMmapFileMutExt.html
+/// [`flush`]: trait.AsyncMmapFileMutExt.html#methods.flush
+/// [`flush_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_range
+/// [`flush_async`]: trait.AsyncMmapFileMutExt.html#methods.flush_async
+/// [`flush_async_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_async_range
+/// [`AsyncMmapFileMutExt`]: trait.AsyncMmapFileMutExt.html
 #[pin_project]
 pub struct AsyncMmapFileWriter<'a> {
     #[pin]

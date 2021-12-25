@@ -680,6 +680,128 @@ impl_async_mmap_file_ext!(AsyncMmapFile);
 
 impl_from!(AsyncMmapFile, AsyncMmapFileInner, [AsyncEmptyMmapFile, AsyncMemoryMmapFile, AsyncDiskMmapFile]);
 
+impl AsyncMmapFile {
+    /// Open a readable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt};
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_open_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_open_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    /// // mmap the file
+    /// let mut file = AsyncMmapFile::open("async_open_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(Self::from(AsyncDiskMmapFile::open(path).await?))
+    }
+
+    /// Open a readable memory map backed by a file with [`Options`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncOptions, AsyncMmapFile, AsyncMmapFileExt};
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_open_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_open_with_options_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file
+    /// let mut opts = AsyncOptions::new();
+    /// opts
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // mmap the file
+    /// let mut file = AsyncMmapFile::open_with_options("async_open_with_options_test.txt", opts).await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    ///
+    /// [`AsyncOptions`]: struct.AsyncOptions.html
+    pub async fn open_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self> {
+        Ok(Self::from(AsyncDiskMmapFile::open_with_options(path, opts).await?))
+    }
+
+    /// Open a readable and executable memory map backed by a file
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt};
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_open_exec_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_open_exec_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    /// // mmap the file
+    /// let mut file = AsyncMmapFile::open_exec("async_open_exec_test.txt").await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    pub async fn open_exec<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Ok(Self::from(AsyncDiskMmapFile::open_exec(path).await?))
+    }
+
+    /// Open a readable and executable memory map backed by a file with [`Options`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fmmap::{AsyncMmapFile, AsyncOptions, AsyncMmapFileExt};
+    /// use tokio::fs::File;
+    /// # use scopeguard::defer;
+    ///
+    /// # tokio_test::block_on(async {
+    /// # let mut file = File::create("async_open_exec_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("async_open_exec_with_options_test.txt").unwrap());
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
+    /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
+    /// # drop(file);
+    ///
+    /// // mmap the file
+    /// let mut opts = AsyncOptions::new();
+    /// opts
+    ///     // mmap content after the sanity text
+    ///     .offset("sanity text".as_bytes().len() as u64);
+    /// // mmap the file
+    /// let mut file = AsyncMmapFile::open_exec_with_options("async_open_exec_with_options_test.txt", opts).await.unwrap();
+    /// let mut buf = vec![0; "some data...".len()];
+    /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
+    /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
+    /// # })
+    /// ```
+    ///
+    /// [`AsyncOptions`]: struct.AsyncOptions.html
+    pub async fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self> {
+        Ok(Self::from(AsyncDiskMmapFile::open_exec_with_options(path, opts).await?))
+    }
+}
+
+impl_constructor_for_memory_mmap_file!(AsyncMemoryMmapFile, AsyncMmapFile, "AsyncMmapFile");
+
 #[enum_dispatch(AsyncMmapFileExt, AsyncMmapFileMutExt)]
 enum AsyncMmapFileMutInner {
     Empty(AsyncEmptyMmapFile),
@@ -796,12 +918,15 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// let mut file = AsyncMmapFileMut::create("async_create_test.txt").await.unwrap();
     /// # defer!(std::fs::remove_file("async_create_test.txt").unwrap());
+    /// assert!(file.is_empty());
+    /// assert_eq!(file.path_string(), String::from("async_create_test.txt"));
+    ///
     /// file.truncate(12).await;
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
@@ -817,7 +942,7 @@ impl AsyncMmapFileMut {
     /// Create a new file and mmap this file with [`AsyncOptions`]
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncOptions, AsyncMmapFileMutExt};
+    /// use fmmap::{AsyncMmapFileMut, AsyncOptions, AsyncMmapFileMutExt, AsyncMmapFileExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -827,6 +952,8 @@ impl AsyncMmapFileMut {
     ///     .max_size(100);
     /// let mut file = AsyncMmapFileMut::create_with_options("async_create_with_options_test.txt", opts).await.unwrap();
     /// # defer!(std::fs::remove_file("async_create_with_options_test.txt").unwrap());
+    /// assert!(!file.is_empty());
+    ///
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     /// # })
@@ -1085,6 +1212,7 @@ impl AsyncMmapFileMut {
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
     /// let mut file = AsyncMmapFileMut::open_exist_with_options("async_open_existing_test_with_options.txt", opts).await.unwrap();
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -1129,6 +1257,8 @@ impl AsyncMmapFileMut {
     ///
     /// // mmap the file
     /// let mut file = AsyncMmapFileMut::open_cow("async_open_cow_test.txt").await.unwrap();
+    /// assert!(file.is_cow());
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -1169,6 +1299,7 @@ impl AsyncMmapFileMut {
     /// // create a temp file
     /// let mut file = File::create("async_open_cow_with_options_test.txt").await.unwrap();
     /// # defer!(std::fs::remove_file("async_open_cow_with_options_test.txt").unwrap());
+    ///
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
@@ -1180,6 +1311,8 @@ impl AsyncMmapFileMut {
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
     /// let mut file = AsyncMmapFileMut::open_cow_with_options("async_open_cow_with_options_test.txt", opts).await.unwrap();
+    /// assert!(file.is_cow());
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -1264,7 +1397,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -1273,8 +1406,10 @@ impl AsyncMmapFileMut {
     /// file.truncate(12).await;
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
+    ///
     /// // freeze_exec
-    /// file.freeze_exec().unwrap();
+    /// let file = file.freeze_exec().unwrap();
+    /// assert!(file.is_exec());
     /// # })
     /// ```
     ///
@@ -1310,5 +1445,7 @@ impl AsyncMmapFileMut {
         self.remove_on_drop = val;
     }
 }
+
+impl_constructor_for_memory_mmap_file_mut!(AsyncMemoryMmapFileMut, AsyncMmapFileMut, "AsyncMmapFileMut");
 
 impl_drop!(AsyncMmapFileMut, AsyncMmapFileMutInner, AsyncEmptyMmapFile);

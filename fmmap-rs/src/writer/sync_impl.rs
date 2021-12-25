@@ -11,11 +11,11 @@ use bytes::Buf;
 /// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`MmapFileMutExt`]
 /// to guarantee all data will be durably stored.
 ///
-/// [`flush`]: traits.MmapFileMutExt.html#methods.flush
-/// [`flush_range`]: traits.MmapFileMutExt.html#methods.flush_range
-/// [`flush_async`]: traits.MmapFileMutExt.html#methods.flush_async
-/// [`flush_async_range`]: traits.MmapFileMutExt.html#methods.flush_async_range
-/// [`MmapFileMutExt`]: traits.MmapFileMutExt.html
+/// [`flush`]: trait.MmapFileMutExt.html#methods.flush
+/// [`flush_range`]: trait.MmapFileMutExt.html#methods.flush_range
+/// [`flush_async`]: trait.MmapFileMutExt.html#methods.flush_async
+/// [`flush_async_range`]: trait.MmapFileMutExt.html#methods.flush_async_range
+/// [`MmapFileMutExt`]: trait.MmapFileMutExt.html
 pub struct MmapFileWriter<'a> {
     w: io::Cursor<&'a mut [u8]>,
     offset: usize,
