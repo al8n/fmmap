@@ -83,7 +83,7 @@ impl DiskMmapFile {
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_in(path, Some(opts))
     }
@@ -144,14 +144,13 @@ impl DiskMmapFile {
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_exec_in(path, Some(opts))
     }
 
     fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         let file = open_read_only_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
-
         match opts  {
             None => {
                 let mmap = unsafe {
@@ -284,7 +283,6 @@ impl MmapFileMutExt for DiskMmapFileMut {
     /// ```rust
     /// use fmmap::MmapFileMutExt;
     /// use fmmap::raw::DiskMmapFileMut;
-    /// # use scopeguard::defer;
     ///
     /// let mut file = DiskMmapFileMut::create("disk_remove_test.txt").unwrap();
     ///
@@ -401,8 +399,8 @@ impl DiskMmapFileMut {
     /// file.flush().unwrap();
     /// ```
     ///
-    /// [`create_with_options`]: structs.DiskMmapFileMut.html#method.create_with_options
-    /// [`Options`]: structs.Options.html
+    /// [`create_with_options`]: struct.DiskMmapFileMut.html#method.create_with_options
+    /// [`Options`]: struct.Options.html
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::create_in(path, None)
     }
@@ -426,7 +424,7 @@ impl DiskMmapFileMut {
     /// file.flush().unwrap();
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn create_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
          Self::create_in(path, Some(opts))
     }
@@ -505,8 +503,8 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
     ///
-    /// [`open_with_options`]: structs.DiskMmapFileMut.html#method.open_with_options
-    /// [`Options`]: structs.Options.html
+    /// [`open_with_options`]: struct.DiskMmapFileMut.html#method.open_with_options
+    /// [`Options`]: struct.Options.html
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::open_in(path, None)
     }
@@ -604,7 +602,7 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_in(path, Some(opts))
     }
@@ -690,7 +688,7 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_exist_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_exist_in(path, Some(opts))
     }
@@ -734,7 +732,7 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_cow<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
         Self::open_cow_in(path, None)
     }
@@ -752,8 +750,8 @@ impl DiskMmapFileMut {
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
-    /// let mut file = File::create("disk_open_cow_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_cow_test.txt").unwrap());
+    /// let mut file = File::create("disk_open_cow_with_options_test.txt").unwrap();
+    /// # defer!(remove_file("disk_open_cow_with_options_test.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
@@ -763,7 +761,7 @@ impl DiskMmapFileMut {
     /// opts
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
-    /// let mut file = DiskMmapFileMut::open_cow_with_options("disk_open_cow_test.txt", opts).unwrap();
+    /// let mut file = DiskMmapFileMut::open_cow_with_options("disk_open_cow_with_options_test.txt", opts).unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -777,7 +775,7 @@ impl DiskMmapFileMut {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("disk_open_cow_test.txt").unwrap();
+    /// let mut file = File::open("disk_open_cow_with_options_test.txt").unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// // skip the sanity text
     /// file.seek(SeekFrom::Start("sanity text".as_bytes().len() as u64)).unwrap();
@@ -785,7 +783,7 @@ impl DiskMmapFileMut {
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
     /// ```
     ///
-    /// [`Options`]: structs.Options.html
+    /// [`Options`]: struct.Options.html
     pub fn open_cow_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self, Error> {
         Self::open_cow_in(path, Some(opts))
     }

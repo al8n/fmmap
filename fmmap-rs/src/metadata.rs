@@ -82,19 +82,19 @@ enum MetaDataInner {
 impl MetaData {
     pub(crate) fn empty(meta: EmptyMetaData) -> Self {
         Self {
-            inner: MetaDataInner::Empty(meta)
+            inner: MetaDataInner::Empty(meta),
         }
     }
 
     pub(crate) fn memory(meta: MemoryMetaData) -> Self {
         Self {
-            inner: MetaDataInner::Memory(meta)
+            inner: MetaDataInner::Memory(meta),
         }
     }
 
     pub(crate) fn disk(meta: Metadata) -> Self {
         Self {
-            inner: MetaDataInner::Disk(DiskMetaData::new(meta))
+            inner: MetaDataInner::Disk(DiskMetaData::new(meta)),
         }
     }
 }

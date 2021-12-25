@@ -1,6 +1,8 @@
 macro_rules! declare_and_impl_options {
     ($name: ident, $file_open_options: ident) => {
         /// A memory map builder, providing advanced options and flags for specifying memory map file behavior.
+        ///
+        // TODO: support file lock options
         #[derive(Clone)]
         pub struct $name {
             pub(crate) mmap_opts: MmapOptions,

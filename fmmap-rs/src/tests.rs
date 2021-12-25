@@ -18,7 +18,6 @@ pub fn get_random_filename() -> PathBuf {
     filename
 }
 
-
 #[cfg(feature = "sync")]
 mod sync {
     macro_rules! sync_tests {
