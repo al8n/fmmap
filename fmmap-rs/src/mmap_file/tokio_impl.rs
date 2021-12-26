@@ -686,7 +686,7 @@ impl AsyncMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt};
+    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt, MetaDataExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -697,6 +697,11 @@ impl AsyncMmapFile {
     /// # drop(file);
     /// // mmap the file
     /// let mut file = AsyncMmapFile::open("async_open_test.txt").await.unwrap();
+    /// assert!(!file.is_empty());
+    /// assert_eq!(file.metadata().await.unwrap().len(), 12);
+    /// assert_eq!(file.len(), 12);
+    /// assert_eq!(file.path_string(), String::from("async_open_test.txt"));
+    ///
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());

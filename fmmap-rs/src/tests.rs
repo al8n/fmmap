@@ -195,6 +195,7 @@ mod sync {
             let mut file =
                 MmapFileMut::from(DiskMmapFileMut::create(get_random_filename()).unwrap());
             file.set_remove_on_drop(true);
+            assert!(file.get_remove_on_drop());
             file
         }],
     );
@@ -381,6 +382,7 @@ mod axync {
                     .unwrap(),
             );
             file.set_remove_on_drop(true);
+            assert!(file.get_remove_on_drop());
             file
         }],
     );

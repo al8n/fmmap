@@ -73,55 +73,55 @@ impl MmapFileExt for EmptyMmapFile {
 }
 
 impl MmapFileMutExt for EmptyMmapFile {
-    #[inline(always)]
+    #[inline]
     fn as_mut_slice(&mut self) -> &mut [u8] {
         &mut self.inner
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_cow(&self) -> bool {
         false
     }
 
-    #[inline(always)]
+    #[inline]
     fn bytes_mut(&mut self, _offset: usize, _sz: usize) -> Result<&mut [u8]> {
          Ok(&mut self.inner)
     }
 
-    #[inline(always)]
+    #[inline]
     fn zero_range(&mut self, _start: usize, _end: usize) {}
 
     noop_flush!();
 
-    #[inline(always)]
+    #[inline]
     fn truncate(&mut self, _max_sz: u64) -> Result<()> {
         Ok(())
     }
 
-    #[inline(always)]
+    #[inline]
     fn remove(self) -> Result<()> {
         Ok(())
     }
 
-    #[inline(always)]
+    #[inline]
     fn close_with_truncate(self, _max_sz: i64) -> Result<()> {
         Ok(())
     }
 
-    #[inline(always)]
+    #[inline]
     fn writer(&mut self, _offset: usize) -> Result<MmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }
 
-    #[inline(always)]
+    #[inline]
     fn range_writer(&mut self, _offset: usize, _len: usize) -> Result<MmapFileWriter> {
         Err(Error::InvokeEmptyMmap)
     }
 
-    #[inline(always)]
+    #[inline]
     fn write(&mut self, _src: &[u8], _offset: usize) -> usize { 0 }
 
-    #[inline(always)]
+    #[inline]
     fn write_all(&mut self, _src: &[u8], _offset: usize) -> Result<()> {
         Err(Error::InvokeEmptyMmap)
     }

@@ -908,7 +908,7 @@ impl MmapFileMut {
     ///
     /// # Notes
     /// The new file is zero size, so before do write, you should truncate first.
-    /// Or you can use [`create_with_options`] and set `max_size` field for [`Options`] to enable directly write
+    /// Or you can use [`Options::create_mmap_file`] and set `max_size` field for [`Options`] to enable directly write
     /// without truncating.
     ///
     /// # Examples
@@ -922,12 +922,12 @@ impl MmapFileMut {
     /// assert!(file.is_empty());
     /// assert_eq!(file.path_string(), String::from("create_test.txt"));
     ///
-    /// file.truncate(100);
+    /// file.truncate(12);
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     /// ```
     ///
-    /// [`create_with_options`]: struct.MmapFileMut.html#method.create_with_options
+    /// [`Options::create_mmap_file_mut`]: struct.Options.html#method.create_mmap_file_mut
     /// [`Options`]: struct.Options.html
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
         Ok(Self::from(DiskMmapFileMut::create(path)?))
