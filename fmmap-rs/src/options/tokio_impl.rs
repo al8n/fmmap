@@ -188,7 +188,7 @@ impl AsyncOptions {
     /// # })
     /// ```
     ///
-    /// [`AsyncOptions`]: struct.AsyncOptions.htmlv
+    /// [`AsyncOptions`]: struct.AsyncOptions.html
     pub async fn open_mmap_file_mut<P: AsRef<Path>>(self, path: P) -> Result<AsyncMmapFileMut, Error> {
         Ok(AsyncMmapFileMut::from(AsyncDiskMmapFileMut::open_with_options(path, self).await?))
     }

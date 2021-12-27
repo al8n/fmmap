@@ -80,8 +80,8 @@ impl Options {
     /// use fmmap::{Options, MmapFile, MmapFileExt};
     /// # use scopeguard::defer;
     ///
-    /// # let mut file = std::fs::File::create("open_exec_test_with_options.txt").unwrap();
-    /// # defer!(std::fs::remove_file("open_exec_test_with_options.txt").unwrap());
+    /// # let mut file = std::fs::File::create("exec_mmap_file.txt").unwrap();
+    /// # defer!(std::fs::remove_file("exec_mmap_file.txt").unwrap());
     /// # std::io::Write::write_all(&mut file, "sanity text".as_bytes()).unwrap();
     /// # std::io::Write::write_all(&mut file, "some data...".as_bytes()).unwrap();
     /// # drop(file);
@@ -92,7 +92,7 @@ impl Options {
     ///     .read(true)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64)
-    ///     .open_exec_mmap_file("open_exec_test_with_options.txt")
+    ///     .open_exec_mmap_file("exec_mmap_file.txt")
     ///     .unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0);
@@ -116,8 +116,8 @@ impl Options {
     /// use std::io::{Read, Seek, SeekFrom, Write};
     /// # use scopeguard::defer;
     ///
-    /// # let mut file = File::create("open_test_with_options.txt").unwrap();
-    /// # defer!(std::fs::remove_file("open_test_with_options.txt").unwrap());
+    /// # let mut file = File::create("mmap_file_mut.txt").unwrap();
+    /// # defer!(std::fs::remove_file("mmap_file_mut.txt").unwrap());
     /// # file.write_all("sanity text".as_bytes()).unwrap();
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
@@ -134,7 +134,7 @@ impl Options {
     ///     .max_size(100)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64)
-    ///     .open_mmap_file_mut("open_test_with_options.txt")
+    ///     .open_mmap_file_mut("mmap_file_mut.txt")
     ///     .unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0);
@@ -148,7 +148,7 @@ impl Options {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("open_test_with_options.txt").unwrap();
+    /// let mut file = File::open("mmap_file_mut.txt").unwrap();
     /// file.seek(SeekFrom::Start("sanity text".as_bytes().len() as u64)).unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
@@ -172,10 +172,10 @@ impl Options {
     ///     .append(true)
     ///     // truncate to 100
     ///     .max_size(100)
-    ///     .open_mmap_file_mut("open_test_with_options.txt")
+    ///     .open_mmap_file_mut("mmap_file_mut.txt")
     ///     .unwrap();
     ///
-    /// # defer!(std::fs::remove_file("open_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("mmap_file_mut.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
     /// let mut buf = vec![0; "some data...".len()];
@@ -190,7 +190,7 @@ impl Options {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("open_test_with_options.txt").unwrap();
+    /// let mut file = File::open("mmap_file_mut.txt").unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// ```
@@ -210,8 +210,8 @@ impl Options {
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
-    /// let mut file = File::create("open_existing_test_with_options.txt").unwrap();
-    /// # defer!(std::fs::remove_file("open_existing_test_with_options.txt").unwrap());
+    /// let mut file = File::create("exist_mmap_file_mut.txt").unwrap();
+    /// # defer!(std::fs::remove_file("exist_mmap_file_mut.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
@@ -222,7 +222,7 @@ impl Options {
     ///     .max_size(100)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64)
-    ///     .open_exist_mmap_file_mut("open_existing_test_with_options.txt")
+    ///     .open_exist_mmap_file_mut("exist_mmap_file_mut.txt")
     ///     .unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0);
@@ -236,7 +236,7 @@ impl Options {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("open_existing_test_with_options.txt").unwrap();
+    /// let mut file = File::open("exist_mmap_file_mut.txt").unwrap();
     /// file.seek(SeekFrom::Start("sanity text".as_bytes().len() as u64)).unwrap();
     /// file.read_exact(buf.as_mut_slice()).unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
@@ -259,8 +259,8 @@ impl Options {
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
-    /// let mut file = File::create("open_cow_with_options_test.txt").unwrap();
-    /// # defer!(std::fs::remove_file("open_cow_with_options_test.txt").unwrap());
+    /// let mut file = File::create("cow_mmap_file_mut.txt").unwrap();
+    /// # defer!(std::fs::remove_file("cow_mmap_file_mut.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
@@ -269,7 +269,7 @@ impl Options {
     /// let mut file = Options::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64)
-    ///     .open_cow_mmap_file_mut("open_cow_with_options_test.txt")
+    ///     .open_cow_mmap_file_mut("cow_mmap_file_mut.txt")
     ///     .unwrap();
     /// assert!(file.is_cow());
     ///
@@ -286,7 +286,7 @@ impl Options {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("open_cow_with_options_test.txt").unwrap();
+    /// let mut file = File::open("cow_mmap_file_mut.txt").unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// // skip the sanity text
     /// file.seek(SeekFrom::Start("sanity text".as_bytes().len() as u64)).unwrap();
