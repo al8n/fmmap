@@ -23,7 +23,6 @@ mod sync {
     macro_rules! sync_tests {
         ($([$test_fn: ident, $init: block]), +$(,)?) => {
             use std::io::{Read, Seek, SeekFrom, Write};
-            use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
             use scopeguard::defer;
 
             const SANITY_TEXT: &'static str = "Hello, sync file!";
@@ -39,9 +38,9 @@ mod sync {
                 writter.write_all(SANITY_TEXT.as_bytes()).unwrap();
                 writter.seek(SeekFrom::Start(100)).unwrap();
                 writter.write_i8(-8).unwrap();
-                writter.write_i16::<BigEndian>(-16).unwrap();
-                writter.write_i32::<BigEndian>(-32).unwrap();
-                writter.write_i64::<BigEndian>(-64).unwrap();
+                writter.write_i16(-16).unwrap();
+                writter.write_i32(-32).unwrap();
+                writter.write_i64(-64).unwrap();
                 writter.flush().unwrap();
                 writter.seek(SeekFrom::End(0)).unwrap();
                 drop(writter);
@@ -51,22 +50,22 @@ mod sync {
                 assert!(buf.eq(SANITY_TEXT.as_bytes()));
                 reader.seek(SeekFrom::Start(100)).unwrap();
                 assert_eq!(-8, reader.read_i8().unwrap());
-                assert_eq!(-16, reader.read_i16::<BigEndian>().unwrap());
-                assert_eq!(-32, reader.read_i32::<BigEndian>().unwrap());
-                assert_eq!(-64, reader.read_i64::<BigEndian>().unwrap());
+                assert_eq!(-16, reader.read_i16().unwrap());
+                assert_eq!(-32, reader.read_i32().unwrap());
+                assert_eq!(-64, reader.read_i64().unwrap());
 
                 let mut range_writer = file.range_writer(8000, 96).unwrap();
                 range_writer.write_u8(8).unwrap();
-                range_writer.write_u16::<BigEndian>(16).unwrap();
-                range_writer.write_u32::<BigEndian>(32).unwrap();
-                range_writer.write_u64::<BigEndian>(64).unwrap();
+                range_writer.write_u16(16).unwrap();
+                range_writer.write_u32(32).unwrap();
+                range_writer.write_u64(64).unwrap();
                 range_writer.flush().unwrap();
 
                 let mut range_reader = file.range_reader(8000, 96).unwrap();
                 assert_eq!(8, range_reader.read_u8().unwrap());
-                assert_eq!(16, range_reader.read_u16::<BigEndian>().unwrap());
-                assert_eq!(32, range_reader.read_u32::<BigEndian>().unwrap());
-                assert_eq!(64, range_reader.read_u64::<BigEndian>().unwrap());
+                assert_eq!(16, range_reader.read_u16().unwrap());
+                assert_eq!(32, range_reader.read_u32().unwrap());
+                assert_eq!(64, range_reader.read_u64().unwrap());
 
                 file.write_u8(8, 1000).unwrap();
                 file.write_u16(16, 1001).unwrap();
@@ -185,7 +184,7 @@ mod sync {
     use super::*;
     use crate::raw::DiskMmapFileMut;
     use crate::raw::MemoryMmapFileMut;
-    use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
+    use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt, MmapFileReaderExt, MmapFileWriterExt};
 
     sync_tests!(
         [test_memory_file_mut, {

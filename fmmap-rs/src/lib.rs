@@ -152,8 +152,8 @@ pub mod utils;
 mod writer;
 
 cfg_sync!(
-    pub use reader::MmapFileReader;
-    pub use writer::MmapFileWriter;
+    pub use reader::{MmapFileReader, MmapFileReaderExt};
+    pub use writer::{MmapFileWriter, MmapFileWriterExt};
     pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
     pub use options::Options;
 );

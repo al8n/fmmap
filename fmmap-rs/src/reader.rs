@@ -1,6 +1,6 @@
 cfg_sync!(
     mod sync_impl;
-    pub use sync_impl::MmapFileReader;
+    pub use sync_impl::{MmapFileReader, MmapFileReaderExt};
 );
 
 cfg_tokio!(
