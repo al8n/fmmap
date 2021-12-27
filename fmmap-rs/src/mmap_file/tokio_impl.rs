@@ -97,8 +97,7 @@ pub trait AsyncMmapFileExt {
     #[inline]
     async fn write_all_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P) -> Result<()> {
         let buf = self.as_slice();
-        let mut opts = AsyncOptions::new();
-        opts.max_size(buf.len() as u64);
+        let opts = AsyncOptions::new().max_size(buf.len() as u64);
 
         let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
         mmap.writer(0)?.write_all(buf).await?;
@@ -112,8 +111,7 @@ pub trait AsyncMmapFileExt {
         if buf.len() < offset + len {
             return Err(Error::EOF);
         }
-        let mut opts = AsyncOptions::new();
-        opts.max_size(len as u64);
+        let opts = AsyncOptions::new().max_size(len as u64);
 
         let mut mmap = AsyncDiskMmapFileMut::create_with_options(new_file_path, opts).await?;
         mmap.writer(0)?.write_all(&buf[offset..offset + len]).await?;
@@ -728,8 +726,7 @@ impl AsyncMmapFile {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
@@ -787,8 +784,7 @@ impl AsyncMmapFile {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
@@ -951,8 +947,7 @@ impl AsyncMmapFileMut {
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // truncate to 100
     ///     .max_size(100);
     /// let mut file = AsyncMmapFileMut::create_with_options("async_create_with_options_test.txt", opts).await.unwrap();
@@ -1069,8 +1064,7 @@ impl AsyncMmapFileMut {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -1111,8 +1105,7 @@ impl AsyncMmapFileMut {
     ///
     /// # tokio_test::block_on(async {
     /// // mmap the file with options
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -1209,8 +1202,7 @@ impl AsyncMmapFileMut {
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // truncate to 100
     ///     .max_size(100)
     ///     // mmap content after the sanity text
@@ -1310,8 +1302,7 @@ impl AsyncMmapFileMut {
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///

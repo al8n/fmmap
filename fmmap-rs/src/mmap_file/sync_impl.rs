@@ -94,9 +94,7 @@ pub trait MmapFileExt {
     #[inline]
     fn write_all_to_new_file<P: AsRef<Path>>(&self, new_file_path: P) -> Result<()> {
         let buf = self.as_slice();
-        let mut opts = Options::new();
-        opts.max_size(buf.len() as u64);
-
+        let opts = Options::new().max_size(buf.len() as u64);
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
         mmap.writer(0)?.write_all(buf)?;
         mmap.flush()
@@ -109,9 +107,7 @@ pub trait MmapFileExt {
         if buf.len() < offset + len {
             return Err(Error::EOF)
         }
-        let mut opts = Options::new();
-        opts.max_size(len as u64);
-
+        let opts = Options::new().max_size(len as u64);
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
         mmap.writer(0)?.write_all(&buf[offset..offset + len])?;
         mmap.flush()
@@ -718,8 +714,7 @@ impl MmapFile {
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -782,8 +777,7 @@ impl MmapFile {
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // mmap content after the sanity text
@@ -941,8 +935,7 @@ impl MmapFileMut {
     /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // truncate to 100
     ///     .max_size(100);
     /// let mut file = MmapFileMut::create_with_options("create_with_options_test.txt", opts).unwrap();
@@ -1055,8 +1048,7 @@ impl MmapFileMut {
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -1090,13 +1082,12 @@ impl MmapFileMut {
     ///
     /// ```no_run
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -1107,7 +1098,7 @@ impl MmapFileMut {
     ///     .max_size(100);
     ///
     /// let mut file = MmapFileMut::open_with_options("open_test_with_options.txt", opts).unwrap();
-    /// # defer!(remove_file("open_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_test_with_options.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
     /// let mut buf = vec![0; "some data...".len()];
@@ -1137,13 +1128,13 @@ impl MmapFileMut {
     /// # Examples
     /// ```rust
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("open_existing_test.txt").unwrap();
-    /// # defer!(remove_file("open_existing_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_existing_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
@@ -1174,20 +1165,19 @@ impl MmapFileMut {
     /// # Examples
     /// ```rust
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Seek, SeekFrom, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("open_existing_test_with_options.txt").unwrap();
-    /// # defer!(remove_file("open_existing_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_existing_test_with_options.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // truncate to 100
     ///     .max_size(100)
     ///     // mmap content after the sanity text
@@ -1223,13 +1213,13 @@ impl MmapFileMut {
     ///
     /// ```rust
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("open_cow_test.txt").unwrap();
-    /// # defer!(remove_file("open_cow_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_cow_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
@@ -1268,20 +1258,19 @@ impl MmapFileMut {
     ///
     /// ```rust
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Seek, Write, SeekFrom};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("open_cow_with_options_test.txt").unwrap();
-    /// # defer!(remove_file("open_cow_with_options_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("open_cow_with_options_test.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// let mut file = MmapFileMut::open_cow_with_options("open_cow_with_options_test.txt", opts).unwrap();

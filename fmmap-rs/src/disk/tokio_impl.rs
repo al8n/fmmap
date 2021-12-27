@@ -66,8 +66,7 @@ impl AsyncDiskMmapFile {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
@@ -127,8 +126,7 @@ impl AsyncDiskMmapFile {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
@@ -422,8 +420,7 @@ impl AsyncDiskMmapFileMut {
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // truncate to 100
     ///     .max_size(100);
     /// let mut file = AsyncDiskMmapFileMut::create_with_options("async_disk_create_with_options_test.txt", opts).await.unwrap();
@@ -541,8 +538,7 @@ impl AsyncDiskMmapFileMut {
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -584,8 +580,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// # tokio_test::block_on(async {
     /// // mmap the file with options
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -684,8 +679,7 @@ impl AsyncDiskMmapFileMut {
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // truncate to 100
     ///     .max_size(100)
     ///     // mmap content after the sanity text
@@ -783,8 +777,7 @@ impl AsyncDiskMmapFileMut {
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut opts = AsyncOptions::new();
-    /// opts
+    /// let opts = AsyncOptions::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///

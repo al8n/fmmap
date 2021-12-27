@@ -24,7 +24,7 @@ impl Options {
     /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
-    /// let mut file = Options::new().max_size(100).create_mmap_file("create_with_options_test.txt").unwrap();
+    /// let mut file = Options::new().max_size(100).create_mmap_file_mut("create_with_options_test.txt").unwrap();
     /// # defer!(std::fs::remove_file("create_with_options_test.txt").unwrap());
     /// assert!(!file.is_empty());
     ///
@@ -108,7 +108,7 @@ impl Options {
     ///     .max_size(100)
     ///     .open_mmap_file_mut("open_test_with_options.txt")
     ///     .unwrap();
-    /// 
+    ///
     /// # defer!(std::fs::remove_file("open_test_with_options.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///

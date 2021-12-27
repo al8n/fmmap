@@ -29,7 +29,7 @@ macro_rules! declare_and_impl_options {
             /// Configures the memory map to start at byte offset from the beginning of the file.
             /// This option has no effect on anonymous memory maps.
             /// By default, the offset is 0.
-            pub fn offset(&mut self, offset: u64) -> &mut Self {
+            pub fn offset(mut self, offset: u64) -> Self {
                 self.mmap_opts.offset(offset);
                 self
             }
@@ -37,7 +37,7 @@ macro_rules! declare_and_impl_options {
             /// Configures the created memory mapped buffer to be len bytes long.
             /// This option is mandatory for anonymous memory maps.
             /// For file-backed memory maps, the length will default to the file length.
-            pub fn len(&mut self, len: usize) -> &mut Self {
+            pub fn len(mut self, len: usize) -> Self {
                 self.mmap_opts.len(len);
                 self
             }
@@ -45,7 +45,7 @@ macro_rules! declare_and_impl_options {
             /// Populate (prefault) page tables for a mapping.
             /// For a file mapping, this causes read-ahead on the file. This will help to reduce blocking on page faults later.
             /// This option corresponds to the MAP_POPULATE flag on Linux. It has no effect on Windows
-            pub fn populate(&mut self) -> &mut Self {
+            pub fn populate(mut self) -> Self {
                 self.mmap_opts.populate();
                 self
             }
@@ -53,7 +53,7 @@ macro_rules! declare_and_impl_options {
             /// Configures the anonymous memory map to be suitable for a process or thread stack.
             /// This option corresponds to the MAP_STACK flag on Linux. It has no effect on Windows.
             /// This option has no effect on file-backed memory maps
-            pub fn stack(&mut self) -> &mut Self {
+            pub fn stack(mut self) -> Self {
                 self.mmap_opts.stack();
                 self
             }
@@ -68,7 +68,7 @@ macro_rules! declare_and_impl_options {
             /// [`AsyncDiskMmapFile`]: fmmap::raw::AsyncDiskMmapFile
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
-            pub fn max_size(&mut self, max_sz: u64) -> &mut Self {
+            pub fn max_size(mut self, max_sz: u64) -> Self {
                 self.max_size = max_sz;
                 self
             }
@@ -76,7 +76,7 @@ macro_rules! declare_and_impl_options {
             /// Sets the option for read access. For details, please see [`std::fs::OpenOptions::read`]
             ///
             /// [`std::fs::OpenOptions::read`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.read
-            pub fn read(&mut self, val: bool) -> &mut Self {
+            pub fn read(mut self, val: bool) -> Self {
                 self.file_opts.read(val);
                 self
             }
@@ -90,7 +90,7 @@ macro_rules! declare_and_impl_options {
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::write`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.write
-            pub fn write(&mut self, val: bool) -> &mut Self {
+            pub fn write(mut self, val: bool) -> Self {
                 self.file_opts.write(val);
                 self
             }
@@ -104,7 +104,7 @@ macro_rules! declare_and_impl_options {
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::create`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create
-            pub fn create(&mut self, val: bool) -> &mut Self {
+            pub fn create(mut self, val: bool) -> Self {
                 self.file_opts.create(val);
                 self
             }
@@ -118,7 +118,7 @@ macro_rules! declare_and_impl_options {
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::create_new`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.create_new
-            pub fn create_new(&mut self, val: bool) -> &mut Self {
+            pub fn create_new(mut self, val: bool) -> Self {
                 self.file_opts.create_new(val);
                 self
             }
@@ -132,7 +132,7 @@ macro_rules! declare_and_impl_options {
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::append`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.append
-            pub fn append(&mut self, val: bool) -> &mut Self {
+            pub fn append(mut self, val: bool) -> Self {
                 self.file_opts.append(val);
                 self
             }
@@ -146,7 +146,7 @@ macro_rules! declare_and_impl_options {
             /// [`MmapFile`]: struct.MmapFile.html
             /// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
             /// [`std::fs::OpenOptions::truncate`]: https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#method.truncate
-            pub fn truncate(&mut self, val: bool) -> &mut Self {
+            pub fn truncate(mut self, val: bool) -> Self {
                 self.file_opts.truncate(val);
                 self
             }
@@ -155,7 +155,7 @@ macro_rules! declare_and_impl_options {
             ///
             /// [Read more]: https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.mode
             #[cfg(unix)]
-            pub fn mode(&mut self, mode: u32) -> &mut Self {
+            pub fn mode(mut self, mode: u32) -> Self {
                 self.file_opts.mode(mode);
                 self
             }
@@ -164,7 +164,7 @@ macro_rules! declare_and_impl_options {
             ///
             /// [Read more]: https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.mode
             #[cfg(unix)]
-            pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
+            pub fn custom_flags(mut self, flags: i32) -> Self {
                 self.file_opts.custom_flags(flags);
                 self
             }
@@ -174,7 +174,7 @@ macro_rules! declare_and_impl_options {
             /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
-            pub fn access_mode(&mut self, access: u32) -> &mut Self {
+            pub fn access_mode(mut self, access: u32) -> Self {
                 self.file_opts.access_mode(access);
                 self
             }
@@ -184,7 +184,7 @@ macro_rules! declare_and_impl_options {
             /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
-            pub fn share_mode(&mut self, val: u32) -> &mut Self {
+            pub fn share_mode(mut self, val: u32) -> Self {
                 self.file_opts.share_mode(val);
                 self
             }
@@ -197,7 +197,7 @@ macro_rules! declare_and_impl_options {
             /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
-            pub fn custom_flags(&mut self, flag: u32) -> &mut Self {
+            pub fn custom_flags(mut self, flag: u32) -> Self {
                 self.file_opts.custom_flags(flag);
                 self
             }
@@ -207,7 +207,7 @@ macro_rules! declare_and_impl_options {
             /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
-            pub fn attributes(&mut self, val: u32) -> &mut Self {
+            pub fn attributes(mut self, val: u32) -> Self {
                 self.file_opts.attributes(val);
                 self
             }
@@ -220,7 +220,7 @@ macro_rules! declare_and_impl_options {
             /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
             /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
-            pub fn security_qos_flags(&mut self, flags: u32) -> &mut Self {
+            pub fn security_qos_flags(mut self, flags: u32) -> Self {
                 self.file_opts.security_qos_flags(flags);
                 self
             }

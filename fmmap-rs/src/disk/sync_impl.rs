@@ -53,19 +53,18 @@ impl DiskMmapFile {
     /// ```rust
     /// use fmmap::{Options, MmapFileExt};
     /// use fmmap::raw::DiskMmapFile;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::Write;
     /// # use scopeguard::defer;
     ///
     /// # let mut file = File::create("disk_open_test_with_options.txt").unwrap();
-    /// # defer!(remove_file("disk_open_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_test_with_options.txt").unwrap());
     /// # file.write_all("sanity text".as_bytes()).unwrap();
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -120,19 +119,18 @@ impl DiskMmapFile {
     /// ```rust
     /// use fmmap::{Options, MmapFileExt};
     /// use fmmap::raw::DiskMmapFile;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::Write;
     /// # use scopeguard::defer;
     ///
     /// # let mut file = File::create("disk_open_exec_test_with_options.txt").unwrap();
-    /// # defer!(remove_file("disk_open_exec_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_exec_test_with_options.txt").unwrap());
     /// # file.write_all("sanity text".as_bytes()).unwrap();
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // mmap content after the sanity text
@@ -414,8 +412,7 @@ impl DiskMmapFileMut {
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // truncate to 100
     ///     .max_size(100);
     /// let mut file = DiskMmapFileMut::create_with_options("disk_create_with_options_test.txt", opts).unwrap();
@@ -443,12 +440,12 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// # let mut file = File::create("disk_open_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_test.txt").unwrap());
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
     ///
@@ -476,13 +473,13 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // create and mmap the file
     /// let mut file = DiskMmapFileMut::open("disk_open_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_test.txt").unwrap());
     /// file.truncate(100).unwrap();
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
@@ -518,19 +515,18 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Seek, SeekFrom, Write};
     /// # use scopeguard::defer;
     ///
     /// # let mut file = File::create("disk_open_test_with_options.txt").unwrap();
-    /// # defer!(remove_file("disk_open_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_test_with_options.txt").unwrap());
     /// # file.write_all("sanity text".as_bytes()).unwrap();
     /// # file.write_all("some data...".as_bytes()).unwrap();
     /// # drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -565,13 +561,12 @@ impl DiskMmapFileMut {
     /// ```no_run
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // allow read
     ///     .read(true)
     ///     // allow write
@@ -582,7 +577,7 @@ impl DiskMmapFileMut {
     ///     .max_size(100);
     ///
     /// let mut file = DiskMmapFileMut::open_with_options("disk_open_test_with_options.txt", opts).unwrap();
-    /// # defer!(remove_file("disk_open_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_test_with_options.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
     /// let mut buf = vec![0; "some data...".len()];
@@ -613,13 +608,13 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("disk_open_existing_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_existing_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_existing_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
@@ -651,20 +646,19 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Seek, SeekFrom, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("disk_open_existing_test_with_options.txt").unwrap();
-    /// # defer!(remove_file("disk_open_existing_test_with_options.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_existing_test_with_options.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // truncate to 100
     ///     .max_size(100)
     ///     // mmap content after the sanity text
@@ -701,13 +695,13 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Write};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("disk_open_cow_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_cow_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_cow_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
@@ -745,20 +739,19 @@ impl DiskMmapFileMut {
     /// ```rust
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
-    /// use std::fs::{remove_file, File};
+    /// use std::fs::File;
     /// use std::io::{Read, Seek, Write, SeekFrom};
     /// # use scopeguard::defer;
     ///
     /// // create a temp file
     /// let mut file = File::create("disk_open_cow_with_options_test.txt").unwrap();
-    /// # defer!(remove_file("disk_open_cow_with_options_test.txt").unwrap());
+    /// # defer!(std::fs::remove_file("disk_open_cow_with_options_test.txt").unwrap());
     /// file.write_all("sanity text".as_bytes()).unwrap();
     /// file.write_all("some data...".as_bytes()).unwrap();
     /// drop(file);
     ///
     /// // mmap the file with options
-    /// let mut opts = Options::new();
-    /// opts
+    /// let opts = Options::new()
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// let mut file = DiskMmapFileMut::open_cow_with_options("disk_open_cow_with_options_test.txt", opts).unwrap();
