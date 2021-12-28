@@ -124,9 +124,9 @@ pub trait MmapFileWriterExt {
     /// Writes a signed integer(little endian) to the underlying writer.
     fn write_isize_le(&mut self, n: isize) -> io::Result<()>;
     /// Writes a signed 128 bit integer(big endian) to the underlying writer.
-    fn write_i128(&mut self, n: u128) -> io::Result<()>;
+    fn write_i128(&mut self, n: i128) -> io::Result<()>;
     /// Writes a signed 128 bit integer(little endian) to the underlying writer.
-    fn write_i128_le(&mut self, n: u128) -> io::Result<()>;
+    fn write_i128_le(&mut self, n: i128) -> io::Result<()>;
 
     /// Writes an unsigned 8 bit integer to the underlying writer.
     /// Note that since this writes a single byte, no byte order conversions are used. It is included for completeness.
@@ -199,11 +199,11 @@ impl<'a> MmapFileWriterExt for MmapFileWriter<'a> {
         self.w.write_all(n.to_le_bytes().as_ref())
     }
 
-    fn write_i128(&mut self, n: u128) -> io::Result<()> {
+    fn write_i128(&mut self, n: i128) -> io::Result<()> {
         self.w.write_all(n.to_be_bytes().as_ref())
     }
 
-    fn write_i128_le(&mut self, n: u128) -> io::Result<()> {
+    fn write_i128_le(&mut self, n: i128) -> io::Result<()> {
         self.w.write_all(n.to_le_bytes().as_ref())
     }
 

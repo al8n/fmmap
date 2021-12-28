@@ -171,10 +171,10 @@ pub use metadata::{MetaData, MetaDataExt};
 
 /// Inner structs of [`MmapFile`], [`MmapFileMut`], [`AsyncMmapFile`], [`AsyncMmapFileMut`]
 ///
-/// [`MmapFile`]: structs.MmapFile.html
-/// [`MmapFileMut`]: structs.MmapFileMut.html
-/// [`AsyncMmapFile`]: structs.AsyncMmapFile.html
-/// [`AsyncMmapFileMut`]: structs.AsyncMmapFileMut.html
+/// [`MmapFile`]: struct.MmapFile.html
+/// [`MmapFileMut`]: struct.MmapFileMut.html
+/// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
+/// [`AsyncMmapFileMut`]: struct.AsyncMmapFileMut.html
 pub mod raw {
     cfg_sync!(
         pub use crate::disk::{DiskMmapFile, DiskMmapFileMut};

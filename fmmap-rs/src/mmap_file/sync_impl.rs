@@ -673,7 +673,6 @@ impl_mmap_file_ext!(MmapFile);
 impl_from!(MmapFile, MmapFileInner, [EmptyMmapFile, MemoryMmapFile, DiskMmapFile]);
 
 impl MmapFile {
-
     /// Open a readable memory map backed by a file
     ///
     /// # Examples
@@ -902,7 +901,7 @@ impl MmapFileMut {
     ///
     /// # Notes
     /// The new file is zero size, so before do write, you should truncate first.
-    /// Or you can use [`Options::create_mmap_file`] and set `max_size` field for [`Options`] to enable directly write
+    /// Or you can use [`Options::create_mmap_file_mut`] and set `max_size` field for [`Options`] to enable directly write
     /// without truncating.
     ///
     /// # Examples

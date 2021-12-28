@@ -83,6 +83,7 @@ pub trait MetaDataExt {
     fn file_index(&self) -> Option<u64>;
 }
 
+#[cfg(windows)]
 impl MetaDataExt for MemoryMetaData {
     fn accessed(&self) -> Result<SystemTime> {
         Ok(self.create_at)
@@ -150,6 +151,7 @@ impl MetaDataExt for MemoryMetaData {
     }
 }
 
+#[cfg(windows)]
 impl MetaDataExt for DiskMetaData {
     fn accessed(&self) -> Result<SystemTime> {
         self.inner.accessed().map_err(Error::IO)
@@ -216,6 +218,7 @@ impl MetaDataExt for DiskMetaData {
     }
 }
 
+#[cfg(windows)]
 impl MetaDataExt for EmptyMetaData {
     fn accessed(&self) -> Result<SystemTime> {
         Ok(UNIX_EPOCH)
@@ -282,6 +285,7 @@ impl MetaDataExt for EmptyMetaData {
     }
 }
 
+#[cfg(windows)]
 impl MetaDataExt for MetaData {
     fn accessed(&self) -> std::result::Result<SystemTime, Error> {
         self.inner.accessed()
@@ -345,5 +349,91 @@ impl MetaDataExt for MetaData {
     #[cfg_attr(docsrs, doc(cfg(feature = "nightly")))]
     fn file_index(&self) -> Option<u64> {
         self.inner.file_index()
+    }
+}
+
+#[cfg(test, windows)]
+mod tests {
+    use std::time::UNIX_EPOCH;
+    use bytes::Bytes;
+    use crate::empty::EmptyMmapFile;
+    use crate::{MetaDataExt, MmapFileExt, MmapFileMutExt, Options};
+    use crate::raw::MemoryMmapFile;
+    use crate::tests::get_random_filename;
+    use super::*;
+
+    #[test]
+    fn test_metadata() {
+        let mut file = Options::new()
+            .max_size("Hello, fmmap!".len() as u64)
+            .create_mmap_file_mut(get_random_filename())
+            .unwrap();
+        file.set_remove_on_drop(true);
+        file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();
+
+        let meta = file.metadata().unwrap();
+        meta.accessed().unwrap();
+        meta.created().unwrap();
+        assert!(meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        assert_eq!(meta.file_size(), "Hello, fmmap!".len() as u64);
+        meta.file_attributes();
+        meta.creation_time();
+        meta.last_access_time();
+        meta.last_write_time();
+        #[cfg(feature = "nightly")]
+        assert!(meta.volume_serial_number().is_some());
+        #[cfg(feature = "nightly")]
+        assert!(meta.number_of_links().is_some());
+        #[cfg(feature = "nightly")]
+        assert!(meta.file_index().is_some());
+    }
+
+    #[test]
+    fn test_memory_metadata() {
+        let file = MemoryMmapFile::new("test.mem", Bytes::from("Hello, fmmap!"));
+        let meta = file.metadata().unwrap();
+
+        assert!(!meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), "Hello, fmmap!".len());
+        assert_eq!(meta.file_size(), "Hello, fmmap!".len());
+        assert_eq!(meta.file_attributes(), 0);
+        assert!(meta.modified().unwrap() == meta.created().unwrap() && meta.created().unwrap() == meta.accessed().unwrap());
+        assert!(meta.creation_time() == meta.last_access_time() && meta.last_access_time() == meta.last_write_time());
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.volume_serial_number(), None);
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.number_of_links(), None);
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.file_index(), None);
+    }
+
+    #[test]
+    fn test_empty_metadata() {
+        let file = EmptyMmapFile::default();
+        let meta = file.metadata().unwrap();
+
+        assert_eq!(meta.accessed().unwrap(), UNIX_EPOCH);
+        assert_eq!(meta.created().unwrap(), UNIX_EPOCH);
+        assert!(!meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), 0);
+        assert_eq!(meta.modified().unwrap(), UNIX_EPOCH);
+        assert_eq!(meta.file_attributes(), 0);
+        assert_eq!(meta.creation_time(), 0);
+        assert_eq!(meta.last_access_time(), 0);
+        assert_eq!(meta.last_write_time(), 0);
+        assert_eq!(meta.file_size(), 0);
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.volume_serial_number(), None);
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.number_of_links(), None);
+        #[cfg(feature = "nightly")]
+        assert_eq!(meta.file_index(), None);
     }
 }

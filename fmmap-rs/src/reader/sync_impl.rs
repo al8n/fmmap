@@ -231,7 +231,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         const USIZE_SIZE: usize = mem::size_of::<usize>();
         let mut buf: [u8; USIZE_SIZE] = [0; USIZE_SIZE];
         self.r.read_exact(&mut buf)?;
-        Ok(usize::from_le_bytes(buf))
+        Ok(usize::from_be_bytes(buf))
     }
 
     fn read_usize_le(&mut self) -> io::Result<usize> {

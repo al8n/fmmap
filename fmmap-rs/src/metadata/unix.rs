@@ -471,3 +471,104 @@ impl MetaDataExt for MetaData {
         self.inner.blocks()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+    use crate::empty::EmptyMmapFile;
+    use crate::{MmapFileExt, MmapFileMutExt, Options};
+    use crate::raw::MemoryMmapFile;
+    use crate::tests::get_random_filename;
+    use super::*;
+
+    #[test]
+    fn test_metadata() {
+        let mut file = Options::new()
+            .max_size("Hello, fmmap!".len() as u64)
+            .create_mmap_file_mut(get_random_filename())
+            .unwrap();
+        file.set_remove_on_drop(true);
+        file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();
+
+        let meta = file.metadata().unwrap();
+        meta.accessed().unwrap();
+        meta.created().unwrap();
+        assert!(meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
+        meta.modified().unwrap();
+        meta.dev();
+        meta.ino();
+        meta.mode();
+        meta.nlink();
+        meta.uid();
+        meta.gid();
+        meta.rdev();
+        meta.size();
+        meta.atime();
+        meta.atime_nsec();
+        meta.mtime();
+        meta.mtime_nsec();
+        meta.ctime();
+        meta.ctime_nsec();
+        meta.blocks();
+        meta.blksize();
+    }
+
+    #[test]
+    fn test_memory_metadata() {
+        let file = MemoryMmapFile::new("test.mem", Bytes::from("Hello, fmmap!"));
+        let meta = file.metadata().unwrap();
+
+        assert!(!meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
+        assert!(meta.modified().unwrap() == meta.created().unwrap() && meta.created().unwrap() == meta.accessed().unwrap());
+        assert!(meta.atime() == meta.mtime() && meta.mtime() == meta.ctime());
+        assert!(meta.atime_nsec() == meta.mtime_nsec() && meta.mtime_nsec() == meta.ctime_nsec());
+        assert_eq!(meta.dev(), 0);
+        assert_eq!(meta.ino(), 0);
+        assert_eq!(meta.mode(), 0);
+        assert_eq!(meta.nlink(), 0);
+        assert_eq!(meta.uid(), 0);
+        assert_eq!(meta.gid(), 0);
+        assert_eq!(meta.rdev(), 0);
+        assert_eq!(meta.blocks(), 0);
+        assert_eq!(meta.blksize(), 0);
+    }
+
+    #[test]
+    fn test_empty_metadata() {
+        let file = EmptyMmapFile::default();
+        let meta = file.metadata().unwrap();
+
+        assert_eq!(meta.accessed().unwrap(), UNIX_EPOCH);
+        assert_eq!(meta.created().unwrap(), UNIX_EPOCH);
+        assert!(!meta.is_file());
+        #[cfg(feature = "nightly")]
+        assert!(!meta.is_symlink());
+        assert_eq!(meta.len(), 0);
+        assert_eq!(meta.modified().unwrap(), UNIX_EPOCH);
+        assert_eq!(meta.dev(), 0);
+        assert_eq!(meta.ino(), 0);
+        assert_eq!(meta.mode(), 0);
+        assert_eq!(meta.nlink(), 0);
+        assert_eq!(meta.uid(), 0);
+        assert_eq!(meta.gid(), 0);
+        assert_eq!(meta.rdev(), 0);
+        assert_eq!(meta.size(), 0);
+        assert_eq!(meta.atime(), 0);
+        assert_eq!(meta.atime_nsec(), 0);
+        assert_eq!(meta.mtime(), 0);
+        assert_eq!(meta.mtime_nsec(), 0);
+        assert_eq!(meta.ctime(), 0);
+        assert_eq!(meta.ctime_nsec(), 0);
+        assert_eq!(meta.blocks(), 0);
+        assert_eq!(meta.blksize(), 0);
+    }
+}
