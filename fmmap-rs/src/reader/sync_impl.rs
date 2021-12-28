@@ -143,34 +143,42 @@ pub trait MmapFileReaderExt {
 }
 
 impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
+    #[inline]
     fn read_i8(&mut self) -> io::Result<i8> {
         self.r.read_i8()
     }
 
+    #[inline]
     fn read_i16(&mut self) -> io::Result<i16> {
         self.r.read_i16::<BigEndian>()
     }
 
+    #[inline]
     fn read_i16_le(&mut self) -> io::Result<i16> {
         self.r.read_i16::<LittleEndian>()
     }
 
+    #[inline]
     fn read_i32(&mut self) -> io::Result<i32> {
         self.r.read_i32::<BigEndian>()
     }
 
+    #[inline]
     fn read_i32_le(&mut self) -> io::Result<i32> {
         self.r.read_i32::<LittleEndian>()
     }
 
+    #[inline]
     fn read_i64(&mut self) -> io::Result<i64> {
         self.r.read_i64::<BigEndian>()
     }
 
+    #[inline]
     fn read_i64_le(&mut self) -> io::Result<i64> {
         self.r.read_i64::<LittleEndian>()
     }
 
+    #[inline]
     fn read_isize(&mut self) -> io::Result<isize> {
         const ISIZE_SIZE: usize = mem::size_of::<isize>();
         let mut buf: [u8; ISIZE_SIZE] = [0; ISIZE_SIZE];
@@ -178,6 +186,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(isize::from_be_bytes(buf))
     }
 
+    #[inline]
     fn read_isize_le(&mut self) -> io::Result<isize> {
         const ISIZE_SIZE: usize = mem::size_of::<isize>();
         let mut buf: [u8; ISIZE_SIZE] = [0; ISIZE_SIZE];
@@ -185,6 +194,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(isize::from_le_bytes(buf))
     }
 
+    #[inline]
     fn read_i128(&mut self) -> io::Result<i128> {
         const I128_SIZE: usize = mem::size_of::<i128>();
         let mut buf: [u8; I128_SIZE] = [0; I128_SIZE];
@@ -192,6 +202,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(i128::from_be_bytes(buf))
     }
 
+    #[inline]
     fn read_i128_le(&mut self) -> io::Result<i128> {
         const I128_SIZE: usize = mem::size_of::<i128>();
         let mut buf: [u8; I128_SIZE] = [0; I128_SIZE];
@@ -199,34 +210,42 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(i128::from_le_bytes(buf))
     }
 
+    #[inline]
     fn read_u8(&mut self) -> io::Result<u8> {
         self.r.read_u8()
     }
 
+    #[inline]
     fn read_u16(&mut self) -> io::Result<u16> {
         self.r.read_u16::<BigEndian>()
     }
 
+    #[inline]
     fn read_u16_le(&mut self) -> io::Result<u16> {
         self.r.read_u16::<LittleEndian>()
     }
 
+    #[inline]
     fn read_u32(&mut self) -> io::Result<u32> {
         self.r.read_u32::<BigEndian>()
     }
 
+    #[inline]
     fn read_u32_le(&mut self) -> io::Result<u32> {
         self.r.read_u32::<LittleEndian>()
     }
 
+    #[inline]
     fn read_u64(&mut self) -> io::Result<u64> {
         self.r.read_u64::<BigEndian>()
     }
 
+    #[inline]
     fn read_u64_le(&mut self) -> io::Result<u64> {
         self.r.read_u64::<LittleEndian>()
     }
 
+    #[inline]
     fn read_usize(&mut self) -> io::Result<usize> {
         const USIZE_SIZE: usize = mem::size_of::<usize>();
         let mut buf: [u8; USIZE_SIZE] = [0; USIZE_SIZE];
@@ -234,6 +253,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(usize::from_be_bytes(buf))
     }
 
+    #[inline]
     fn read_usize_le(&mut self) -> io::Result<usize> {
         const USIZE_SIZE: usize = mem::size_of::<usize>();
         let mut buf: [u8; USIZE_SIZE] = [0; USIZE_SIZE];
@@ -241,6 +261,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(usize::from_le_bytes(buf))
     }
 
+    #[inline]
     fn read_u128(&mut self) -> io::Result<u128> {
         const U128_SIZE: usize = mem::size_of::<u128>();
         let mut buf: [u8; U128_SIZE] = [0; U128_SIZE];
@@ -248,6 +269,7 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(u128::from_be_bytes(buf))
     }
 
+    #[inline]
     fn read_u128_le(&mut self) -> io::Result<u128> {
         const U128_SIZE: usize = mem::size_of::<u128>();
         let mut buf: [u8; U128_SIZE] = [0; U128_SIZE];
@@ -255,18 +277,22 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         Ok(u128::from_le_bytes(buf))
     }
 
+    #[inline]
     fn read_f32(&mut self) -> io::Result<f32> {
         self.r.read_f32::<BigEndian>()
     }
 
+    #[inline]
     fn read_f32_le(&mut self) -> io::Result<f32> {
         self.r.read_f32::<LittleEndian>()
     }
 
+    #[inline]
     fn read_f64(&mut self) -> io::Result<f64> {
         self.r.read_f64::<BigEndian>()
     }
 
+    #[inline]
     fn read_f64_le(&mut self) -> io::Result<f64> {
         self.r.read_f64::<LittleEndian>()
     }

@@ -30,6 +30,7 @@ mod sync {
 
             $(
             #[test]
+            #[cfg(any(miri, feature = "sync"))]
             fn $test_fn() {
                 let mut file = $init;
                 assert_eq!(file.as_mut_slice().len(), 0);
@@ -48,6 +49,10 @@ mod sync {
                 writter.write_isize_le(-46).unwrap();
                 writter.write_i128(-128).unwrap();
                 writter.write_i128_le(-821).unwrap();
+                writter.write_f32(32.0).unwrap();
+                writter.write_f32_le(23.0).unwrap();
+                writter.write_f64(64.0).unwrap();
+                writter.write_f64_le(46.0).unwrap();
                 writter.flush().unwrap();
                 writter.seek(SeekFrom::End(0)).unwrap();
                 drop(writter);
@@ -67,6 +72,10 @@ mod sync {
                 assert_eq!(-46, reader.read_isize_le().unwrap());
                 assert_eq!(-128, reader.read_i128().unwrap());
                 assert_eq!(-821, reader.read_i128_le().unwrap());
+                assert_eq!(32.0, reader.read_f32().unwrap());
+                assert_eq!(23.0, reader.read_f32_le().unwrap());
+                assert_eq!(64.0, reader.read_f64().unwrap());
+                assert_eq!(46.0, reader.read_f64_le().unwrap());
 
                 let mut range_writer = file.range_writer(7800, 96).unwrap();
                 range_writer.write_u8(8).unwrap();

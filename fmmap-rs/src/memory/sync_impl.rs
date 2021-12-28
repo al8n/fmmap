@@ -8,7 +8,7 @@ define_impl_constructor_for_mmap_file!(MemoryMmapFile, "MemoryMmapFile");
 
 impl_mmap_file_ext!(MemoryMmapFile);
 
-define_and_impl_constructor_for_mmap_file_mut!(MemoryMmapFileMut, "MemoryMmapFileMut", MemoryMmapFile);
+define_and_impl_constructor_for_mmap_file_mut!(MemoryMmapFileMut, "MemoryMmapFileMut", MemoryMmapFile, "MemoryMmapFile", "MmapFileExt");
 
 impl_mmap_file_ext!(MemoryMmapFileMut);
 

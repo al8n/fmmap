@@ -160,9 +160,8 @@ jobs:
           set -e
           rustup component add miri
           cargo miri setup
-          rm -rf tokio/tests
       - name: miri
-        run: cargo miri test --features sync,tokio-async task
+        run: cargo miri test --features sync,tokio-async
         working-directory: fmmap-rs
 
   docs:

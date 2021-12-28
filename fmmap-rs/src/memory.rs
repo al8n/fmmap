@@ -3,6 +3,7 @@ macro_rules! define_impl_constructor_for_mmap_file {
         /// Use [`Bytes`] to mock a mmap, which is useful for test and in-memory storage engine.
         ///
         /// [`Bytes`]: https://docs.rs/bytes/1.1.0/bytes/struct.Bytes.html
+        #[derive(Clone, PartialEq, Eq)]
         pub struct $name {
             mmap: Bytes,
             path: PathBuf,
@@ -126,7 +127,7 @@ macro_rules! define_impl_constructor_for_mmap_file {
 }
 
 macro_rules! define_and_impl_constructor_for_mmap_file_mut {
-    ($name: ident, $name_str: literal, $immutable: ident) => {
+    ($name: ident, $name_str: literal, $immutable: ident, $immutable_str: literal, $trait_str: literal) => {
         #[doc = "Use [`BytesMut`] to mock a mmap, which is useful for test and in-memory storage engine."]
         #[doc = ""]
         #[doc = "# Notes"]
@@ -138,6 +139,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
         #[doc = ""]
         #[doc = "[`truncate`]: structs.MemoryMmapFileMut.html#methods.truncate"]
         #[doc = "[`BytesMut`]: https://docs.rs/bytes/1.1.0/bytes/struct.BytesMut.html"]
+        #[derive(Clone, PartialEq, Eq)]
         pub struct $name {
             mmap: BytesMut,
             path: PathBuf,
@@ -265,7 +267,21 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
                 self.mmap.freeze()
             }
 
-            /// Make the memory mmap file immutable
+
+            #[doc = "Make the memory mmap file immutable"]
+            #[doc = "# Examples"]
+            #[doc = "```rust"]
+            #[doc = "use bytes::Bytes;"]
+            #[doc = concat!("use fmmap::", $trait_str, ";")]
+            #[doc = concat!("use fmmap::raw::{", $name_str, ",", $immutable_str, "};")]
+            #[doc = ""]
+            #[doc = concat!("let b1 = ", $name_str, "::from_string(\"foo.mem\", \"some data...\".to_string()).freeze();")]
+            #[doc = concat!("let b2 = ", $immutable_str, "::from_string(\"foo.mem\", \"some data...\".to_string());")]
+            #[doc = "assert!(!b1.is_exec());"]
+            #[doc = "assert_eq!(b1.len(), b2.len());"]
+            #[doc = "assert_eq!(b1.as_slice(), b2.as_slice());"]
+            #[doc = "assert_eq!(b1.path_string(), b2.path_string());"]
+            #[doc = "```"]
             #[inline(always)]
             pub fn freeze(self) -> $immutable {
                 $immutable {

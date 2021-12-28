@@ -482,6 +482,36 @@ mod tests {
     use crate::tests::get_random_filename;
     use super::*;
 
+    macro_rules! metadata_test {
+        ($expr: expr) => {
+            let meta = $expr;
+            meta.accessed().unwrap();
+            meta.created().unwrap();
+            assert!(meta.is_file());
+            #[cfg(feature = "nightly")]
+            assert!(!meta.is_symlink());
+            assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+            assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
+            meta.modified().unwrap();
+            meta.dev();
+            meta.ino();
+            meta.mode();
+            meta.nlink();
+            meta.uid();
+            meta.gid();
+            meta.rdev();
+            meta.size();
+            meta.atime();
+            meta.atime_nsec();
+            meta.mtime();
+            meta.mtime_nsec();
+            meta.ctime();
+            meta.ctime_nsec();
+            meta.blocks();
+            meta.blksize();
+        };
+    }
+
     #[test]
     fn test_metadata() {
         let mut file = Options::new()
@@ -490,32 +520,73 @@ mod tests {
             .unwrap();
         file.set_remove_on_drop(true);
         file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();
+        metadata_test!(file.metadata().unwrap());
 
-        let meta = file.metadata().unwrap();
-        meta.accessed().unwrap();
-        meta.created().unwrap();
-        assert!(meta.is_file());
-        #[cfg(feature = "nightly")]
-        assert!(!meta.is_symlink());
-        assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
-        assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
-        meta.modified().unwrap();
-        meta.dev();
-        meta.ino();
-        meta.mode();
-        meta.nlink();
-        meta.uid();
-        meta.gid();
-        meta.rdev();
-        meta.size();
-        meta.atime();
-        meta.atime_nsec();
-        meta.mtime();
-        meta.mtime_nsec();
-        meta.ctime();
-        meta.ctime_nsec();
-        meta.blocks();
-        meta.blksize();
+        // let meta = file.metadata().unwrap();
+        // meta.accessed().unwrap();
+        // meta.created().unwrap();
+        // assert!(meta.is_file());
+        // #[cfg(feature = "nightly")]
+        // assert!(!meta.is_symlink());
+        // assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        // assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
+        // meta.modified().unwrap();
+        // meta.dev();
+        // meta.ino();
+        // meta.mode();
+        // meta.nlink();
+        // meta.uid();
+        // meta.gid();
+        // meta.rdev();
+        // meta.size();
+        // meta.atime();
+        // meta.atime_nsec();
+        // meta.mtime();
+        // meta.mtime_nsec();
+        // meta.ctime();
+        // meta.ctime_nsec();
+        // meta.blocks();
+        // meta.blksize();
+    }
+
+    #[cfg(feature = "tokio-async")]
+    #[tokio::test]
+    async fn test_async_metadata() {
+        use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+        let mut file = AsyncOptions::new()
+            .max_size("Hello, fmmap!".len() as u64)
+            .create_mmap_file_mut(get_random_filename())
+            .await
+            .unwrap();
+        file.set_remove_on_drop(true);
+        file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();
+        metadata_test!(file.metadata().await.unwrap());
+
+        // let meta = file.metadata().await.unwrap();
+        // meta.accessed().unwrap();
+        // meta.created().unwrap();
+        // assert!(meta.is_file());
+        // #[cfg(feature = "nightly")]
+        // assert!(!meta.is_symlink());
+        // assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        // assert_eq!(meta.size(), "Hello, fmmap!".len() as u64);
+        // meta.modified().unwrap();
+        // meta.dev();
+        // meta.ino();
+        // meta.mode();
+        // meta.nlink();
+        // meta.uid();
+        // meta.gid();
+        // meta.rdev();
+        // meta.size();
+        // meta.atime();
+        // meta.atime_nsec();
+        // meta.mtime();
+        // meta.mtime_nsec();
+        // meta.ctime();
+        // meta.ctime_nsec();
+        // meta.blocks();
+        // meta.blksize();
     }
 
     #[test]

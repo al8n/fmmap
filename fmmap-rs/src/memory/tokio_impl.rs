@@ -9,7 +9,7 @@ define_impl_constructor_for_mmap_file!(AsyncMemoryMmapFile, "AsyncMemoryMmapFile
 
 impl_async_mmap_file_ext!(AsyncMemoryMmapFile);
 
-define_and_impl_constructor_for_mmap_file_mut!(AsyncMemoryMmapFileMut, "AsyncMemoryMmapFileMut", AsyncMemoryMmapFile);
+define_and_impl_constructor_for_mmap_file_mut!(AsyncMemoryMmapFileMut, "AsyncMemoryMmapFileMut", AsyncMemoryMmapFile, "AsyncMemoryMmapFile", "AsyncMmapFileExt");
 
 impl_async_mmap_file_ext!(AsyncMemoryMmapFileMut);
 
