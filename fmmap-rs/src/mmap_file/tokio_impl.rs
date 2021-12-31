@@ -150,6 +150,21 @@ pub trait AsyncMmapFileExt {
         }
     }
 
+    /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
+    fn lock_exclusive(&self) -> Result<()>;
+
+    /// Locks the file for exclusive usage, blocking if the file is currently locked.
+    fn lock_shared(&self) -> Result<()>;
+
+    /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    fn try_lock_exclusive(&self) -> Result<()>;
+
+    /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    fn try_lock_shared(&self) -> Result<()>;
+
+    /// Unlocks the file.
+    fn unlock(&self) -> Result<()>;
+
     /// Read bytes to the dst buf from the offset, returns how many bytes read.
     fn read(&self, dst: &mut [u8], offset: usize) -> usize {
         let buf = self.as_slice();

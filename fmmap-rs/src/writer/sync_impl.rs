@@ -293,3 +293,31 @@ impl<'a> MmapFileWriterExt for MmapFileWriter<'a> {
         self.w.write_f64::<LittleEndian>(n)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{BufRead, Read};
+    use bytes::Buf;
+    use crate::{MmapFileMutExt};
+    use crate::raw::MemoryMmapFileMut;
+
+    #[test]
+    fn test_writer() {
+        let mut file = MemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.writer(0).unwrap();
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().unwrap();
+        w.consume(8096);
+
+        let mut w = file.range_writer(100, 100).unwrap();
+        assert_eq!(w.remaining(), 100);
+        w.advance(10);
+        assert_eq!(w.remaining(), 90);
+        let buf = w.chunk();
+        assert_eq!(buf.len(), 90);
+    }
+}

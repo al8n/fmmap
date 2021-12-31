@@ -2,6 +2,7 @@ use std::fs::{File, remove_file};
 use std::path::{Path, PathBuf};
 #[cfg(not(target_os = "linux"))]
 use std::ptr::{drop_in_place, write};
+use fs2::FileExt;
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
 use crate::disk::{MmapFileMutType, remmap};

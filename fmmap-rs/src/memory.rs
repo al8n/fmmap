@@ -282,7 +282,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
             #[doc = "assert_eq!(b1.as_slice(), b2.as_slice());"]
             #[doc = "assert_eq!(b1.path_string(), b2.path_string());"]
             #[doc = "```"]
-            #[inline(always)]
+            #[inline]
             pub fn freeze(self) -> $immutable {
                 $immutable {
                     mmap: self.mmap.freeze(),
@@ -320,6 +320,8 @@ cfg_sync!(
                         self.create_at,
                     )))
                 }
+
+                noop_file_lock!();
             }
         };
     }
@@ -347,6 +349,8 @@ cfg_tokio!(
                 fn is_exec(&self) -> bool {
                     false
                 }
+
+                noop_file_lock!();
 
                 async fn metadata(&self) -> crate::error::Result<MetaData> {
                     Ok(MetaData::memory(MemoryMetaData::new(

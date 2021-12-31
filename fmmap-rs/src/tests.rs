@@ -30,7 +30,6 @@ mod sync {
 
             $(
             #[test]
-            #[cfg(any(miri, feature = "sync"))]
             fn $test_fn() {
                 let mut file = $init;
                 assert_eq!(file.as_mut_slice().len(), 0);

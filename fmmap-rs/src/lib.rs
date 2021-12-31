@@ -135,6 +135,35 @@ macro_rules! noop_flush {
     };
 }
 
+macro_rules! noop_file_lock {
+    () => {
+        #[inline]
+        fn lock_exclusive(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline]
+        fn lock_shared(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline]
+        fn try_lock_exclusive(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline]
+        fn try_lock_shared(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+
+        #[inline]
+        fn unlock(&self) -> crate::error::Result<()> {
+            Ok(())
+        }
+    };
+}
+
 mod disk;
 mod empty;
 /// Errors in this crate

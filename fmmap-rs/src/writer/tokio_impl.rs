@@ -2,6 +2,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::{Error, SeekFrom, Cursor};
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use bytes::Buf;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
 use pin_project::pin_project;
 
@@ -64,9 +65,6 @@ impl<'a> AsyncRead for AsyncMmapFileWriter<'a> {
     }
 }
 
-
-// impl<'a> AsyncReadExt for AsyncMmapFileWriter<'a>  {}
-//
 impl<'a> AsyncBufRead for AsyncMmapFileWriter<'a> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
         self.project().w.poll_fill_buf(cx)
@@ -76,9 +74,21 @@ impl<'a> AsyncBufRead for AsyncMmapFileWriter<'a> {
         self.project().w.consume(amt)
     }
 }
-//
-// impl<'a> AsyncBufReadExt for AsyncMmapFileWriter<'a> {}
-//
+
+impl<'a> Buf for AsyncMmapFileWriter<'a> {
+    fn remaining(&self) -> usize {
+        self.w.remaining()
+    }
+
+    fn chunk(&self) -> &[u8] {
+        self.w.chunk()
+    }
+
+    fn advance(&mut self, cnt: usize) {
+        self.w.advance(cnt)
+    }
+}
+
 impl<'a> AsyncSeek for AsyncMmapFileWriter<'a> {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
         self.project().w.start_seek(position)
@@ -88,8 +98,6 @@ impl<'a> AsyncSeek for AsyncMmapFileWriter<'a> {
         self.project().w.poll_complete(cx)
     }
 }
-//
-// impl<'a> AsyncSeekExt for AsyncMmapFileWriter<'a> {}
 
 impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
@@ -106,5 +114,31 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     }
 }
 
-// impl<'a> AsyncWriteExt for AsyncMmapFileWriter<'a> {}
+#[cfg(test)]
+mod tests {
+    use bytes::Buf;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    use crate::{AsyncMmapFileMutExt};
+    use crate::raw::AsyncMemoryMmapFileMut;
 
+    #[tokio::test]
+    async fn test_writer() {
+        let mut file = AsyncMemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.writer(0).unwrap();
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).await.unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().await.unwrap();
+        w.consume(8096);
+        w.shutdown().await.unwrap();
+
+        let mut w = file.range_writer(100, 100).unwrap();
+        assert_eq!(w.remaining(), 100);
+        w.advance(10);
+        assert_eq!(w.remaining(), 90);
+        let buf = w.chunk();
+        assert_eq!(buf.len(), 90);
+    }
+}

@@ -59,6 +59,8 @@ impl MmapFileExt for EmptyMmapFile {
         Err(Error::InvokeEmptyMmap)
     }
 
+    noop_file_lock!();
+
     fn read_exact(&self, _dst: &mut [u8], _offset: usize) -> Result<()> {
         Err(Error::InvokeEmptyMmap)
     }

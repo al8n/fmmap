@@ -61,6 +61,35 @@ macro_rules! impl_flush {
     };
 }
 
+macro_rules! impl_file_lock {
+    () => {
+        #[inline]
+        fn lock_exclusive(&self) -> crate::error::Result<()> {
+            self.file.lock_exclusive().map_err(Error::IO)
+        }
+
+        #[inline]
+        fn lock_shared(&self) -> crate::error::Result<()> {
+            self.file.lock_shared().map_err(Error::IO)
+        }
+
+        #[inline]
+        fn try_lock_exclusive(&self) -> crate::error::Result<()> {
+            self.file.try_lock_exclusive().map_err(Error::IO)
+        }
+
+        #[inline]
+        fn try_lock_shared(&self) -> crate::error::Result<()> {
+            self.file.try_lock_shared().map_err(Error::IO)
+        }
+
+        #[inline]
+        fn unlock(&self) -> crate::error::Result<()> {
+            self.file.unlock().map_err(Error::IO)
+        }
+    };
+}
+
 cfg_sync!(
     macro_rules! impl_mmap_file_ext_base {
         () => {
@@ -79,6 +108,8 @@ cfg_sync!(
             fn metadata(&self) -> crate::error::Result<MetaData> {
                 self.file.metadata().map(MetaData::disk).map_err(Error::IO)
             }
+
+            impl_file_lock!();
         };
     }
 

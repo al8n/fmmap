@@ -77,6 +77,35 @@ macro_rules! impl_flush {
     };
 }
 
+macro_rules! impl_file_lock {
+    () => {
+        #[inline]
+        fn lock_exclusive(&self) -> crate::error::Result<()> {
+            self.inner.lock_exclusive()
+        }
+
+        #[inline]
+        fn lock_shared(&self) -> crate::error::Result<()> {
+            self.inner.lock_shared()
+        }
+
+        #[inline]
+        fn try_lock_exclusive(&self) -> crate::error::Result<()> {
+            self.inner.try_lock_exclusive()
+        }
+
+        #[inline]
+        fn try_lock_shared(&self) -> crate::error::Result<()> {
+            self.inner.try_lock_shared()
+        }
+
+        #[inline]
+        fn unlock(&self) -> crate::error::Result<()> {
+            self.inner.unlock()
+        }
+    };
+}
+
 macro_rules! impl_constructor_for_memory_mmap_file {
     ($memory_base: ident, $name: ident, $name_str: literal) => {
         use bytes::Bytes;
@@ -264,6 +293,8 @@ cfg_sync!(
                 fn metadata(&self) -> Result<MetaData> {
                     self.inner.metadata()
                 }
+
+                impl_file_lock!();
             }
         };
     }
@@ -301,6 +332,8 @@ cfg_tokio!(
                 async fn metadata(&self) -> Result<MetaData> {
                     self.inner.metadata().await
                 }
+
+                impl_file_lock!();
             }
         };
     }
