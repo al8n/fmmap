@@ -6,60 +6,61 @@ use bytes::Buf;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
 use pin_project_lite::pin_project;
 
+declare_and_impl_basic_writer!();
 
-pin_project! {
-    /// AsyncMmapFileWriter helps read or write data from mmap file
-    /// like a normal file.
-    ///
-    /// # Notes
-    /// If you use a writer to write data to mmap, there is no guarantee all
-    /// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`AsyncMmapFileMutExt`]
-    /// to guarantee all data will be durably stored.
-    ///
-    /// [`flush`]: trait.AsyncMmapFileMutExt.html#methods.flush
-    /// [`flush_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_range
-    /// [`flush_async`]: trait.AsyncMmapFileMutExt.html#methods.flush_async
-    /// [`flush_async_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_async_range
-    /// [`AsyncMmapFileMutExt`]: trait.AsyncMmapFileMutExt.html
-    pub struct AsyncMmapFileWriter<'a> {
-        #[pin]
-        w: Cursor<&'a mut [u8]>,
-        offset: usize,
-        len: usize,
-    }
-}
-
-impl<'a> AsyncMmapFileWriter<'a> {
-    pub(crate) fn new(w: Cursor<&'a mut [u8]>, offset: usize, len: usize) -> Self {
-        Self {
-            w,
-            offset,
-            len
-        }
-    }
-
-    /// Returns the start offset(related to the mmap) of the writer
-    #[inline]
-    pub fn offset(&self) -> usize {
-        self.offset
-    }
-
-    /// Returns the length of the writer
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.len
-    }
-}
-
-impl Debug for AsyncMmapFileWriter<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncMmapFileWriter")
-            .field("offset", &self.offset)
-            .field("len", &self.len)
-            .field("writer", &self.w)
-            .finish()
-    }
-}
+// pin_project! {
+//     /// AsyncMmapFileWriter helps read or write data from mmap file
+//     /// like a normal file.
+//     ///
+//     /// # Notes
+//     /// If you use a writer to write data to mmap, there is no guarantee all
+//     /// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`AsyncMmapFileMutExt`]
+//     /// to guarantee all data will be durably stored.
+//     ///
+//     /// [`flush`]: trait.AsyncMmapFileMutExt.html#methods.flush
+//     /// [`flush_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_range
+//     /// [`flush_async`]: trait.AsyncMmapFileMutExt.html#methods.flush_async
+//     /// [`flush_async_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_async_range
+//     /// [`AsyncMmapFileMutExt`]: trait.AsyncMmapFileMutExt.html
+//     pub struct AsyncMmapFileWriter<'a> {
+//         #[pin]
+//         w: Cursor<&'a mut [u8]>,
+//         offset: usize,
+//         len: usize,
+//     }
+// }
+//
+// impl<'a> AsyncMmapFileWriter<'a> {
+//     pub(crate) fn new(w: Cursor<&'a mut [u8]>, offset: usize, len: usize) -> Self {
+//         Self {
+//             w,
+//             offset,
+//             len
+//         }
+//     }
+//
+//     /// Returns the start offset(related to the mmap) of the writer
+//     #[inline]
+//     pub fn offset(&self) -> usize {
+//         self.offset
+//     }
+//
+//     /// Returns the length of the writer
+//     #[inline]
+//     pub fn len(&self) -> usize {
+//         self.len
+//     }
+// }
+//
+// impl Debug for AsyncMmapFileWriter<'_> {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         f.debug_struct("AsyncMmapFileWriter")
+//             .field("offset", &self.offset)
+//             .field("len", &self.len)
+//             .field("writer", &self.w)
+//             .finish()
+//     }
+// }
 
 impl<'a> AsyncRead for AsyncMmapFileWriter<'a> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
@@ -74,20 +75,6 @@ impl<'a> AsyncBufRead for AsyncMmapFileWriter<'a> {
 
     fn consume(self: Pin<&mut Self>, amt: usize) {
         self.project().w.consume(amt)
-    }
-}
-
-impl<'a> Buf for AsyncMmapFileWriter<'a> {
-    fn remaining(&self) -> usize {
-        self.w.remaining()
-    }
-
-    fn chunk(&self) -> &[u8] {
-        self.w.chunk()
-    }
-
-    fn advance(&mut self, cnt: usize) {
-        self.w.advance(cnt)
     }
 }
 

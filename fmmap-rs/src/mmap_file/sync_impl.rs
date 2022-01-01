@@ -809,7 +809,7 @@ impl MmapFile {
     }
 }
 
-impl_constructor_for_memory_mmap_file!(MemoryMmapFile, MmapFile, "MmapFile", "");
+impl_constructor_for_memory_mmap_file!(MemoryMmapFile, MmapFile, "MmapFile", "sync");
 
 #[enum_dispatch(MmapFileExt, MmapFileMutExt)]
 enum MmapFileMutInner {
@@ -1401,6 +1401,6 @@ impl MmapFileMut {
     }
 }
 
-impl_constructor_for_memory_mmap_file_mut!(MemoryMmapFileMut, MmapFileMut, "MmapFileMut", "");
+impl_constructor_for_memory_mmap_file_mut!(MemoryMmapFileMut, MmapFileMut, "MmapFileMut", "sync");
 
 impl_drop!(MmapFileMut, MmapFileMutInner, EmptyMmapFile);

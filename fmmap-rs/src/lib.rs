@@ -201,16 +201,46 @@ pub mod utils;
 mod writer;
 
 cfg_sync!(
+    /// std based mmap file
+    pub mod sync {
+        pub use crate::reader::{MmapFileReader, MmapFileReaderExt};
+        pub use crate::writer::{MmapFileWriter, MmapFileWriterExt};
+        pub use crate::mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
+        pub use crate::options::Options;
+    }
+
     pub use reader::{MmapFileReader, MmapFileReaderExt};
     pub use writer::{MmapFileWriter, MmapFileWriterExt};
     pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
     pub use options::Options;
 );
 
-cfg_tokio!(
+cfg_async!(
     #[macro_use]
     extern crate async_trait;
+);
 
+cfg_async_std!(
+    /// async_std based mmap file
+    pub mod async_std {
+        pub use crate::reader::async_std_impl::AsyncMmapFileReader;
+        pub use crate::writer::async_std_impl::AsyncMmapFileWriter;
+        pub use crate::options::async_std_impl::AsyncOptions;
+        pub use crate::mmap_file::async_std_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
+    }
+);
+
+cfg_smol!(
+    /// smol based mmap file
+    pub mod smol {
+        pub use crate::reader::smol_impl::AsyncMmapFileReader;
+        pub use crate::writer::smol_impl::AsyncMmapFileWriter;
+        pub use crate::options::smol_impl::AsyncOptions;
+        pub use crate::mmap_file::smol_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
+    }
+);
+
+cfg_tokio!(
     /// tokio based mmap file
     pub mod tokio {
         pub use crate::reader::tokio_impl::AsyncMmapFileReader;
@@ -220,22 +250,60 @@ cfg_tokio!(
     }
 );
 
+
+
 pub use metadata::{MetaData, MetaDataExt};
 
-/// Inner structs of [`MmapFile`], [`MmapFileMut`], [`AsyncMmapFile`], [`AsyncMmapFileMut`]
-///
-/// [`MmapFile`]: struct.MmapFile.html
-/// [`MmapFileMut`]: struct.MmapFileMut.html
-/// [`AsyncMmapFile`]: struct.AsyncMmapFile.html
-/// [`AsyncMmapFileMut`]: struct.AsyncMmapFileMut.html
+/// Components of mmap file.
 pub mod raw {
     cfg_sync!(
+        /// std based raw mmap file
+        ///
+        /// Inner components of [`MmapFile`], [`MmapFileMut`]
+        ///
+        /// [`MmapFile`]: struct.MmapFile.html
+        /// [`MmapFileMut`]: struct.MmapFileMut.html
+        pub mod sync {
+            pub use crate::disk::{DiskMmapFile, DiskMmapFileMut};
+            pub use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
+        }
         pub use crate::disk::{DiskMmapFile, DiskMmapFileMut};
         pub use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
     );
 
+    cfg_async_std!(
+        /// async_std based raw mmap file
+        ///
+        /// Inner components of [`AsyncMmapFile`], [`AsyncMmapFileMut`]
+        ///
+        /// [`AsyncMmapFile`]: async_std/struct.AsyncMmapFile.html
+        /// [`AsyncMmapFileMut`]: async_std/struct.AsyncMmapFileMut.html
+        pub mod async_std {
+            pub use crate::disk::async_std_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+            pub use crate::memory::async_std_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+        }
+    );
+
+    cfg_smol!(
+        /// smol based raw mmap file
+        ///
+        /// Inner components of [`AsyncMmapFile`], [`AsyncMmapFileMut`]
+        ///
+        /// [`AsyncMmapFile`]: async_std/struct.AsyncMmapFile.html
+        /// [`AsyncMmapFileMut`]: async_std/struct.AsyncMmapFileMut.html
+        pub mod smol {
+            pub use crate::disk::smol_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+            pub use crate::memory::smol_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+        }
+    );
+
     cfg_tokio!(
-        /// tokio based mmap file
+        /// tokio based raw mmap file
+        ///
+        /// Inner components of [`AsyncMmapFile`], [`AsyncMmapFileMut`]
+        ///
+        /// [`AsyncMmapFile`]: tokio/struct.AsyncMmapFile.html
+        /// [`AsyncMmapFileMut`]: tokio/struct.AsyncMmapFileMut.html
         pub mod tokio {
             pub use crate::disk::tokio_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
             pub use crate::memory::tokio_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
