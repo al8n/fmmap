@@ -101,6 +101,16 @@ macro_rules! cfg_sync {
     }
 }
 
+macro_rules! cfg_async {
+    ($($item:item)*) => {
+        $(
+            #[cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))]
+            #[cfg_attr(docsrs, doc(cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))))]
+            $item
+        )*
+    }
+}
+
 macro_rules! cfg_windows {
     ($($item:item)*) => {
         $(

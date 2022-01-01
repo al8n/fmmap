@@ -4,8 +4,8 @@ use std::io;
 use std::ops::{Bound, RangeBounds};
 use std::path::Path;
 
-cfg_sync!(
-    use std::fs::{File as SyncFile, OpenOptions as SyncOpenOptions};
+cfg_sync! {
+    use std::fs::{File, OpenOptions};
 
     /// Sync directory
     pub fn sync_dir<P: AsRef<Path>>(path: P) -> Result<()> {
@@ -16,23 +16,23 @@ cfg_sync!(
             #[cfg(not(feature = "nightly"))]
             return Err(Error::NotADirectory);
         }
-        SyncFile::open(path)
+        File::open(path)
             .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
             .sync_all()
             .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
     }
 
     /// Open a read-only file
-    pub fn open_read_only_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn open_read_only_file<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .read(true)
             .open(path)
             .map_err(Error::IO)
     }
 
     /// Open an existing file in write mode, all writes will overwrite the original file
-    pub fn open_exist_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn open_exist_file<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .read(true)
             .write(true)
             .append(false)
@@ -41,8 +41,8 @@ cfg_sync!(
     }
 
     /// Open an existing file in write mode, all writes will append to the file
-    pub fn open_exist_file_with_append<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn open_exist_file_with_append<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .read(true)
             .write(true)
             .append(true)
@@ -51,8 +51,8 @@ cfg_sync!(
     }
 
     /// Open an existing file and truncate it
-    pub fn open_file_with_truncate<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn open_file_with_truncate<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .read(true)
             .write(true)
             .truncate(true)
@@ -61,8 +61,8 @@ cfg_sync!(
     }
 
     /// Open or create a file
-    pub fn open_or_create_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn open_or_create_file<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .create(true)
             .read(true)
             .write(true)
@@ -71,8 +71,8 @@ cfg_sync!(
     }
 
     /// Create a new file
-    pub fn create_file<P: AsRef<Path>>(path: P) -> Result<SyncFile> {
-        SyncOpenOptions::new()
+    pub fn create_file<P: AsRef<Path>>(path: P) -> Result<File> {
+        OpenOptions::new()
             .create_new(true)
             .read(true)
             .write(true)
@@ -80,94 +80,135 @@ cfg_sync!(
             .open(path)
             .map_err(Error::IO)
     }
-);
+}
 
-cfg_tokio!(
-    use tokio::fs::{File as TokioFile, OpenOptions as TokioOpenOptions};
+cfg_async! {
+    macro_rules! impl_async_file_utils {
+        ($file: ident, $open_options: ident) => {
+            /// Sync directory
+            pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
+                let path = path.as_ref();
+                if !path.is_dir() {
+                    #[cfg(feature = "nightly")]
+                        return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                    #[cfg(not(feature = "nightly"))]
+                        return Err(Error::NotADirectory);
+                }
 
-    /// Sync directory
-    pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
-        let path = path.as_ref();
-        if !path.is_dir() {
-            #[cfg(feature = "nightly")]
-            return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
-            #[cfg(not(feature = "nightly"))]
-            return Err(Error::NotADirectory);
-        }
+                <$file>::open(path)
+                    .await
+                    .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                    .sync_all()
+                    .await
+                    .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+            }
 
-        TokioFile::open(path)
-            .await
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
-            .sync_all()
-            .await
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+            /// Open a read-only file
+            pub async fn open_read_only_file_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .read(true)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+
+            /// Open an existing file in write mode, all writes will overwrite the original file
+            pub async fn open_exist_file_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .read(true)
+                    .write(true)
+                    .append(false)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+
+            /// Open an existing file in write mode, all writes will append to the file
+            pub async fn open_exist_file_with_append_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .read(true)
+                    .write(true)
+                    .append(true)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+
+            /// Open an existing file and truncate it
+            pub async fn open_file_with_truncate_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .read(true)
+                    .write(true)
+                    .truncate(true)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+
+            /// Open or create a file
+            pub async fn open_or_create_file_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .create(true)
+                    .read(true)
+                    .write(true)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+
+            /// Create a new file
+            pub async fn create_file_async<P: AsRef<Path>>(path: P) -> Result<$file> {
+                <$open_options>::new()
+                    .create_new(true)
+                    .read(true)
+                    .write(true)
+                    .append(true)
+                    .open(path)
+                    .await
+                    .map_err(Error::IO)
+            }
+        };
     }
+}
 
-    /// Open a read-only file
-    pub async fn open_read_only_file_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .read(true)
-            .open(path)
-            .await
-            .map_err(Error::IO)
+cfg_smol! {
+    /// file open utils for smol
+    pub mod smol {
+        use smol::fs::{File, OpenOptions};
+        use crate::error::{Error, Result};
+        #[cfg(feature = "nightly")]
+        use std::io;
+        use std::path::Path;
+        
+        impl_async_file_utils!(File, OpenOptions); 
     }
+}
 
-    /// Open an existing file in write mode, all writes will overwrite the original file
-    pub async fn open_exist_file_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .read(true)
-            .write(true)
-            .append(false)
-            .open(path)
-            .await
-            .map_err(Error::IO)
-    }
+cfg_tokio! {
+    /// file open utils for tokio
+    pub mod tokio {
+        use tokio::fs::{File, OpenOptions};
+        use crate::error::{Error, Result};
+        #[cfg(feature = "nightly")]
+        use std::io;
+        use std::path::Path;
 
-    /// Open an existing file in write mode, all writes will append to the file
-    pub async fn open_exist_file_with_append_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .read(true)
-            .write(true)
-            .append(true)
-            .open(path)
-            .await
-            .map_err(Error::IO)
+        impl_async_file_utils!(File, OpenOptions);
     }
+}
 
-    /// Open an existing file and truncate it
-    pub async fn open_file_with_truncate_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .read(true)
-            .write(true)
-            .truncate(true)
-            .open(path)
-            .await
-            .map_err(Error::IO)
-    }
+cfg_async_std! {
+    /// file open utils for async-std
+    pub mod async_std {
+        use async_std::fs::{File, OpenOptions};
+        use crate::error::{Error, Result};
+        #[cfg(feature = "nightly")]
+        use std::io;
+        use std::path::Path;
 
-    /// Open or create a file
-    pub async fn open_or_create_file_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .create(true)
-            .read(true)
-            .write(true)
-            .open(path)
-            .await
-            .map_err(Error::IO)
+        impl_async_file_utils!(File, OpenOptions);
     }
-
-    /// Create a new file
-    pub async fn create_file_async<P: AsRef<Path>>(path: P) -> Result<TokioFile> {
-        TokioOpenOptions::new()
-            .create_new(true)
-            .read(true)
-            .write(true)
-            .append(true)
-            .open(path)
-            .await
-            .map_err(Error::IO)
-    }
-);
+}
 
 // TODO: enum_dispatch does not support impl as parameter
 #[allow(dead_code)]

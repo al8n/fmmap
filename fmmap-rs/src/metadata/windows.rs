@@ -352,7 +352,7 @@ impl MetaDataExt for MetaData {
     }
 }
 
-#[cfg(test, windows)]
+#[cfg(test)]
 mod tests {
     use std::time::UNIX_EPOCH;
     use bytes::Bytes;
