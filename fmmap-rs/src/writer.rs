@@ -3,5 +3,5 @@ cfg_sync!(
     pub use sync_impl::{MmapFileWriter, MmapFileWriterExt};
 );
 cfg_tokio!(
-    pub(crate) mod tokio_impl;
+    pub mod tokio_impl;
 );

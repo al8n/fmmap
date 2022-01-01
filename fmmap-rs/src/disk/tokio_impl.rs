@@ -2,11 +2,13 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_os = "linux"))]
 use std::ptr::{drop_in_place, write};
 use async_trait::async_trait;
-use crate::{MetaData, AsyncMmapFileExt, AsyncMmapFileMutExt};
+use crate::MetaData;
+use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
 use crate::disk::{MmapFileMutType, remmap};
 use crate::error::Error;
-use crate::options::AsyncOptions;
+use crate::options::tokio_impl::AsyncOptions;
 use crate::utils::{create_file_async, open_exist_file_with_append_async, open_or_create_file_async, open_read_only_file_async, sync_dir_async};
+use fs4::tokio::AsyncFileExt;
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use tokio::fs::{File, remove_file};
 
@@ -27,18 +29,18 @@ impl AsyncDiskMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileExt;
-    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use fmmap::tokio::AsyncMmapFileExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFile;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFile::open("async_disk_open_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFile::open("tokio_async_disk_open_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -53,14 +55,14 @@ impl AsyncDiskMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncOptions, AsyncMmapFileExt};
-    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use fmmap::tokio::{AsyncOptions, AsyncMmapFileExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFile;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_with_options_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_with_options_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_with_options_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
@@ -70,7 +72,7 @@ impl AsyncDiskMmapFile {
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFile::open_with_options("async_disk_open_with_options_test.txt", opts).await.unwrap();
+    /// let mut file = AsyncDiskMmapFile::open_with_options("tokio_async_disk_open_with_options_test.txt", opts).await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -87,18 +89,18 @@ impl AsyncDiskMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileExt;
-    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use fmmap::tokio::AsyncMmapFileExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFile;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_exec_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_exec_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_exec_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_exec_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFile::open_exec("async_disk_open_exec_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFile::open_exec("tokio_async_disk_open_exec_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -113,14 +115,14 @@ impl AsyncDiskMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncOptions, AsyncMmapFileExt};
-    /// use fmmap::raw::AsyncDiskMmapFile;
+    /// use fmmap::tokio::{AsyncOptions, AsyncMmapFileExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFile;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_exec_with_options_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_exec_with_options_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_exec_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_exec_with_options_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
@@ -130,7 +132,7 @@ impl AsyncDiskMmapFile {
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFile::open_exec_with_options("async_disk_open_exec_with_options_test.txt", opts).await.unwrap();
+    /// let mut file = AsyncDiskMmapFile::open_exec_with_options("tokio_async_disk_open_exec_with_options_test.txt", opts).await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -278,11 +280,11 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     /// # Example
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileMutExt;
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::AsyncMmapFileMutExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     ///
     /// # tokio_test::block_on(async {
-    /// let mut file = AsyncDiskMmapFileMut::create("async_disk_remove_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::create("tokio_async_disk_remove_test.txt").await.unwrap();
     ///
     /// file.truncate(12).await;
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
@@ -290,7 +292,7 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     ///
     /// file.remove().await.unwrap();
     ///
-    /// let err = tokio::fs::File::open("async_disk_remove_test.txt").await;
+    /// let err = tokio::fs::File::open("tokio_async_disk_remove_test.txt").await;
     /// assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
     /// # })
     /// ```
@@ -308,8 +310,9 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{MetaDataExt, AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::MetaDataExt;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -349,8 +352,8 @@ impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{MetaDataExt, AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::{MetaDataExt,  tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt}};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -393,8 +396,8 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileMutExt;
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::AsyncMmapFileMutExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -415,16 +418,16 @@ impl AsyncDiskMmapFileMut {
     /// Create a new file and mmap this file with [`AsyncOptions`]
     ///
     /// ```rust
-    /// use fmmap::{AsyncOptions, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncOptions, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// let opts = AsyncOptions::new()
     ///     // truncate to 100
     ///     .max_size(100);
-    /// let mut file = AsyncDiskMmapFileMut::create_with_options("async_disk_create_with_options_test.txt", opts).await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_create_with_options_test.txt").unwrap());
+    /// let mut file = AsyncDiskMmapFileMut::create_with_options("tokio_async_disk_create_with_options_test.txt", opts).await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_create_with_options_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     /// # })
@@ -447,19 +450,19 @@ impl AsyncDiskMmapFileMut {
     /// File already exists
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
     ///
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFileMut::open("async_disk_open_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open("tokio_async_disk_open_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -472,7 +475,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("async_disk_open_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_test.txt").await.unwrap();
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// # })
@@ -481,15 +484,15 @@ impl AsyncDiskMmapFileMut {
     /// File does not exists
     ///
     /// ```no_run
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFileMut::open("async_disk_open_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_test.txt").unwrap());
+    /// let mut file = AsyncDiskMmapFileMut::open("tokio_async_disk_open_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_test.txt").unwrap());
     /// file.truncate(100).await.unwrap();
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
@@ -505,7 +508,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("async_disk_open_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_test.txt").await.unwrap();
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// # })
@@ -524,15 +527,15 @@ impl AsyncDiskMmapFileMut {
     /// File already exists
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// # let mut file = File::create("async_disk_open_with_options_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_with_options_test.txt").unwrap());
+    /// # let mut file = File::create("tokio_async_disk_open_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_with_options_test.txt").unwrap());
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// # tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// # drop(file);
@@ -549,7 +552,7 @@ impl AsyncDiskMmapFileMut {
     ///     .max_size(100)
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
-    /// let mut file = AsyncDiskMmapFileMut::open_with_options("async_disk_open_with_options_test.txt", opts).await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_with_options("tokio_async_disk_open_with_options_test.txt", opts).await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -562,7 +565,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("async_disk_open_with_options_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_with_options_test.txt").await.unwrap();
     /// // skip the sanity text
     /// tokio::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start("sanity text".as_bytes().len() as u64)).await.unwrap();
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
@@ -573,8 +576,8 @@ impl AsyncDiskMmapFileMut {
     /// File does not exists
     ///
     /// ```no_run
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -590,8 +593,8 @@ impl AsyncDiskMmapFileMut {
     ///     // truncate to 100
     ///     .max_size(100);
     ///
-    /// let mut file = AsyncDiskMmapFileMut::open_with_options("async_disk_open_with_options_test.txt", opts).await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_with_options_test.txt").unwrap());
+    /// let mut file = AsyncDiskMmapFileMut::open_with_options("tokio_async_disk_open_with_options_test.txt", opts).await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_with_options_test.txt").unwrap());
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     ///
     /// let mut buf = vec![0; "some data...".len()];
@@ -606,7 +609,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("async_disk_open_with_options_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_with_options_test.txt").await.unwrap();
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// # })
@@ -621,20 +624,20 @@ impl AsyncDiskMmapFileMut {
     ///
     /// # Examples
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
-    /// let mut file = File::create("async_disk_open_existing_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_existing_test.txt").unwrap());
+    /// let mut file = File::create("tokio_async_disk_open_existing_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_existing_test.txt").unwrap());
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFileMut::open_exist("async_disk_open_existing_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_exist("tokio_async_disk_open_existing_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -648,7 +651,7 @@ impl AsyncDiskMmapFileMut {
     ///
     /// // reopen to check content
     /// let mut buf = vec![0; "some modified data...".len()];
-    /// let mut file = File::open("async_disk_open_existing_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_existing_test.txt").await.unwrap();
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     /// # })
@@ -664,16 +667,16 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
-    /// let mut file = File::create("async_disk_open_existing_test_with_options.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_existing_test_with_options.txt").unwrap());
+    /// let mut file = File::create("tokio_async_disk_open_existing_test_with_options.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_existing_test_with_options.txt").unwrap());
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
@@ -685,7 +688,7 @@ impl AsyncDiskMmapFileMut {
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
-    /// let mut file = AsyncDiskMmapFileMut::open_exist_with_options("async_disk_open_existing_test_with_options.txt", opts).await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_exist_with_options("tokio_async_disk_open_existing_test_with_options.txt", opts).await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -697,7 +700,7 @@ impl AsyncDiskMmapFileMut {
     ///
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("async_disk_open_existing_test_with_options.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_existing_test_with_options.txt").await.unwrap();
     /// let mut buf = vec![0; "some modified data...".len()];
     /// // skip the sanity text
     /// tokio::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start("sanity text".as_bytes().len() as u64)).await.unwrap();
@@ -717,20 +720,20 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
-    /// let mut file = File::create("async_disk_open_cow_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_cow_test.txt").unwrap());
+    /// let mut file = File::create("tokio_async_disk_open_cow_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_cow_test.txt").unwrap());
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
     ///
     /// // mmap the file
-    /// let mut file = AsyncDiskMmapFileMut::open_cow("async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_cow("tokio_async_disk_open_cow_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -744,7 +747,7 @@ impl AsyncDiskMmapFileMut {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("async_disk_open_cow_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_cow_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// tokio::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -762,16 +765,16 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
     /// // create a temp file
-    /// let mut file = File::create("async_disk_open_cow_with_options_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_open_cow_with_options_test.txt").unwrap());
+    /// let mut file = File::create("tokio_async_disk_open_cow_with_options_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_open_cow_with_options_test.txt").unwrap());
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "sanity text".as_bytes()).await.unwrap();
     /// tokio::io::AsyncWriteExt::write_all(&mut file, "some data...".as_bytes()).await.unwrap();
     /// drop(file);
@@ -781,7 +784,7 @@ impl AsyncDiskMmapFileMut {
     ///     // mmap content after the sanity text
     ///     .offset("sanity text".as_bytes().len() as u64);
     ///
-    /// let mut file = AsyncDiskMmapFileMut::open_cow_with_options("async_disk_open_cow_with_options_test.txt", opts).await.unwrap();
+    /// let mut file = AsyncDiskMmapFileMut::open_cow_with_options("tokio_async_disk_open_cow_with_options_test.txt", opts).await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
     /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -795,7 +798,7 @@ impl AsyncDiskMmapFileMut {
     /// drop(file);
     ///
     /// // reopen to check content, cow will not change the content.
-    /// let mut file = File::open("async_disk_open_cow_with_options_test.txt").await.unwrap();
+    /// let mut file = File::open("tokio_async_disk_open_cow_with_options_test.txt").await.unwrap();
     /// let mut buf = vec![0; "some data...".len()];
     /// // skip the sanity text
     /// tokio::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start("sanity text".as_bytes().len() as u64)).await.unwrap();
@@ -820,13 +823,13 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileMutExt;
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::AsyncMmapFileMutExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// let mut file = AsyncDiskMmapFileMut::create("async_disk_freeze_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_freeze_test.txt").unwrap());
+    /// let mut file = AsyncDiskMmapFileMut::create("tokio_async_disk_freeze_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_freeze_test.txt").unwrap());
     /// file.truncate(12).await;
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
@@ -853,13 +856,13 @@ impl AsyncDiskMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::AsyncMmapFileMutExt;
-    /// use fmmap::raw::AsyncDiskMmapFileMut;
+    /// use fmmap::tokio::AsyncMmapFileMutExt;
+    /// use fmmap::raw::tokio::AsyncDiskMmapFileMut;
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
-    /// let mut file = AsyncDiskMmapFileMut::create("async_disk_freeze_exec_test.txt").await.unwrap();
-    /// # defer!(std::fs::remove_file("async_disk_freeze_exec_test.txt").unwrap());
+    /// let mut file = AsyncDiskMmapFileMut::create("tokio_async_disk_freeze_exec_test.txt").await.unwrap();
+    /// # defer!(std::fs::remove_file("tokio_async_disk_freeze_exec_test.txt").unwrap());
     /// file.truncate(12).await;
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
@@ -1040,10 +1043,10 @@ mod test {
 
     #[tokio::test]
     async fn test_close_with_truncate_on_empty_file() {
-        let file = AsyncDiskMmapFileMut::create("async_disk_close_with_truncate_test.txt").await.unwrap();
-        defer!(std::fs::remove_file("async_disk_close_with_truncate_test.txt").unwrap());
+        let file = AsyncDiskMmapFileMut::create("tokio_async_disk_close_with_truncate_test.txt").await.unwrap();
+        defer!(std::fs::remove_file("tokio_async_disk_close_with_truncate_test.txt").unwrap());
         file.close_with_truncate(10).await.unwrap();
 
-        assert_eq!(10, File::open("async_disk_close_with_truncate_test.txt").await.unwrap().metadata().await.unwrap().len());
+        assert_eq!(10, File::open("tokio_async_disk_close_with_truncate_test.txt").await.unwrap().metadata().await.unwrap().len());
     }
 }

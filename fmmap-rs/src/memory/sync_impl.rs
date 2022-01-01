@@ -4,11 +4,11 @@ use bytes::{Bytes, BytesMut};
 use crate::{MmapFileExt, MmapFileMutExt, MetaData};
 use crate::metadata::MemoryMetaData;
 
-define_impl_constructor_for_mmap_file!(MemoryMmapFile, "MemoryMmapFile");
+define_impl_constructor_for_mmap_file!(MemoryMmapFile, "MemoryMmapFile", "");
 
 impl_mmap_file_ext!(MemoryMmapFile);
 
-define_and_impl_constructor_for_mmap_file_mut!(MemoryMmapFileMut, "MemoryMmapFileMut", MemoryMmapFile, "MemoryMmapFile", "MmapFileExt");
+define_and_impl_constructor_for_mmap_file_mut!(MemoryMmapFileMut, "MemoryMmapFileMut", MemoryMmapFile, "MemoryMmapFile", "MmapFileExt", "");
 
 impl_mmap_file_ext!(MemoryMmapFileMut);
 

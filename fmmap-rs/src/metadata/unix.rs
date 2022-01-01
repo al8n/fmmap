@@ -552,7 +552,7 @@ mod tests {
     #[cfg(feature = "tokio-async")]
     #[tokio::test]
     async fn test_async_metadata() {
-        use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+        use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
         let mut file = AsyncOptions::new()
             .max_size("Hello, fmmap!".len() as u64)
             .create_mmap_file_mut(get_random_filename())

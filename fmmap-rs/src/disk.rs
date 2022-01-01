@@ -176,6 +176,8 @@ cfg_tokio!(
                 fn is_exec(&self) -> bool {
                     self.exec
                 }
+
+                impl_file_lock!();
             }
         };
     }
@@ -210,10 +212,11 @@ cfg_tokio!(
                 fn is_exec(&self) -> bool {
                     false
                 }
+
+                impl_file_lock!();
             }
         };
     }
 
-    mod tokio_impl;
-    pub use tokio_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+    pub(crate) mod tokio_impl;
 );

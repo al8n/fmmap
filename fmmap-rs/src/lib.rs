@@ -61,11 +61,21 @@
 #[macro_use]
 extern crate enum_dispatch;
 
+macro_rules! cfg_async_std {
+    ($($item:item)*) => {
+        $(
+            #[cfg(all(feature = "async-std", feature = "async-trait"))]
+            #[cfg_attr(docsrs, doc(cfg(all(feature = "async-std", feature = "async-trait"))))]
+            $item
+        )*
+    }
+}
+
 macro_rules! cfg_smol {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "smol-async")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "smol-async")))]
+            #[cfg(all(feature = "smol", feature = "async-trait"))]
+            #[cfg_attr(docsrs, doc(cfg(all(feature = "smol", feature = "async-trait"))))]
             $item
         )*
     }
@@ -74,8 +84,8 @@ macro_rules! cfg_smol {
 macro_rules! cfg_tokio {
     ($($item:item)*) => {
         $(
-            #[cfg(feature = "tokio-async")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "tokio-async")))]
+            #[cfg(all(feature = "tokio", feature = "async-trait"))]
+            #[cfg_attr(docsrs, doc(cfg(all(feature = "tokio", feature = "async-trait"))))]
             $item
         )*
     }
@@ -190,10 +200,14 @@ cfg_sync!(
 cfg_tokio!(
     #[macro_use]
     extern crate async_trait;
-    pub use reader::tokio_impl::AsyncMmapFileReader;
-    pub use writer::tokio_impl::AsyncMmapFileWriter;
-    pub use mmap_file::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
-    pub use options::AsyncOptions;
+
+    /// tokio based mmap file
+    pub mod tokio {
+        pub use crate::reader::tokio_impl::AsyncMmapFileReader;
+        pub use crate::writer::tokio_impl::AsyncMmapFileWriter;
+        pub use crate::options::tokio_impl::AsyncOptions;
+        pub use crate::mmap_file::tokio_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
+    }
 );
 
 pub use metadata::{MetaData, MetaDataExt};
@@ -211,7 +225,10 @@ pub mod raw {
     );
 
     cfg_tokio!(
-        pub use crate::disk::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
-        pub use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+        /// tokio based mmap file
+        pub mod tokio {
+            pub use crate::disk::tokio_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+            pub use crate::memory::tokio_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+        }
     );
 }

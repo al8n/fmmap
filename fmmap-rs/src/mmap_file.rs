@@ -107,7 +107,7 @@ macro_rules! impl_file_lock {
 }
 
 macro_rules! impl_constructor_for_memory_mmap_file {
-    ($memory_base: ident, $name: ident, $name_str: literal) => {
+    ($memory_base: ident, $name: ident, $name_str: literal, $path_str: literal) => {
         use bytes::Bytes;
 
         impl $name {
@@ -115,7 +115,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = "# Examples"]
             #[doc = "```rust"]
             #[doc = "use bytes::{BufMut, BytesMut};"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let mut data = BytesMut::with_capacity(100);"]
             #[doc = "data.put_slice(\"some data...\".as_bytes());"]
@@ -128,7 +128,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = concat!("Create a in-memory ", $name_str, " from Vec")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data = (0..=255u8).collect::<Vec<_>>();"]
             #[doc = concat!($name_str, "::memory_from_vec(\"foo.mem\", data);")]
@@ -140,7 +140,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = concat!("Create a in-memory ", $name_str, " from String")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
             #[doc = concat!($name_str, "::memory_from_string(\"foo.mem\", data.to_string());")]
@@ -153,7 +153,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = "# Examples"]
             #[doc = "```rust"]
             #[doc = "use bytes::Bytes;"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static [u8] = \"some data...\".as_bytes();"]
             #[doc = concat!($name_str, "::memory_from_slice(\"foo.mem\", data);")]
@@ -166,7 +166,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = "# Examples"]
             #[doc = "```rust"]
             #[doc = "use bytes::Bytes;"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
             #[doc = concat!($name_str, "::memory_from_str(\"foo.mem\", data);")]
@@ -178,7 +178,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
             #[doc = concat!("Create a in-memory ", $name_str, " by copy from slice")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_copy_from_slice(\"foo.mem\", \"some data...\".as_bytes());")]
             #[doc = "```"]
@@ -190,12 +190,12 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 }
 
 macro_rules! impl_constructor_for_memory_mmap_file_mut {
-    ($memory_base: ident, $name: ident, $name_str: literal) => {
+    ($memory_base: ident, $name: ident, $name_str: literal, $path_str: literal) => {
         impl $name {
             #[doc = concat!("Create a in-memory ", $name_str)]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory(\"foo.mem\");")]
             #[doc = "```"]
@@ -206,7 +206,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
             #[doc = concat!("Create a in-memory ", $name_str, "with capacity")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_with_capacity(\"foo.mem\", 1000);")]
             #[doc = "```"]
@@ -217,7 +217,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
             #[doc = concat!("Create a in-memory ", $name_str, " from Vec")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data = (0..=255u8).collect::<Vec<_>>();"]
             #[doc = concat!($name_str, "::memory_from_vec(\"foo.mem\", data);")]
@@ -229,7 +229,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
             #[doc = concat!("Create a in-memory ", $name_str, " from String")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
             #[doc = concat!($name_str, "::memory_from_string(\"foo.mem\", data.to_string());")]
@@ -242,7 +242,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
             #[doc = "# Examples"]
             #[doc = "```rust"]
             #[doc = "use bytes::Bytes;"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
             #[doc = concat!($name_str, "::memory_from_str(\"foo.mem\", data);")]
@@ -254,7 +254,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
             #[doc = concat!("Create a in-memory ", $name_str, " by from slice")]
             #[doc = "# Examples"]
             #[doc = "```rust"]
-            #[doc = concat!("use fmmap::", $name_str, ";")]
+            #[doc = concat!("use fmmap::", $path_str, $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_from_slice(\"foo.mem\", \"some data...\".as_bytes());")]
             #[doc = "```"]
@@ -338,6 +338,5 @@ cfg_tokio!(
         };
     }
 
-    mod tokio_impl;
-    pub use tokio_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
+    pub(crate) mod tokio_impl;
 );

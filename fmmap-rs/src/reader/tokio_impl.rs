@@ -2,18 +2,20 @@ use std::fmt::{Debug, Formatter};
 use std::io::{Cursor, SeekFrom};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 
-/// AsyncMmapFileReader helps read data from mmap file
-/// like a normal file.
-#[pin_project]
-pub struct AsyncMmapFileReader<'a> {
-    #[pin]
-    r: Cursor<&'a [u8]>,
-    offset: usize,
-    len: usize,
+pin_project! {
+    /// AsyncMmapFileReader helps read data from mmap file
+    /// like a normal file.
+    pub struct AsyncMmapFileReader<'a> {
+        #[pin]
+        r: Cursor<&'a [u8]>,
+        offset: usize,
+        len: usize,
+    }
 }
+
 
 impl<'a> AsyncMmapFileReader<'a> {
     pub(crate) fn new(r: Cursor<&'a [u8]>, offset: usize, len: usize) -> Self {

@@ -402,9 +402,9 @@ mod axync {
     }
 
     use super::*;
-    use crate::raw::AsyncDiskMmapFileMut;
-    use crate::raw::AsyncMemoryMmapFileMut;
-    use crate::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    use crate::raw::tokio::AsyncDiskMmapFileMut;
+    use crate::raw::tokio::AsyncMemoryMmapFileMut;
+    use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
 
     tokio_async_tests!(
         [test_async_memory_file_mut, {

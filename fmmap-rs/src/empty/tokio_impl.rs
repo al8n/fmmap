@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
-use crate::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileReader, AsyncMmapFileWriter, MetaData};
+use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFileReader, AsyncMmapFileWriter};
+use crate::MetaData;
 use crate::error::{Error, Result};
 use crate::metadata::EmptyMetaData;
 

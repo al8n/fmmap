@@ -4,13 +4,13 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use async_trait::async_trait;
 use tokio::io::AsyncWriteExt;
-use crate::{AsyncMmapFileReader, AsyncMmapFileWriter};
-use crate::disk::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
-use crate::empty::AsyncEmptyMmapFile;
+use crate::tokio::{AsyncMmapFileReader, AsyncMmapFileWriter};
+use crate::disk::tokio_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+use crate::empty::tokio_impl::AsyncEmptyMmapFile;
 use crate::error::{Error, Result};
-use crate::memory::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
+use crate::memory::tokio_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
-use crate::options::AsyncOptions;
+use crate::options::tokio_impl::AsyncOptions;
 
 /// Utility methods to [`AsyncMmapFile`]
 ///
@@ -699,7 +699,8 @@ impl AsyncMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt, MetaDataExt};
+    /// use fmmap::tokio::{AsyncMmapFile, AsyncMmapFileExt};
+    /// use fmmap::MetaDataExt;
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -729,7 +730,7 @@ impl AsyncMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncOptions, AsyncMmapFile, AsyncMmapFileExt};
+    /// use fmmap::tokio::{AsyncOptions, AsyncMmapFile, AsyncMmapFileExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -762,7 +763,7 @@ impl AsyncMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFile, AsyncMmapFileExt};
+    /// use fmmap::tokio::{AsyncMmapFile, AsyncMmapFileExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -787,7 +788,7 @@ impl AsyncMmapFile {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFile, AsyncOptions, AsyncMmapFileExt};
+    /// use fmmap::tokio::{AsyncMmapFile, AsyncOptions, AsyncMmapFileExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -816,7 +817,7 @@ impl AsyncMmapFile {
     }
 }
 
-impl_constructor_for_memory_mmap_file!(AsyncMemoryMmapFile, AsyncMmapFile, "AsyncMmapFile");
+impl_constructor_for_memory_mmap_file!(AsyncMemoryMmapFile, AsyncMmapFile, "AsyncMmapFile", "tokio::");
 
 #[enum_dispatch(AsyncMmapFileExt, AsyncMmapFileMutExt)]
 enum AsyncMmapFileMutInner {
@@ -867,7 +868,7 @@ impl AsyncMmapFileMutExt for AsyncMmapFileMut {
     /// # Example
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileMutExt};
     ///
     /// # tokio_test::block_on(async {
     /// let mut file = AsyncMmapFileMut::create("async_disk_remove_test.txt").await.unwrap();
@@ -899,7 +900,7 @@ impl AsyncMmapFileMutExt for AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{MetaDataExt, AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::{MetaDataExt, tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt}};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -934,7 +935,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -958,7 +959,7 @@ impl AsyncMmapFileMut {
     /// Create a new file and mmap this file with [`AsyncOptions`]
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncOptions, AsyncMmapFileMutExt, AsyncMmapFileExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncOptions, AsyncMmapFileMutExt, AsyncMmapFileExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -991,7 +992,7 @@ impl AsyncMmapFileMut {
     /// File already exists
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -1024,7 +1025,7 @@ impl AsyncMmapFileMut {
     /// File does not exists
     ///
     /// ```no_run
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -1066,7 +1067,7 @@ impl AsyncMmapFileMut {
     /// File already exists
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
@@ -1114,7 +1115,7 @@ impl AsyncMmapFileMut {
     /// File does not exists
     ///
     /// ```no_run
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -1161,7 +1162,7 @@ impl AsyncMmapFileMut {
     ///
     /// # Examples
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -1203,7 +1204,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
@@ -1256,7 +1257,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};
     /// use tokio::fs::File;
     /// # use scopeguard::defer;
     ///
@@ -1302,7 +1303,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
     /// use tokio::fs::File;
     /// use std::io::SeekFrom;
     /// # use scopeguard::defer;
@@ -1367,7 +1368,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileMut, AsyncMmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -1408,7 +1409,7 @@ impl AsyncMmapFileMut {
     /// # Examples
     ///
     /// ```rust
-    /// use fmmap::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    /// use fmmap::tokio::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
     /// # use scopeguard::defer;
     ///
     /// # tokio_test::block_on(async {
@@ -1457,6 +1458,6 @@ impl AsyncMmapFileMut {
     }
 }
 
-impl_constructor_for_memory_mmap_file_mut!(AsyncMemoryMmapFileMut, AsyncMmapFileMut, "AsyncMmapFileMut");
+impl_constructor_for_memory_mmap_file_mut!(AsyncMemoryMmapFileMut, AsyncMmapFileMut, "AsyncMmapFileMut", "tokio::");
 
 impl_drop!(AsyncMmapFileMut, AsyncMmapFileMutInner, AsyncEmptyMmapFile);

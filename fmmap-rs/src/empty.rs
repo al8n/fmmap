@@ -4,6 +4,5 @@ cfg_sync!(
 );
 
 cfg_tokio!(
-    mod tokio_impl;
-    pub use tokio_impl::AsyncEmptyMmapFile;
+    pub(crate) mod tokio_impl;
 );

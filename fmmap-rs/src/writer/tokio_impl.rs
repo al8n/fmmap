@@ -4,27 +4,29 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use bytes::Buf;
 use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, AsyncWrite, ReadBuf};
-use pin_project::pin_project;
+use pin_project_lite::pin_project;
 
-/// AsyncMmapFileWriter helps read or write data from mmap file
-/// like a normal file.
-///
-/// # Notes
-/// If you use a writer to write data to mmap, there is no guarantee all
-/// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`AsyncMmapFileMutExt`]
-/// to guarantee all data will be durably stored.
-///
-/// [`flush`]: trait.AsyncMmapFileMutExt.html#methods.flush
-/// [`flush_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_range
-/// [`flush_async`]: trait.AsyncMmapFileMutExt.html#methods.flush_async
-/// [`flush_async_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_async_range
-/// [`AsyncMmapFileMutExt`]: trait.AsyncMmapFileMutExt.html
-#[pin_project]
-pub struct AsyncMmapFileWriter<'a> {
-    #[pin]
-    w: Cursor<&'a mut [u8]>,
-    offset: usize,
-    len: usize,
+
+pin_project! {
+    /// AsyncMmapFileWriter helps read or write data from mmap file
+    /// like a normal file.
+    ///
+    /// # Notes
+    /// If you use a writer to write data to mmap, there is no guarantee all
+    /// data will be durably stored. So you need to call [`flush`]/[`flush_range`]/[`flush_async`]/[`flush_async_range`] in [`AsyncMmapFileMutExt`]
+    /// to guarantee all data will be durably stored.
+    ///
+    /// [`flush`]: trait.AsyncMmapFileMutExt.html#methods.flush
+    /// [`flush_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_range
+    /// [`flush_async`]: trait.AsyncMmapFileMutExt.html#methods.flush_async
+    /// [`flush_async_range`]: trait.AsyncMmapFileMutExt.html#methods.flush_async_range
+    /// [`AsyncMmapFileMutExt`]: trait.AsyncMmapFileMutExt.html
+    pub struct AsyncMmapFileWriter<'a> {
+        #[pin]
+        w: Cursor<&'a mut [u8]>,
+        offset: usize,
+        len: usize,
+    }
 }
 
 impl<'a> AsyncMmapFileWriter<'a> {
@@ -118,8 +120,8 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
 mod tests {
     use bytes::Buf;
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
-    use crate::{AsyncMmapFileMutExt};
-    use crate::raw::AsyncMemoryMmapFileMut;
+    use crate::tokio::AsyncMmapFileMutExt;
+    use crate::raw::tokio::AsyncMemoryMmapFileMut;
 
     #[tokio::test]
     async fn test_writer() {

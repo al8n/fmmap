@@ -229,8 +229,7 @@ macro_rules! declare_and_impl_options {
 }
 
 cfg_tokio!(
-    mod tokio_impl;
-    pub use tokio_impl::AsyncOptions;
+    pub(crate) mod tokio_impl;
 );
 
 cfg_sync!(
