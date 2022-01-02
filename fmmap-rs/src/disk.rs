@@ -921,7 +921,7 @@ cfg_async! {
                 /// // create a temp file
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_cow_test.txt\").unwrap());")]
-                /// file.truncate(100).await.unwrap();
+                /// file.truncate(12).await.unwrap();
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 /// drop(file);

@@ -5,6 +5,9 @@ edition = "2021"
 description = "a placeholder"
 license = "MIT OR Apache-2.0"
 
+[lib]
+doctest = true
+
 [features]
 default = ["sync"]
 nightly = []

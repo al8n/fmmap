@@ -1088,6 +1088,365 @@ cfg_async! {
         };
     }
 
+    macro_rules! declare_and_impl_inners {
+        () => {
+            enum AsyncMmapFileInner {
+                Empty(AsyncEmptyMmapFile),
+                Memory(AsyncMemoryMmapFile),
+                Disk(AsyncDiskMmapFile)
+            }
+
+            impl From<AsyncEmptyMmapFile> for AsyncMmapFileInner {
+                fn from(v: AsyncEmptyMmapFile) -> AsyncMmapFileInner {
+                    AsyncMmapFileInner::Empty(v)
+                }
+            }
+            impl From<AsyncMemoryMmapFile> for AsyncMmapFileInner {
+                fn from(v: AsyncMemoryMmapFile) -> AsyncMmapFileInner {
+                    AsyncMmapFileInner::Memory(v)
+                }
+            }
+            impl From<AsyncDiskMmapFile> for AsyncMmapFileInner {
+                fn from(v: AsyncDiskMmapFile) -> AsyncMmapFileInner {
+                    AsyncMmapFileInner::Disk(v)
+                }
+            }
+
+            #[async_trait]
+            impl AsyncMmapFileExt for AsyncMmapFileInner {
+                #[inline]
+                fn len(&self) -> usize {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::len(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::len(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::len(inner),
+                    }
+                }
+
+                #[inline]
+                fn as_slice(&self) -> &[u8] {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::as_slice(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::as_slice(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::as_slice(inner),
+                    }
+                }
+
+                #[inline]
+                fn path(&self) -> &Path {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::path(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::path(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::path(inner),
+                    }
+                }
+
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::is_exec(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::is_exec(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::is_exec(inner),
+                    }
+                }
+
+                #[inline]
+                async fn metadata(&self) -> Result<MetaData> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::metadata(inner).await,
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::metadata(inner).await,
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::metadata(inner).await,
+                    }
+                }
+
+                #[inline]
+                fn lock_exclusive(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                    }
+                }
+
+                #[inline]
+                fn lock_shared(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::lock_shared(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::lock_shared(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::lock_shared(inner),
+                    }
+                }
+
+                #[inline]
+                fn try_lock_exclusive(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::try_lock_exclusive(inner),
+                        AsyncMmapFileInner::Memory(inner) => {
+                            AsyncMmapFileExt::try_lock_exclusive(inner)
+                        }
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::try_lock_exclusive(inner),
+                    }
+                }
+
+                #[inline]
+                fn try_lock_shared(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                    }
+                }
+
+                #[inline]
+                fn unlock(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileInner::Empty(inner) => AsyncMmapFileExt::unlock(inner),
+                        AsyncMmapFileInner::Memory(inner) => AsyncMmapFileExt::unlock(inner),
+                        AsyncMmapFileInner::Disk(inner) => AsyncMmapFileExt::unlock(inner),
+                    }
+                }
+            }
+
+            enum AsyncMmapFileMutInner {
+                Empty(AsyncEmptyMmapFile),
+                Memory(AsyncMemoryMmapFileMut),
+                Disk(AsyncDiskMmapFileMut)
+            }
+
+            impl From<AsyncEmptyMmapFile> for AsyncMmapFileMutInner {
+                fn from(v: AsyncEmptyMmapFile) -> AsyncMmapFileMutInner {
+                    AsyncMmapFileMutInner::Empty(v)
+                }
+            }
+            impl From<AsyncMemoryMmapFileMut> for AsyncMmapFileMutInner {
+                fn from(v: AsyncMemoryMmapFileMut) -> AsyncMmapFileMutInner {
+                    AsyncMmapFileMutInner::Memory(v)
+                }
+            }
+            impl From<AsyncDiskMmapFileMut> for AsyncMmapFileMutInner {
+                fn from(v: AsyncDiskMmapFileMut) -> AsyncMmapFileMutInner {
+                    AsyncMmapFileMutInner::Disk(v)
+                }
+            }
+
+            #[async_trait]
+            impl AsyncMmapFileExt for AsyncMmapFileMutInner {
+                #[inline]
+                fn len(&self) -> usize {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::len(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::len(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::len(inner),
+                    }
+                }
+
+                #[inline]
+                fn as_slice(&self) -> &[u8] {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::as_slice(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::as_slice(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::as_slice(inner),
+                    }
+                }
+
+                #[inline]
+                fn path(&self) -> &Path {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::path(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::path(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::path(inner),
+                    }
+                }
+
+                #[inline]
+                fn is_exec(&self) -> bool {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::is_exec(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::is_exec(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::is_exec(inner),
+                    }
+                }
+
+                #[inline]
+                async fn metadata(&self) -> Result<MetaData> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::metadata(inner).await,
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::metadata(inner).await,
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::metadata(inner).await,
+                    }
+                }
+
+                #[inline]
+                fn lock_exclusive(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::lock_exclusive(inner),
+                    }
+                }
+
+                #[inline]
+                fn lock_shared(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::lock_shared(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::lock_shared(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::lock_shared(inner),
+                    }
+                }
+
+                #[inline]
+                fn try_lock_exclusive(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::try_lock_exclusive(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => {
+                            AsyncMmapFileExt::try_lock_exclusive(inner)
+                        }
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::try_lock_exclusive(inner),
+                    }
+                }
+
+                #[inline]
+                fn try_lock_shared(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::try_lock_shared(inner),
+                    }
+                }
+
+                #[inline]
+                fn unlock(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileExt::unlock(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileExt::unlock(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileExt::unlock(inner),
+                    }
+                }
+            }
+
+            #[async_trait]
+            impl AsyncMmapFileMutExt for AsyncMmapFileMutInner {
+                #[inline]
+                fn as_mut_slice(&mut self) -> &mut [u8] {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::as_mut_slice(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => {
+                            AsyncMmapFileMutExt::as_mut_slice(inner)
+                        }
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::as_mut_slice(inner),
+                    }
+                }
+
+                #[inline]
+                fn is_cow(&self) -> bool {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::is_cow(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::is_cow(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::is_cow(inner),
+                    }
+                }
+
+                #[inline]
+                fn flush(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::flush(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::flush(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::flush(inner),
+                    }
+                }
+
+                #[inline]
+                fn flush_async(&self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::flush_async(inner),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::flush_async(inner),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::flush_async(inner),
+                    }
+                }
+
+                #[inline]
+                fn flush_range(&self, offset: usize, len: usize) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::flush_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::flush_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::flush_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                    }
+                }
+
+                #[inline]
+                fn flush_async_range(&self, offset: usize, len: usize) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::flush_async_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::flush_async_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::flush_async_range(
+                            inner,
+                            offset,
+                            len,
+                        ),
+                    }
+                }
+
+                async fn truncate(&mut self, max_sz: u64) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => {
+                            AsyncMmapFileMutExt::truncate(inner, max_sz).await
+                        }
+                        AsyncMmapFileMutInner::Memory(inner) => {
+                            AsyncMmapFileMutExt::truncate(inner, max_sz).await
+                        }
+                        AsyncMmapFileMutInner::Disk(inner) => {
+                            AsyncMmapFileMutExt::truncate(inner, max_sz).await
+                        }
+                    }
+                }
+
+                async fn remove(self) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::remove(inner).await,
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::remove(inner).await,
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::remove(inner).await,
+                    }
+                }
+
+                async fn close_with_truncate(self, max_sz: i64) -> Result<()> {
+                    match self {
+                        AsyncMmapFileMutInner::Empty(inner) => {
+                            AsyncMmapFileMutExt::close_with_truncate(inner, max_sz).await
+                        }
+                        AsyncMmapFileMutInner::Memory(inner) => {
+                            AsyncMmapFileMutExt::close_with_truncate(inner, max_sz).await
+                        }
+                        AsyncMmapFileMutInner::Disk(inner) => {
+                            AsyncMmapFileMutExt::close_with_truncate(inner, max_sz).await
+                        }
+                    }
+                }
+            }
+
+        };
+    }
+
+
     macro_rules! declare_and_impl_async_mmap_file {
         ($filename_prefix: literal, $doc_test_runtime: literal, $path_str: literal) => {
             /// A read-only memory map file.
@@ -1103,9 +1462,9 @@ cfg_async! {
                 inner: AsyncMmapFileInner
             }
 
-            impl_async_mmap_file_ext!(AsyncMmapFile);
-
             impl_from!(AsyncMmapFile, AsyncMmapFileInner, [AsyncEmptyMmapFile, AsyncMemoryMmapFile, AsyncDiskMmapFile]);
+
+            impl_async_mmap_file_ext!(AsyncMmapFile);
 
             impl AsyncMmapFile {
                 /// Open a readable memory map backed by a file
