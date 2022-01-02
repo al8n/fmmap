@@ -203,10 +203,10 @@ mod writer;
 cfg_sync!(
     /// std based mmap file
     pub mod sync {
+        pub use crate::mmap_file::{MmapFile, MmapFileExt, MmapFileMut, MmapFileMutExt};
+        pub use crate::options::Options;
         pub use crate::reader::{MmapFileReader, MmapFileReaderExt};
         pub use crate::writer::{MmapFileWriter, MmapFileWriterExt};
-        pub use crate::mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
-        pub use crate::options::Options;
     }
 
     pub use reader::{MmapFileReader, MmapFileReaderExt};
@@ -223,34 +223,38 @@ cfg_async!(
 cfg_async_std!(
     /// async_std based mmap file
     pub mod async_std {
+        pub use crate::mmap_file::async_std_impl::{
+            AsyncMmapFile, AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt,
+        };
+        pub use crate::options::async_std_impl::AsyncOptions;
         pub use crate::reader::async_std_impl::AsyncMmapFileReader;
         pub use crate::writer::async_std_impl::AsyncMmapFileWriter;
-        pub use crate::options::async_std_impl::AsyncOptions;
-        pub use crate::mmap_file::async_std_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
     }
 );
 
 cfg_smol!(
     /// smol based mmap file
     pub mod smol {
+        pub use crate::mmap_file::smol_impl::{
+            AsyncMmapFile, AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt,
+        };
+        pub use crate::options::smol_impl::AsyncOptions;
         pub use crate::reader::smol_impl::AsyncMmapFileReader;
         pub use crate::writer::smol_impl::AsyncMmapFileWriter;
-        pub use crate::options::smol_impl::AsyncOptions;
-        pub use crate::mmap_file::smol_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
     }
 );
 
 cfg_tokio!(
     /// tokio based mmap file
     pub mod tokio {
+        pub use crate::mmap_file::tokio_impl::{
+            AsyncMmapFile, AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt,
+        };
+        pub use crate::options::tokio_impl::AsyncOptions;
         pub use crate::reader::tokio_impl::AsyncMmapFileReader;
         pub use crate::writer::tokio_impl::AsyncMmapFileWriter;
-        pub use crate::options::tokio_impl::AsyncOptions;
-        pub use crate::mmap_file::tokio_impl::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncMmapFile, AsyncMmapFileMut};
     }
 );
-
-
 
 pub use metadata::{MetaData, MetaDataExt};
 

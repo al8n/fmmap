@@ -215,7 +215,7 @@ cfg_smol! {
                 .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
         }
 
-        impl_async_file_utils!(File, OpenOptions); 
+        impl_async_file_utils!(File, OpenOptions);
     }
 }
 

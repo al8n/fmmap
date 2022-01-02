@@ -36,7 +36,6 @@ jobs:
     needs:
       - unit-tests
       - tarpaulin
-      - miri
       - docs
       - valgrind
     steps:
@@ -47,6 +46,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        features:
+          - tokio-async
+          - std-async
+          - smol-async
         rust:
           - nightly
         os:
@@ -72,7 +75,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: test fmmap all features
-        run: cargo test --all-features
+        run: cargo test --features  ${{ matrix.features }}
         working-directory: fmmap-rs
 
   tarpaulin:
@@ -98,7 +101,7 @@ jobs:
 
       - uses: actions-rs/tarpaulin@v0.1
       - name: Run cargo tarpaulin
-        run: cargo tarpaulin --all-features --workspace --run-types Tests,Doctests --out Xml
+        run: cargo tarpaulin --features sync,tokio-async --workspace --run-types Tests,Doctests --out Xml
         working-directory: fmmap-rs
 
       # Build benchmarks. Run of benchmarks is done by bench.yml workflow.
@@ -145,25 +148,6 @@ jobs:
       - name: Run valgrind test-tokio-async
         run: valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all ./target/debug/test-tokio-async
 
-  miri:
-    name: miri
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.nightly }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
-      - name: Install Miri
-        run: |
-          set -e
-          rustup component add miri
-          cargo miri setup
-      - name: miri
-        run: cargo miri test --features sync,tokio-async
-        working-directory: fmmap-rs
-
   docs:
     name: docs
     runs-on: ubuntu-latest
@@ -174,8 +158,8 @@ jobs:
           toolchain: ${{ env.nightly }}
           override: true
       - uses: Swatinem/rust-cache@v1
-      - name: "doc --lib --all-features"
-        run: cargo doc --lib --no-deps --all-features --document-private-items
+      - name: "doc --lib --features  ${{ matrix.features }}"
+        run: cargo doc --lib --no-deps --features ${{ matrix.features }} --document-private-items
         env:
           RUSTFLAGS: --cfg docsrs
           RUSTDOCFLAGS: --cfg docsrs -Dwarnings

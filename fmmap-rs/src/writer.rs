@@ -63,7 +63,12 @@ cfg_async! {
     }
 }
 
-cfg_async_std!(pub mod async_std_impl;);
-cfg_smol!(pub mod smol_impl;);
-cfg_tokio!(pub mod tokio_impl;);
-
+cfg_async_std!(
+    pub mod async_std_impl;
+);
+cfg_smol!(
+    pub mod smol_impl;
+);
+cfg_tokio!(
+    pub mod tokio_impl;
+);

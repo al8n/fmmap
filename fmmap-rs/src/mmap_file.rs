@@ -303,7 +303,6 @@ cfg_sync! {
     pub use sync_impl::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
 }
 
-
 cfg_async! {
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
@@ -1088,7 +1087,7 @@ cfg_async! {
             }
         };
     }
-    
+
     macro_rules! declare_and_impl_async_mmap_file {
         ($filename_prefix: literal, $doc_test_runtime: literal, $path_str: literal) => {
             /// A read-only memory map file.
@@ -1103,11 +1102,11 @@ cfg_async! {
             pub struct AsyncMmapFile {
                 inner: AsyncMmapFileInner
             }
-            
+
             impl_async_mmap_file_ext!(AsyncMmapFile);
-            
+
             impl_from!(AsyncMmapFile, AsyncMmapFileInner, [AsyncEmptyMmapFile, AsyncMemoryMmapFile, AsyncDiskMmapFile]);
-            
+
             impl AsyncMmapFile {
                 /// Open a readable memory map backed by a file
                 ///
@@ -1135,7 +1134,7 @@ cfg_async! {
                 pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
                     Ok(Self::from(AsyncDiskMmapFile::open(path).await?))
                 }
-            
+
                 /// Open a readable memory map backed by a file with [`Options`]
                 ///
                 /// # Examples
@@ -1170,7 +1169,7 @@ cfg_async! {
                 pub async fn open_with_options<P: AsRef<Path>>(path: P, opts: AsyncOptions) -> Result<Self> {
                     Ok(Self::from(AsyncDiskMmapFile::open_with_options(path, opts).await?))
                 }
-            
+
                 /// Open a readable and executable memory map backed by a file
                 ///
                 /// # Examples
@@ -1197,7 +1196,7 @@ cfg_async! {
                 pub async fn open_exec<P: AsRef<Path>>(path: P) -> Result<Self> {
                     Ok(Self::from(AsyncDiskMmapFile::open_exec(path).await?))
                 }
-            
+
                 /// Open a readable and executable memory map backed by a file with [`Options`].
                 ///
                 /// # Examples
@@ -1233,7 +1232,7 @@ cfg_async! {
                     Ok(Self::from(AsyncDiskMmapFile::open_exec_with_options(path, opts).await?))
                 }
             }
-            
+
             impl_constructor_for_memory_mmap_file!(AsyncMemoryMmapFile, AsyncMmapFile, "AsyncMmapFile", $path_str);
         };
     }
@@ -1291,7 +1290,7 @@ cfg_async! {
                 /// Create a new file and mmap this file with [`AsyncOptions`]
                 ///
                 /// # Example
-                /// 
+                ///
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
@@ -1392,7 +1391,7 @@ cfg_async! {
                 pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
                     Ok(Self::from(AsyncDiskMmapFileMut::open(path).await?))
                 }
-                
+
                 /// Open or Create(if not exists) a file and mmap this file with [`AsyncOptions`].
                 ///
                 /// # Examples
@@ -1789,13 +1788,17 @@ cfg_async! {
             impl_drop!(AsyncMmapFileMut, AsyncMmapFileMutInner, AsyncEmptyMmapFile);
         };
     }
-    
+
 }
 
-cfg_async_std!(pub(crate) mod async_std_impl;);
+cfg_async_std!(
+    pub(crate) mod async_std_impl;
+);
 
-cfg_smol!(pub(crate) mod smol_impl;);
+cfg_smol!(
+    pub(crate) mod smol_impl;
+);
 
-cfg_tokio!(pub(crate) mod tokio_impl;);
-
-
+cfg_tokio!(
+    pub(crate) mod tokio_impl;
+);
