@@ -360,7 +360,6 @@ mod tests {
     use crate::{MetaDataExt, MmapFileExt, MmapFileMutExt, Options};
     use crate::raw::MemoryMmapFile;
     use crate::tests::get_random_filename;
-    use super::*;
 
     #[test]
     fn test_metadata() {
@@ -399,8 +398,8 @@ mod tests {
         assert!(!meta.is_file());
         #[cfg(feature = "nightly")]
         assert!(!meta.is_symlink());
-        assert_eq!(meta.len(), "Hello, fmmap!".len());
-        assert_eq!(meta.file_size(), "Hello, fmmap!".len());
+        assert_eq!(meta.len(), "Hello, fmmap!".len() as u64);
+        assert_eq!(meta.file_size(), "Hello, fmmap!".len() as u64);
         assert_eq!(meta.file_attributes(), 0);
         assert!(meta.modified().unwrap() == meta.created().unwrap() && meta.created().unwrap() == meta.accessed().unwrap());
         assert!(meta.creation_time() == meta.last_access_time() && meta.last_access_time() == meta.last_write_time());

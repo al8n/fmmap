@@ -245,7 +245,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
                 #[doc = concat!(" # defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_test.txt\").unwrap());")]
-                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.truncate(100).await.unwrap();")]
                 #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
                 #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
@@ -309,7 +309,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_exec_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_exec_test.txt\").unwrap());")]
-                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.truncate(100).await.unwrap();")]
                 #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
                 #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
@@ -494,7 +494,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_remove_test.txt\").await.unwrap();")]
                 ///
-                /// file.truncate(12).await;
+                /// file.truncate(100).await;
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 ///
@@ -596,7 +596,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_create_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_create_test.txt\").unwrap());")]
-                /// file.truncate(12).await;
+                /// file.truncate(100).await;
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 /// # })
@@ -651,7 +651,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("# let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_test.txt\").unwrap());")]
-                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.truncate(100).await.unwrap();")]
                 #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
                 #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
@@ -824,7 +824,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 /// // create a temp file
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_existing_test.txt\").await.unwrap();")]
-                /// file.truncate(12).await.unwrap();
+                /// file.truncate(100).await.unwrap();
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_existing_test.txt\").unwrap());")]
@@ -921,7 +921,7 @@ cfg_async! {
                 /// // create a temp file
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_cow_test.txt\").unwrap());")]
-                /// file.truncate(12).await.unwrap();
+                /// file.truncate(100).await.unwrap();
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 /// drop(file);
@@ -1025,7 +1025,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_freeze_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_freeze_test.txt\").unwrap());")]
-                /// file.truncate(12).await;
+                /// file.truncate(100).await;
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 /// // freeze
@@ -1058,7 +1058,7 @@ cfg_async! {
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_freeze_exec_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_freeze_exec_test.txt\").unwrap());")]
-                /// file.truncate(12).await;
+                /// file.truncate(100).await;
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 /// // freeze_exec
