@@ -46,10 +46,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        features:
-          - tokio-async
-          - std-async
-          - smol-async
         rust:
           - nightly
         os:
@@ -75,7 +71,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: test fmmap all features
-        run: cargo test --features  ${{ matrix.features }}
+        run: cargo test --features tokio-async, sync
         working-directory: fmmap-rs
 
   tarpaulin:
@@ -151,6 +147,13 @@ jobs:
   docs:
     name: docs
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - tokio-async
+          - std-async
+          - smol-async
+          - sync
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
