@@ -329,7 +329,7 @@ cfg_sync!(
     pub use sync_impl::{MemoryMmapFile, MemoryMmapFileMut};
 );
 
-cfg_tokio!(
+cfg_async! {
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
             #[async_trait]
@@ -362,5 +362,50 @@ cfg_tokio!(
         };
     }
 
+    macro_rules! impl_async_mmap_file_mut_ext {
+        () => {
+            #[async_trait]
+            impl AsyncMmapFileMutExt for AsyncMemoryMmapFileMut {
+                #[inline]
+                fn as_mut_slice(&mut self) -> &mut [u8] {
+                    self.mmap.as_mut()
+                }
+
+                #[inline]
+                fn is_cow(&self) -> bool {
+                    false
+                }
+
+                noop_flush!();
+
+                #[inline]
+                async fn truncate(&mut self, max_sz: u64) -> crate::error::Result<()> {
+                    self.mmap.resize(max_sz as usize, 0);
+                    Ok(())
+                }
+
+                #[inline]
+                async fn remove(self) -> crate::error::Result<()> {
+                    Ok(())
+                }
+
+                #[inline]
+                async fn close_with_truncate(self, _max_sz: i64) -> crate::error::Result<()> {
+                    Ok(())
+                }
+            }
+        };
+    }
+}
+
+cfg_async_std!(
+    pub(crate) mod async_std_impl;
+);
+
+cfg_smol!(
+    pub(crate) mod smol_impl;
+);
+
+cfg_tokio!(
     pub(crate) mod tokio_impl;
 );

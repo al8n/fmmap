@@ -103,6 +103,20 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
     }
 }
 
+impl<'a> Buf for AsyncMmapFileWriter<'a> {
+    fn remaining(&self) -> usize {
+        self.w.remaining()
+    }
+
+    fn chunk(&self) -> &[u8] {
+        self.w.chunk()
+    }
+
+    fn advance(&mut self, cnt: usize) {
+        self.w.advance(cnt)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bytes::Buf;

@@ -3,12 +3,14 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_os = "linux"))]
 use std::ptr::{drop_in_place, write};
 use fs4::FileExt;
-use memmap2::{Mmap, MmapMut, MmapOptions};
+use memmap2::{Mmap, MmapMut, MmapOptions, MmapAsRawDesc};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
-use crate::disk::{MmapFileMutType, remmap};
+use crate::disk::MmapFileMutType;
 use crate::error::Error;
 use crate::options::Options;
-use crate::utils::{create_file, open_exist_file_with_append, open_or_create_file, open_read_only_file, sync_dir};
+use crate::utils::{create_file, open_exist_file_with_append, open_or_create_file, open_read_only_file, sync_parent};
+
+remmap!(Path);
 
 /// DiskMmapFile contains an immutable mmap buffer
 /// and a read-only file.
@@ -471,7 +473,7 @@ impl DiskMmapFileMut {
     ///
     /// File does not exists
     ///
-    /// ```rust
+    /// ```no_run
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -863,9 +865,7 @@ impl DiskMmapFileMut {
             Some(opts) => {
                 if opts.max_size > 0 {
                     file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
-                    let parent = abs.parent().unwrap();
-                    sync_dir(parent)?;
+                    sync_parent(&path)?;
                 }
 
                 let opts_bk = opts.mmap_opts.clone();
@@ -901,9 +901,7 @@ impl DiskMmapFileMut {
                 let file_sz = meta.len();
                 if file_sz == 0 && opts.max_size > 0 {
                     file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
-                    let parent = abs.parent().unwrap();
-                    sync_dir(parent)?;
+                    sync_parent(&path)?;
                 }
 
                 let opts_bk = opts.mmap_opts.clone();
@@ -941,8 +939,7 @@ impl DiskMmapFileMut {
                 let file_sz = meta.len();
                 if file_sz == 0 && opts.max_size > 0 {
                     file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                    let parent = path.as_ref().parent().unwrap();
-                    sync_dir(parent)?;
+                    sync_parent(&path)?;
                 }
                 let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {

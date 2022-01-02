@@ -49,20 +49,6 @@ cfg_async! {
                         .finish()
                 }
             }
-
-            impl<'a> Buf for AsyncMmapFileReader<'a> {
-                fn remaining(&self) -> usize {
-                    self.r.remaining()
-                }
-
-                fn chunk(&self) -> &[u8] {
-                    self.r.chunk()
-                }
-
-                fn advance(&mut self, cnt: usize) {
-                    self.r.advance(cnt)
-                }
-            }
         };
     }
 }

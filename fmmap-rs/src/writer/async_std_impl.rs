@@ -1,8 +1,6 @@
 use std::fmt::{Debug, Formatter};
-use std::io::Error;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use bytes::Buf;
 use async_std::io::{Cursor, Read, BufRead, Seek, SeekFrom, Write};
 use pin_project_lite::pin_project;
 

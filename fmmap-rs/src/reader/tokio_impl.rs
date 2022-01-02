@@ -77,3 +77,17 @@ impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
         self.project().r.consume(amt)
     }
 }
+
+impl<'a> Buf for AsyncMmapFileReader<'a> {
+    fn remaining(&self) -> usize {
+        self.r.remaining()
+    }
+
+    fn chunk(&self) -> &[u8] {
+        self.r.chunk()
+    }
+
+    fn advance(&mut self, cnt: usize) {
+        self.r.advance(cnt)
+    }
+}

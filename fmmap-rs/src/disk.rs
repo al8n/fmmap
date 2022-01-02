@@ -1,36 +1,36 @@
-use crate::error::Error;
-use memmap2::{MmapAsRawDesc, MmapMut, MmapOptions};
-use std::path::Path;
-
 #[derive(Copy, Clone)]
 enum MmapFileMutType {
     Cow,
     Normal,
 }
 
-#[inline]
-fn remmap<T: MmapAsRawDesc>(
-    path: &Path,
-    file: T,
-    opts: Option<&MmapOptions>,
-    typ: MmapFileMutType,
-) -> Result<MmapMut, Error> {
-    unsafe {
-        match opts {
-            None => match typ {
-                MmapFileMutType::Cow => MmapOptions::new().map_copy(file),
-                MmapFileMutType::Normal => MmapMut::map_mut(file),
-            },
-            Some(opts) => {
-                let opts = opts.clone();
-                match typ {
-                    MmapFileMutType::Cow => opts.map_copy(file),
-                    MmapFileMutType::Normal => opts.map_mut(file),
+macro_rules! remmap {
+    ($path: ty) => {
+        #[inline]
+        fn remmap<T: MmapAsRawDesc>(
+            path: &$path,
+            file: T,
+            opts: Option<&MmapOptions>,
+            typ: MmapFileMutType,
+        ) -> Result<MmapMut, Error> {
+            unsafe {
+                match opts {
+                    None => match typ {
+                        MmapFileMutType::Cow => MmapOptions::new().map_copy(file),
+                        MmapFileMutType::Normal => MmapMut::map_mut(file),
+                    },
+                    Some(opts) => {
+                        let opts = opts.clone();
+                        match typ {
+                            MmapFileMutType::Cow => opts.map_copy(file),
+                            MmapFileMutType::Normal => opts.map_mut(file),
+                        }
+                    }
                 }
+                .map_err(|e| Error::RemmapFailed(format!("path: {:?}, err: {}", path, e)))
             }
         }
-        .map_err(|e| Error::RemmapFailed(format!("path: {:?}, err: {}", path, e)))
-    }
+    };
 }
 
 macro_rules! impl_flush {
@@ -239,13 +239,15 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
+                #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
                 #[doc = concat!(" # defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
+                #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
                 /// // mmap the file
                 #[doc = concat!("let mut file = AsyncDiskMmapFile::open(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
@@ -265,14 +267,16 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
+                #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
                 #[doc = concat!(" # defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_with_options_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"sanity text\".as_bytes()).await.unwrap();")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("# file.truncate(23).await.unwrap();")]
+                #[doc = concat!("# file.write_all(\"sanity text\".as_bytes(), 0).unwrap();")]
+                #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), \"sanity text\".as_bytes().len()).unwrap();")]
+                #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
                 ///
                 /// // mmap the file
@@ -299,13 +303,15 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
+                #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_exec_test.txt\").await.unwrap();")]
-                #[doc = concat!(" # defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_exec_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_exec_test.txt\").await.unwrap();")]
+                #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_exec_test.txt\").unwrap());")]
+                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
+                #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
                 /// // mmap the file
                 #[doc = concat!("let mut file = AsyncDiskMmapFile::open_exec(\"", $filename_prefix, "_disk_open_exec_test.txt\").await.unwrap();")]
@@ -325,14 +331,16 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
+                #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_exec_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncMmapFileMut::create(\"", $filename_prefix, "_disk_open_exec_with_options_test.txt\").await.unwrap();")]
                 #[doc = concat!(" # defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_exec_with_options_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"sanity text\".as_bytes()).await.unwrap();")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("# file.truncate(23).await.unwrap();")]
+                #[doc = concat!("# file.write_all(\"sanity text\".as_bytes(), 0).unwrap();")]
+                #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), \"sanity text\".as_bytes().len()).unwrap();")]
+                #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
                 ///
                 /// // mmap the file
@@ -492,7 +500,7 @@ cfg_async! {
                 ///
                 /// file.remove().await.unwrap();
                 ///
-                #[doc = concat!("let err = ", $path_str, "::fs::File::open(\"tokio_async_disk_remove_test.txt\").await;")]
+                #[doc = concat!("let err = ", $path_str, "::fs::File::open(\"", $filename_prefix, "_disk_remove_test.txt\").await;")]
                 /// assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
                 /// # })
                 #[doc = "```"]
@@ -546,9 +554,7 @@ cfg_async! {
                     drop(self.mmap);
                     if max_sz >= 0 {
                         self.file.set_len(max_sz as u64).await.map_err(Error::IO)?;
-                        let abs = self.path.canonicalize().map_err(Error::IO)?;
-                        let parent = abs.parent().unwrap();
-                        sync_dir_async(parent).await?;
+                        sync_parent_async(&self.path).await?;
                     }
                     Ok(())
                 }
@@ -640,13 +646,14 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("# file.truncate(12).await.unwrap();")]
+                #[doc = concat!("# file.write_all(\"some data...\".as_bytes(), 0).unwrap();")]
+                #[doc = concat!("# file.flush().unwrap();")]
                 /// # drop(file);
                 ///
                 /// // mmap the file
@@ -663,8 +670,8 @@ cfg_async! {
                 ///
                 /// // reopen to check content
                 /// let mut buf = vec![0; "some modified data...".len()];
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                #[doc = concat!("let file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -674,7 +681,6 @@ cfg_async! {
                 #[doc = "```no_run"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
@@ -696,8 +702,8 @@ cfg_async! {
                 ///
                 /// // reopen to check content
                 /// let mut buf = vec![0; "some modified data...".len()];
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                #[doc = concat!("let file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_test.txt\").await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -717,15 +723,15 @@ cfg_async! {
                 /// ```rust
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
-                /// use std::io::SeekFrom;
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
-                #[doc = concat!("# let mut file = File::create(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("# let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_with_options_test.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"sanity text\".as_bytes()).await.unwrap();")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                /// # file.truncate(23).await.unwrap();
+                /// # file.write_all("sanity text".as_bytes(), 0).unwrap();
+                /// # file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                /// # file.flush().unwrap();
                 /// # drop(file);
                 ///
                 /// // mmap the file
@@ -753,10 +759,9 @@ cfg_async! {
                 ///
                 /// // reopen to check content
                 /// let mut buf = vec![0; "some modified data...".len()];
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
                 /// // skip the sanity text
-                #[doc = concat!($path_str, "::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start(\"sanity text\".as_bytes().len() as u64)).await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -766,7 +771,6 @@ cfg_async! {
                 /// ```no_run
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
@@ -797,8 +801,8 @@ cfg_async! {
                 ///
                 /// // reopen to check content
                 /// let mut buf = vec![0; "some modified data...".len()];
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_with_options_test.txt\").await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -811,16 +815,18 @@ cfg_async! {
                 /// Open an existing file and mmap this file
                 ///
                 /// # Examples
+                ///
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 /// // create a temp file
-                #[doc = concat!("let mut file = File::create(\"", $filename_prefix, "_disk_open_existing_test.txt\").await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_existing_test.txt\").await.unwrap();")]
+                /// file.truncate(12).await.unwrap();
+                /// file.write_all("some data...".as_bytes(), 0).unwrap();
+                /// file.flush().unwrap();
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_existing_test.txt\").unwrap());")]
                 /// drop(file);
                 ///
@@ -839,8 +845,8 @@ cfg_async! {
                 ///
                 /// // reopen to check content
                 /// let mut buf = vec![0; "some modified data...".len()];
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_existing_test.txt\").await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open_exist(\"", $filename_prefix, "_disk_open_existing_test.txt\").await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -857,16 +863,16 @@ cfg_async! {
                 /// ```rust
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
-                /// use std::io::SeekFrom;
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 /// // create a temp file
-                #[doc = concat!("let mut file = File::create(\"", $filename_prefix, "_disk_open_existing_test_with_options.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_existing_test_with_options.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_existing_test_with_options.txt\").unwrap());")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"sanity text\".as_bytes()).await.unwrap();")]
-                #[doc = concat!("# ", $path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                /// file.truncate(23).await.unwrap();
+                /// file.write_all("sanity text".as_bytes(), 0).unwrap();
+                /// file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                /// file.flush().unwrap();
                 /// drop(file);
                 ///
                 /// // mmap the file
@@ -888,11 +894,10 @@ cfg_async! {
                 ///
                 ///
                 /// // reopen to check content, cow will not change the content.
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_existing_test_with_options.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_existing_test_with_options.txt\").await.unwrap();")]
                 /// let mut buf = vec![0; "some modified data...".len()];
                 /// // skip the sanity text
-                #[doc = concat!($path_str, "::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start(\"sanity text\".as_bytes().len() as u64)).await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
                 /// assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -910,14 +915,15 @@ cfg_async! {
                 #[doc = "```rust"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
-                #[doc = concat!("use ", $path_str, "::fs::File;")]
                 /// # use scopeguard::defer;
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 /// // create a temp file
-                #[doc = concat!("let mut file = File::create(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
                 #[doc = concat!("# defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_cow_test.txt\").unwrap());")]
-                #[doc = concat!($path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                /// file.truncate(12).await.unwrap();
+                /// file.write_all("some data...".as_bytes(), 0).unwrap();
+                /// file.flush().unwrap();
                 /// drop(file);
                 ///
                 /// // mmap the file
@@ -935,9 +941,9 @@ cfg_async! {
                 /// drop(file);
                 ///
                 /// // reopen to check content, cow will not change the content.
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_cow_test.txt\").await.unwrap();")]
                 /// let mut buf = vec![0; "some data...".len()];
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), 0).unwrap();
                 /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -961,10 +967,12 @@ cfg_async! {
                 ///
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
                 /// // create a temp file
-                #[doc = concat!("let mut file = File::create(\"", $filename_prefix, "_disk_open_cow_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::create(\"", $filename_prefix, "_disk_open_cow_with_options_test.txt\").await.unwrap();")]
                 #[doc = concat!("#  defer!(std::fs::remove_file(\"", $filename_prefix, "_disk_open_cow_with_options_test.txt\").unwrap());")]
-                #[doc = concat!($path_str, "::io::AsyncWriteExt::write_all(&mut file, \"sanity text\".as_bytes()).await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncWriteExt::write_all(&mut file, \"some data...\".as_bytes()).await.unwrap();")]
+                /// file.truncate(23).await.unwrap();
+                /// file.write_all("sanity text".as_bytes(), 0).unwrap();
+                /// file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                /// file.flush().unwrap();
                 /// drop(file);
                 ///
                 /// // mmap the file
@@ -986,11 +994,10 @@ cfg_async! {
                 /// drop(file);
                 ///
                 /// // reopen to check content, cow will not change the content.
-                #[doc = concat!("let mut file = File::open(\"", $filename_prefix, "_disk_open_cow_with_options_test.txt\").await.unwrap();")]
+                #[doc = concat!("let mut file = AsyncDiskMmapFileMut::open(\"", $filename_prefix, "_disk_open_cow_with_options_test.txt\").await.unwrap();")]
                 /// let mut buf = vec![0; "some data...".len()];
                 /// // skip the sanity text
-                #[doc = concat!($path_str, "::io::AsyncSeekExt::seek(&mut file, SeekFrom::Start(\"sanity text\".as_bytes().len() as u64)).await.unwrap();")]
-                #[doc = concat!($path_str, "::io::AsyncReadExt::read_exact(&mut file, buf.as_mut_slice()).await.unwrap();")]
+                /// file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
                 /// assert_eq!(buf.as_slice(), "some data...".as_bytes());
                 /// # })
                 #[doc = "```"]
@@ -1066,7 +1073,13 @@ cfg_async! {
                         exec: true
                     })
                 }
+            }
+        };
+    }
 
+    macro_rules! impl_async_fmmap_file_mut_private {
+        ($name: ident) => {
+            impl $name {
                 async fn create_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
                     let file = create_file_async(&path)
                         .await
@@ -1087,9 +1100,7 @@ cfg_async! {
                         Some(opts) => {
                             if opts.max_size > 0 {
                                 file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                                let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
-                                let parent = abs.parent().unwrap();
-                                sync_dir_async(parent).await?;
+                                sync_parent_async(&path).await?;
                             }
 
                             let opts_bk = opts.mmap_opts.clone();
@@ -1130,9 +1141,7 @@ cfg_async! {
                             let file_sz = meta.len();
                             if file_sz == 0 && opts.max_size > 0 {
                                 file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                                let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
-                                let parent = abs.parent().unwrap();
-                                sync_dir_async(parent).await?;
+                                sync_parent_async(&path).await?;
                             }
 
                             let opts_bk = opts.mmap_opts.clone();
@@ -1171,9 +1180,7 @@ cfg_async! {
                             let file_sz = meta.len();
                             if file_sz == 0 && opts.max_size > 0 {
                                 file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
-                                let abs = path.as_ref().canonicalize().map_err(Error::IO)?;
-                                let parent = abs.parent().unwrap();
-                                sync_dir_async(parent).await?;
+                                sync_parent_async(&path).await?;
                             }
 
                             let opts_bk = opts.mmap_opts.clone();

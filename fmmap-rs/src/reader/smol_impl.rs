@@ -1,4 +1,3 @@
-use bytes::Buf;
 use std::fmt::{Debug, Formatter};
 use std::pin::Pin;
 use std::task::{Context, Poll};

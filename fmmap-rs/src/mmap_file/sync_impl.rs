@@ -1008,7 +1008,7 @@ impl MmapFileMut {
     ///
     /// File does not exists
     ///
-    /// ```rust
+    /// ```no_run
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
     /// use std::fs::{remove_file, File};
     /// use std::io::{Read, Write};

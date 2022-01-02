@@ -22,6 +22,22 @@ cfg_sync! {
             .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
     }
 
+    /// Sync parent
+    pub fn sync_parent<P: AsRef<Path>>(path: P) -> Result<()> {
+        let path = path.as_ref().canonicalize().map_err(Error::IO)?;
+        let path = path.parent().unwrap();
+        if !path.is_dir() {
+            #[cfg(feature = "nightly")]
+            return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+            #[cfg(not(feature = "nightly"))]
+            return Err(Error::NotADirectory);
+        }
+        File::open(path)
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+            .sync_all()
+            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+    }
+
     /// Open a read-only file
     pub fn open_read_only_file<P: AsRef<Path>>(path: P) -> Result<File> {
         OpenOptions::new()
@@ -85,24 +101,6 @@ cfg_sync! {
 cfg_async! {
     macro_rules! impl_async_file_utils {
         ($file: ident, $open_options: ident) => {
-            /// Sync directory
-            pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
-                let path = path.as_ref();
-                if !path.is_dir() {
-                    #[cfg(feature = "nightly")]
-                        return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
-                    #[cfg(not(feature = "nightly"))]
-                        return Err(Error::NotADirectory);
-                }
-
-                <$file>::open(path)
-                    .await
-                    .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
-                    .sync_all()
-                    .await
-                    .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
-            }
-
             /// Open a read-only file
             pub async fn open_read_only_file_async<P: AsRef<Path>>(path: P) -> Result<$file> {
                 <$open_options>::new()
@@ -179,7 +177,44 @@ cfg_smol! {
         #[cfg(feature = "nightly")]
         use std::io;
         use std::path::Path;
-        
+
+        /// Sync directory
+        pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                #[cfg(feature = "nightly")]
+                    return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                    return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
+
+        /// Sync parent directory
+        pub async fn sync_parent_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref().canonicalize().map_err(Error::IO)?;
+            let path = path.parent().unwrap();
+            if !path.is_dir() {
+                #[cfg(feature = "nightly")]
+                return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
+
         impl_async_file_utils!(File, OpenOptions); 
     }
 }
@@ -193,6 +228,43 @@ cfg_tokio! {
         use std::io;
         use std::path::Path;
 
+        /// Sync directory
+        pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref();
+            if !path.is_dir() {
+                #[cfg(feature = "nightly")]
+                return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
+
+        /// Sync parent directory
+        pub async fn sync_parent_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref().canonicalize().map_err(Error::IO)?;
+            let path = path.parent().unwrap();
+            if !path.is_dir() {
+                #[cfg(feature = "nightly")]
+                return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
+
         impl_async_file_utils!(File, OpenOptions);
     }
 }
@@ -204,7 +276,44 @@ cfg_async_std! {
         use crate::error::{Error, Result};
         #[cfg(feature = "nightly")]
         use std::io;
-        use std::path::Path;
+        use async_std::path::Path;
+
+        /// Sync directory
+        pub async fn sync_dir_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref();
+            if !path.is_dir().await {
+                #[cfg(feature = "nightly")]
+                return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
+
+        /// Sync parent directory
+        pub async fn sync_parent_async<P: AsRef<Path>>(path: P) -> Result<()> {
+            let path = path.as_ref().canonicalize().await.map_err(Error::IO)?;
+            let path = path.parent().unwrap();
+            if !path.is_dir().await {
+                #[cfg(feature = "nightly")]
+                return Err(Error::IO(io::Error::from(io::ErrorKind::NotADirectory)));
+                #[cfg(not(feature = "nightly"))]
+                return Err(Error::NotADirectory);
+            }
+
+            File::open(path)
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))?
+                .sync_all()
+                .await
+                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {}", path, e)))
+        }
 
         impl_async_file_utils!(File, OpenOptions);
     }

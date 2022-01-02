@@ -4,16 +4,20 @@ use std::ptr::{drop_in_place, write};
 use async_trait::async_trait;
 use crate::MetaData;
 use crate::smol::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
-use crate::disk::{MmapFileMutType, remmap};
+use crate::disk::MmapFileMutType;
 use crate::error::Error;
-use crate::utils::smol::{create_file_async, open_exist_file_with_append_async, open_or_create_file_async, open_read_only_file_async, sync_dir_async};
+use crate::utils::smol::{create_file_async, open_exist_file_with_append_async, open_or_create_file_async, open_read_only_file_async, sync_parent_async};
 use fs4::smol::AsyncFileExt;
-use memmap2::{Mmap, MmapMut, MmapOptions};
+use memmap2::{Mmap, MmapMut, MmapOptions, MmapAsRawDesc};
 use smol::fs::{File, remove_file};
+
+remmap!(Path);
 
 declare_and_impl_async_fmmap_file!("smol_async", "smol", "smol", File);
 
 declare_and_impl_async_fmmap_file_mut!("smol_async", "smol", "smol", File, AsyncDiskMmapFile);
+
+impl_async_fmmap_file_mut_private!(AsyncDiskMmapFileMut);
 
 #[cfg(test)]
 mod test {

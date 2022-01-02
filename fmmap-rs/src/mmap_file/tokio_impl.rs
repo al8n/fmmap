@@ -15,6 +15,20 @@ declare_async_mmap_file_ext!(AsyncDiskMmapFileMut, AsyncOptions, AsyncMmapFileRe
 
 declare_async_mmap_file_mut_ext!(AsyncMmapFileWriter);
 
+#[enum_dispatch(AsyncMmapFileExt)]
+enum AsyncMmapFileInner {
+    Empty(AsyncEmptyMmapFile),
+    Memory(AsyncMemoryMmapFile),
+    Disk(AsyncDiskMmapFile)
+}
+
 declare_and_impl_async_mmap_file!("tokio_async", "tokio_test", "tokio");
+
+#[enum_dispatch(AsyncMmapFileExt, AsyncMmapFileMutExt)]
+enum AsyncMmapFileMutInner {
+    Empty(AsyncEmptyMmapFile),
+    Memory(AsyncMemoryMmapFileMut),
+    Disk(AsyncDiskMmapFileMut)
+}
 
 delcare_and_impl_async_mmap_file_mut!("tokio_async", "tokio_test", "tokio");
