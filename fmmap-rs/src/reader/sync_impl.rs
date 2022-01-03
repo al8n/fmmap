@@ -297,3 +297,32 @@ impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
         self.r.read_f64::<LittleEndian>()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::{BufRead, Read};
+    use bytes::Buf;
+    use crate::MmapFileExt;
+    use crate::raw::MemoryMmapFileMut;
+
+    #[test]
+    fn test_reader() {
+        let file = MemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.reader(0).unwrap();
+        let _ = format!("{:?}", w);
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().unwrap();
+        w.consume(8096);
+
+        let mut w = file.range_reader(100, 100).unwrap();
+        assert_eq!(w.remaining(), 100);
+        w.advance(10);
+        assert_eq!(w.remaining(), 90);
+        let buf = w.chunk();
+        assert_eq!(buf.len(), 90);
+    }
+}

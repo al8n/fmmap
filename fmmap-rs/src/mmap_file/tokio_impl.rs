@@ -20,3 +20,11 @@ declare_and_impl_inners!();
 declare_and_impl_async_mmap_file!("tokio_async", "tokio_test", "tokio");
 
 delcare_and_impl_async_mmap_file_mut!("tokio_async", "tokio_test", "tokio");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scopeguard::defer;
+
+    file_lock_tests!("tokio_async", tokio::test);
+}

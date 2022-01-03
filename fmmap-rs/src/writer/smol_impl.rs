@@ -41,3 +41,25 @@ impl<'a> AsyncWrite for AsyncMmapFileWriter<'a> {
         self.project().w.poll_close(cx)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use smol::io::{AsyncBufReadExt, AsyncWriteExt, AsyncReadExt};
+    use crate::smol::AsyncMmapFileMutExt;
+    use crate::raw::smol::AsyncMemoryMmapFileMut;
+
+    #[smol_potat::test]
+    async fn test_writer() {
+        let mut file = AsyncMemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.writer(0).unwrap();
+        let _ = format!("{:?}", w);
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).await.unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().await.unwrap();
+        w.consume(8096);
+        w.close().await.unwrap();
+    }
+}

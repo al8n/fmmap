@@ -1,6 +1,10 @@
 use async_std::path::Path;
 use async_std::fs::OpenOptions;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
+#[cfg(windows)]
+use std::os::windows::fs::OpenOptionsExt;
+
 use memmap2::MmapOptions;
 use crate::async_std::{AsyncMmapFile, AsyncMmapFileMut};
 use crate::error::Error;

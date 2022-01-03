@@ -42,5 +42,24 @@ impl<'a> Write for AsyncMmapFileWriter<'a> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use futures::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    use crate::async_std::AsyncMmapFileMutExt;
+    use crate::raw::async_std::AsyncMemoryMmapFileMut;
 
+    #[async_std::test]
+    async fn test_writer() {
+        let mut file = AsyncMemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.writer(0).unwrap();
+        let _ = format!("{:?}", w);
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).await.unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().await.unwrap();
+        w.close().await.unwrap();
+    }
+}
 

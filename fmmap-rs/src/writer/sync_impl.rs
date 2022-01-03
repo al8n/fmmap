@@ -305,6 +305,7 @@ mod tests {
     fn test_writer() {
         let mut file = MemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
         let mut w = file.writer(0).unwrap();
+        let _ = format!("{:?}", w);
         assert_eq!(w.len(), 8096);
         assert_eq!(w.offset(), 0);
         let mut buf = [0; 10];

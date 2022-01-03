@@ -8,50 +8,6 @@ use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 
 declare_and_impl_basic_reader!();
 
-// pin_project! {
-//     /// AsyncMmapFileReader helps read data from mmap file
-//     /// like a normal file.
-//     pub struct AsyncMmapFileReader<'a> {
-//         #[pin]
-//         r: Cursor<&'a [u8]>,
-//         offset: usize,
-//         len: usize,
-//     }
-// }
-//
-//
-// impl<'a> AsyncMmapFileReader<'a> {
-//     pub(crate) fn new(r: Cursor<&'a [u8]>, offset: usize, len: usize) -> Self {
-//         Self {
-//             r,
-//             offset,
-//             len
-//         }
-//     }
-//
-//     /// Returns the start offset(related to the mmap) of the reader
-//     #[inline]
-//     pub fn offset(&self) -> usize {
-//         self.offset
-//     }
-//
-//     /// Returns the length of the reader
-//     #[inline]
-//     pub fn len(&self) -> usize {
-//         self.len
-//     }
-// }
-//
-// impl Debug for AsyncMmapFileReader<'_> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("AsyncMmapFileReader")
-//             .field("offset", &self.offset)
-//             .field("len", &self.len)
-//             .field("reader", &self.r)
-//             .finish()
-//     }
-// }
-
 impl<'a> AsyncRead for AsyncMmapFileReader<'a> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         self.project().r.poll_read(cx, buf)
@@ -89,5 +45,35 @@ impl<'a> Buf for AsyncMmapFileReader<'a> {
 
     fn advance(&mut self, cnt: usize) {
         self.r.advance(cnt)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Buf;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt};
+    use crate::raw::tokio::AsyncMemoryMmapFileMut;
+
+    #[tokio::test]
+    async fn test_reader() {
+        let mut file = AsyncMemoryMmapFileMut::from_vec("test.mem", vec![1; 8096]);
+        let mut w = file.writer(0).unwrap();
+        let _ = format!("{:?}", w);
+        assert_eq!(w.len(), 8096);
+        assert_eq!(w.offset(), 0);
+        let mut buf = [0; 10];
+        let n = w.read(&mut buf).await.unwrap();
+        assert!(buf[0..n].eq(vec![1; n].as_slice()));
+        w.fill_buf().await.unwrap();
+        w.consume(8096);
+        w.shutdown().await.unwrap();
+
+        let mut w = file.range_reader(100, 100).unwrap();
+        assert_eq!(w.remaining(), 100);
+        w.advance(10);
+        assert_eq!(w.remaining(), 90);
+        let buf = w.chunk();
+        assert_eq!(buf.len(), 90);
     }
 }

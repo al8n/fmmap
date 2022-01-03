@@ -19,3 +19,11 @@ declare_and_impl_inners!();
 declare_and_impl_async_mmap_file!("smol_async", "smol", "smol");
 
 delcare_and_impl_async_mmap_file_mut!("smol_async", "smol", "smol");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scopeguard::defer;
+
+    file_lock_tests!("smol_async", smol_potat::test);
+}

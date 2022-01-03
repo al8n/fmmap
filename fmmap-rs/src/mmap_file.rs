@@ -2148,6 +2148,74 @@ cfg_async! {
         };
     }
 
+    macro_rules! file_lock_tests {
+        ($filename_prefix: literal, $runtime: meta) => {
+            #[$runtime]
+            async fn test_flush() {
+                let path = concat!($filename_prefix, "_flush.txt");
+                let mut file1 = AsyncMmapFileMut::create_with_options(path, AsyncOptions::new().max_size(100)).await.unwrap();
+                file1.set_remove_on_drop(true);
+                file1.write_all(vec![1; 100].as_slice(), 0).unwrap();
+                file1.flush_range(0, 10).unwrap();
+                file1.flush_async_range(11, 20).unwrap();
+                file1.flush_async().unwrap();
+            }
+
+            #[$runtime]
+            async fn test_lock_shared() {
+                let path = concat!($filename_prefix, "_lock_shared.txt");
+                let file1 = AsyncMmapFileMut::open(path).await.unwrap();
+                let file2 = AsyncMmapFileMut::open(path).await.unwrap();
+                let file3 = AsyncMmapFileMut::open(path).await.unwrap();
+                defer!(std::fs::remove_file(path).unwrap());
+
+                // Concurrent shared access is OK, but not shared and exclusive.
+                file1.lock_shared().unwrap();
+                file2.lock_shared().unwrap();
+                assert!(file3.try_lock_exclusive().is_err());
+                file1.unlock().unwrap();
+                assert!(file3.try_lock_exclusive().is_err());
+
+                // Once all shared file locks are dropped, an exclusive lock may be created;
+                file2.unlock().unwrap();
+                file3.lock_exclusive().unwrap();
+            }
+
+            #[$runtime]
+            async fn test_lock_exclusive() {
+                let path = concat!($filename_prefix, "_lock_exclusive.txt");
+                defer!(std::fs::remove_file(path).unwrap());
+                let file1 = AsyncMmapFileMut::open(path).await.unwrap();
+                let file2 = AsyncMmapFileMut::open(path).await.unwrap();
+
+                // No other access is possible once an exclusive lock is created.
+                file1.lock_exclusive().unwrap();
+                assert!(file2.try_lock_exclusive().is_err());
+                assert!(file2.try_lock_shared().is_err());
+
+                // Once the exclusive lock is dropped, the second file is able to create a lock.
+                file1.unlock().unwrap();
+                file2.lock_exclusive().unwrap();
+            }
+
+            #[$runtime]
+            async fn test_lock_cleanup() {
+                let path = concat!($filename_prefix, "_lock_cleanup.txt");
+                defer!(std::fs::remove_file(path).unwrap());
+                let file1 = AsyncMmapFileMut::open(path).await.unwrap();
+                let file2 = AsyncMmapFileMut::open(path).await.unwrap();
+
+                // No other access is possible once an exclusive lock is created.
+                file1.lock_exclusive().unwrap();
+                assert!(file2.try_lock_exclusive().is_err());
+                assert!(file2.try_lock_shared().is_err());
+
+                // Drop file1; the lock should be released.
+                drop(file1);
+                file2.lock_shared().unwrap();
+            }
+        };
+    }
 }
 
 cfg_async_std!(
