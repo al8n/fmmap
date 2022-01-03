@@ -190,6 +190,7 @@ mod empty;
 pub mod error;
 mod memory;
 mod metadata;
+pub use metadata::{MetaData, MetaDataExt};
 mod mmap_file;
 #[allow(dead_code)]
 mod options;
@@ -255,8 +256,6 @@ cfg_tokio!(
         pub use crate::writer::tokio_impl::AsyncMmapFileWriter;
     }
 );
-
-pub use metadata::{MetaData, MetaDataExt};
 
 /// Components of mmap file.
 pub mod raw {

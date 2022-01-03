@@ -32,11 +32,12 @@ tokio = { version = "1.14", optional = true }
 
 [dev-dependencies]
 async-std = { version = "1.10.0", features = ["attributes"] }
+ctor = "0.1.21"
 criterion = "0.3.5"
 rand = "0.8.4"
 smol-potat = "1.1.2"
 scopeguard = "1.1.0"
-tempfile = "3.2.0"
+tempdir = "0.3.7"
 tokio = { version = "1.14.0", features = ["full"]}
 tokio-test = "0.4.2"
 
