@@ -1,4 +1,4 @@
-name: CI
+name: rust
 
 on:
   push:
@@ -37,7 +37,6 @@ jobs:
       - unit-tests
       - tarpaulin
       - docs
-      - valgrind
     steps:
       - run: exit 0
 
@@ -50,7 +49,8 @@ jobs:
           - nightly
         os:
           - macos-latest
-          - windows-latest
+          # see https://github.com/al8n/fmmap/issues/1
+          # - windows-latest
     steps:
       - uses: actions/checkout@v2
       - name: Install latest nightly
@@ -96,7 +96,7 @@ jobs:
 
       - uses: actions-rs/tarpaulin@v0.1
       - name: Run cargo tarpaulin
-        run: cargo tarpaulin --all-features --workspace --run-types Tests,Doctests --out Xml
+        run: cargo tarpaulin --all-features --run-types Tests,Doctests --out Xml
         working-directory: fmmap-rs
 
       # Build benchmarks. Run of benchmarks is done by bench.yml workflow.
@@ -112,37 +112,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: file
 
-  valgrind:
-    name: valgrind
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update stable
-      - uses: Swatinem/rust-cache@v1
-
-      - name: Install Valgrind
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y valgrind
-      # Compile tests
-      - name: cargo build test-sync
-        run: cargo build --features sync --bin test-sync
-        working-directory: tests-integration
-
-      # Run with valgrind
-      - name: Run valgrind test-sync
-        run: valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all ./target/debug/test-sync
-
-      # Compile tests
-      - name: cargo build test-tokio-async
-        run: cargo build --features tokio-async --bin test-tokio-async
-        working-directory: tests-integration
-
-      # Run with valgrind
-      - name: Run valgrind test-tokio-async
-        run: valgrind --error-exitcode=1 --leak-check=full --show-leak-kinds=all ./target/debug/test-tokio-async
-
   docs:
     name: docs
     runs-on: ubuntu-latest 
@@ -153,8 +122,9 @@ jobs:
           toolchain: ${{ env.nightly }}
           override: true
       - uses: Swatinem/rust-cache@v1
-      - name: "doc --lib --features  ${{ matrix.features }}"
+      - name: "doc --lib --all-features"
         run: cargo doc --lib --no-deps --all-features --document-private-items
         env:
           RUSTFLAGS: --cfg docsrs
           RUSTDOCFLAGS: --cfg docsrs -Dwarnings
+        working-directory: fmmap-rs

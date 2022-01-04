@@ -8,7 +8,7 @@
 //! English | [简体中文](README-zh_CN.md)
 //!
 //! [<img alt="github" src="https://img.shields.io/badge/GITHUB-fmmap-8da0cb?style=for-the-badge&logo=Github" height="22">][Github-url]
-//! [<img alt="Build" src="https://img.shields.io/github/workflow/status/al8n/vela/CI/main?logo=Github-Actions&style=for-the-badge" height="22">][CI-url]
+//! [<img alt="Build" src="https://img.shields.io/github/workflow/status/al8n/vela/rust/main?logo=Github-Actions&style=for-the-badge" height="22">][CI-url]
 //! [<img alt="codecov" src="https://img.shields.io/codecov/c/gh/al8n/fmmap?style=for-the-badge&token=A5KY75ACD8&logo=codecov" height="22">][codecov-url]
 //!
 //! [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-fmmap-66c2a5?style=for-the-badge&labelColor=555555&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiPjxwYXRoIGZpbGw9IiNmNWY1ZjUiIGQ9Ik00ODguNiAyNTAuMkwzOTIgMjE0VjEwNS41YzAtMTUtOS4zLTI4LjQtMjMuNC0zMy43bC0xMDAtMzcuNWMtOC4xLTMuMS0xNy4xLTMuMS0yNS4zIDBsLTEwMCAzNy41Yy0xNC4xIDUuMy0yMy40IDE4LjctMjMuNCAzMy43VjIxNGwtOTYuNiAzNi4yQzkuMyAyNTUuNSAwIDI2OC45IDAgMjgzLjlWMzk0YzAgMTMuNiA3LjcgMjYuMSAxOS45IDMyLjJsMTAwIDUwYzEwLjEgNS4xIDIyLjEgNS4xIDMyLjIgMGwxMDMuOS01MiAxMDMuOSA1MmMxMC4xIDUuMSAyMi4xIDUuMSAzMi4yIDBsMTAwLTUwYzEyLjItNi4xIDE5LjktMTguNiAxOS45LTMyLjJWMjgzLjljMC0xNS05LjMtMjguNC0yMy40LTMzLjd6TTM1OCAyMTQuOGwtODUgMzEuOXYtNjguMmw4NS0zN3Y3My4zek0xNTQgMTA0LjFsMTAyLTM4LjIgMTAyIDM4LjJ2LjZsLTEwMiA0MS40LTEwMi00MS40di0uNnptODQgMjkxLjFsLTg1IDQyLjV2LTc5LjFsODUtMzguOHY3NS40em0wLTExMmwtMTAyIDQxLjQtMTAyLTQxLjR2LS42bDEwMi0zOC4yIDEwMiAzOC4ydi42em0yNDAgMTEybC04NSA0Mi41di03OS4xbDg1LTM4Ljh2NzUuNHptMC0xMTJsLTEwMiA0MS40LTEwMi00MS40di0uNmwxMDItMzguMiAxMDIgMzguMnYuNnoiPjwvcGF0aD48L3N2Zz4K" height="20">][doc-url]
@@ -20,7 +20,45 @@
 //!
 //! </div>
 //!
-//! ## License
+//! ## Installation
+//! - std
+//! ```toml
+//! [dependencies]
+//! fmmap = 0.1
+//! ```
+//!
+//! - [tokio][tokio]
+//! ```toml
+//! [dependencies]
+//! fmmap = { version = "0.1", features = ["tokio-async"] }
+//! ```
+//!
+//! - [async-std][async-std]
+//! ```toml
+//! [dependencies]
+//! fmmap = { version = "0.1", features = ["std-async"] }
+//! ```
+//!
+//! - [smol][smol]
+//! ```toml
+//! [dependencies]
+//! fmmap = { version = "0.1", features = ["smol-async"] }
+//! ```
+//!
+//! ## Features
+//! - [x] memory mmap
+//! - [x] file lock
+//! - [x] [tokio][tokio]
+//! - [x] [smol][smol]
+//! - [x] [async-std][async-std]
+//!
+//! ## Examples
+//! This crate is 100% documented, see [documents][doc-url] for examples.
+//!
+//! ## TODO
+//! - [ ] add benchmarks
+//!
+//! ### License
 //!
 //! <sup>
 //! Licensed under either of <a href="https://opensource.org/licenses/Apache-2.0">Apache License, Version
@@ -37,7 +75,7 @@
 //!
 //!
 //! [Github-url]: https://github.com/al8n/fmmap/
-//! [CI-url]: https://github.com/al8n/fmmap/actions/workflows/ci.yml
+//! [CI-url]: https://github.com/al8n/fmmap/actions/workflows/rust.yml
 //! [doc-url]: https://docs.rs/fmmap
 //! [crates-url]: https://crates.io/crates/fmmap
 //! [codecov-url]: https://app.codecov.io/gh/al8n/fmmap/
@@ -45,11 +83,16 @@
 //! [rustc-url]: https://github.com/rust-lang/rust/blob/master/RELEASES.md
 //! [license-apache-url]: https://opensource.org/licenses/Apache-2.0
 //! [license-mit-url]: https://opensource.org/licenses/MIT
-//!
+//! [tokio]: https://crates.io/crates/tokio
+//! [smol]: https://crates.io/crates/smol
+//! [async-std]: https://crates.io/crates/async-std
+//! 
 #![cfg_attr(feature = "nightly", feature(io_error_more))]
 #![cfg_attr(all(feature = "nightly", windows), feature(windows_by_handle))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
+//! Extended utilities for working with files and filesystems in Rust.
+#![doc(html_root_url = "https://docs.rs/fmmap/0.1.1")]
 #![allow(
     rustdoc::broken_intra_doc_links,
     unused_macros,
@@ -57,7 +100,6 @@
     clippy::upper_case_acronyms
 )]
 #![deny(missing_docs)]
-#[doc = include_str!("../README.md")]
 #[macro_use]
 extern crate enum_dispatch;
 
@@ -210,7 +252,7 @@ cfg_sync! {
                     let path = concat!($filename_prefix, "_lock_shared.txt");
                     let file1 = <$mmap_file_mut>::open(path).unwrap();
                     let file2 = <$mmap_file_mut>::open(path).unwrap();
-                    let file3 = <$mmap_file_mut>::open(path).unwrap();
+                    let file3 = <$mmap_file>::open(path).unwrap();
                     defer!(std::fs::remove_file(path).unwrap());
 
                     // Concurrent shared access is OK, but not shared and exclusive.
@@ -230,7 +272,7 @@ cfg_sync! {
                     let path = concat!($filename_prefix, "_lock_exclusive.txt");
                     defer!(std::fs::remove_file(path).unwrap());
                     let file1 = <$mmap_file_mut>::open(path).unwrap();
-                    let file2 = <$mmap_file_mut>::open(path).unwrap();
+                    let file2 = <$mmap_file>::open(path).unwrap();
 
                     // No other access is possible once an exclusive lock is created.
                     file1.lock_exclusive().unwrap();
@@ -247,7 +289,7 @@ cfg_sync! {
                     let path = concat!($filename_prefix, "_lock_cleanup.txt");
                     defer!(std::fs::remove_file(path).unwrap());
                     let file1 = <$mmap_file_mut>::open(path).unwrap();
-                    let file2 = <$mmap_file_mut>::open(path).unwrap();
+                    let file2 = <$mmap_file>::open(path).unwrap();
 
                     // No other access is possible once an exclusive lock is created.
                     file1.lock_exclusive().unwrap();
@@ -658,7 +700,7 @@ cfg_async! {
                     let path = concat!($filename_prefix, "_lock_shared.txt");
                     let file1 = <$mmap_file_mut>::open(path).await.unwrap();
                     let file2 = <$mmap_file_mut>::open(path).await.unwrap();
-                    let file3 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file3 = <$mmap_file>::open(path).await.unwrap();
                     defer!(std::fs::remove_file(path).unwrap());
 
                     // Concurrent shared access is OK, but not shared and exclusive.
@@ -678,7 +720,7 @@ cfg_async! {
                     let path = concat!($filename_prefix, "_lock_exclusive.txt");
                     defer!(std::fs::remove_file(path).unwrap());
                     let file1 = <$mmap_file_mut>::open(path).await.unwrap();
-                    let file2 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file2 = <$mmap_file>::open(path).await.unwrap();
 
                     // No other access is possible once an exclusive lock is created.
                     file1.lock_exclusive().unwrap();
@@ -695,7 +737,7 @@ cfg_async! {
                     let path = concat!($filename_prefix, "_lock_cleanup.txt");
                     defer!(std::fs::remove_file(path).unwrap());
                     let file1 = <$mmap_file_mut>::open(path).await.unwrap();
-                    let file2 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file2 = <$mmap_file>::open(path).await.unwrap();
 
                     // No other access is possible once an exclusive lock is created.
                     file1.lock_exclusive().unwrap();

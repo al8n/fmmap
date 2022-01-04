@@ -1,9 +1,14 @@
 [package]
 name = "fmmap"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "a placeholder"
+repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
+description = "A flexible and convenient high-level mmap for zero-copy file I/O."
 license = "MIT OR Apache-2.0"
+authors = ["Al Liu <scygliu@gmail.com>"]
+documentation = "https://docs.rs/fmmap"
+keywords = ["file", "file-system", "lock", "io", "flock"]
+categories = ["filesystem", "external-ffi-bindings", "asynchronous"]
 
 [lib]
 doctest = true
