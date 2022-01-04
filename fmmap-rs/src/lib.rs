@@ -20,6 +20,26 @@
 //!
 //! </div>
 //!
+//! ## Design
+//! The design of this crate is inspired by Dgraph's mmap file implementation in [Stretto](https://github.com/dgraph-io/stretto).
+//!
+//! All of file-backed memory map has the potential for Undefined Behavior (UB) if the underlying file is subsequently modified (e.g. the file is deleted by another process), in or out of process, this crate tries to avoid this situation by provide file lock APIs.
+//!
+//! This crate supports std and popular async runtime(tokio, async-std, smol), and thanks to `macro` in Rust, it is super easy to support any new async runtime. For details, please see the implementation for tokio, async-std, smol of the source code.
+//!
+//! ## Features
+//! - [x] dozens of file I/O util functions
+//! - [x] file-backed memory maps
+//! - [x] synchronous and asynchronous flushing
+//! - [x] copy-on-write memory maps
+//! - [x] read-only memory maps
+//! - [x] stack support (`MAP_STACK` on unix)
+//! - [x] executable memory maps
+//! - [x] file locks.
+//! - [x] [tokio][tokio]
+//! - [x] [smol][smol]
+//! - [x] [async-std][async-std]
+//!
 //! ## Installation
 //! - std
 //! ```toml
@@ -45,21 +65,14 @@
 //! fmmap = { version = "0.2", features = ["smol-async"] }
 //! ```
 //!
-//! ## Features
-//! - [x] memory mmap
-//! - [x] file lock
-//! - [x] [tokio][tokio]
-//! - [x] [smol][smol]
-//! - [x] [async-std][async-std]
-//!
 //! ## Examples
 //! This crate is 100% documented, see [documents][doc-url] for examples.
 //!
 //! ## TODO
 //! - [ ] add benchmarks
 //!
-//! ### License
-//!
+//! #### License
+//! 
 //! <sup>
 //! Licensed under either of <a href="https://opensource.org/licenses/Apache-2.0">Apache License, Version
 //! 2.0</a> or <a href="https://opensource.org/licenses/MIT">MIT license</a> at your option.
@@ -91,8 +104,7 @@
 #![cfg_attr(all(feature = "nightly", windows), feature(windows_by_handle))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
-//! Extended utilities for working with files and filesystems in Rust.
-#![doc(html_root_url = "https://docs.rs/fmmap/0.1.1")]
+#![doc(html_root_url = "https://docs.rs/fmmap/0.2.1")]
 #![allow(
     rustdoc::broken_intra_doc_links,
     unused_macros,
