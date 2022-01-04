@@ -11,6 +11,12 @@ use crate::raw::{DiskMmapFile, DiskMmapFileMut};
 
 declare_and_impl_options!(Options, OpenOptions);
 
+#[cfg(unix)]
+impl_options_unix_ext!(Options);
+
+#[cfg(windows)]
+impl_options_windows_ext!(Options);
+
 impl Options {
     /// Create a new file and mmap this file with [`Options`]
     ///
@@ -299,6 +305,7 @@ impl Options {
         Ok(MmapFileMut::from(DiskMmapFileMut::open_cow_with_options(path, self)?))
     }
 }
+
 
 #[cfg(test)]
 mod tests {

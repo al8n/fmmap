@@ -150,7 +150,15 @@ macro_rules! declare_and_impl_options {
                 self.file_opts.truncate(val);
                 self
             }
+        }
+    };
+}
 
+#[cfg(unix)]
+macro_rules! impl_options_unix_ext {
+    ($name: ident) => {
+        #[cfg(unix)]
+        impl $name {
             /// Sets the mode bits that a new file will be created with. [Read more]
             ///
             /// [Read more]: https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html#tymethod.mode
@@ -168,11 +176,19 @@ macro_rules! declare_and_impl_options {
                 self.file_opts.custom_flags(flags);
                 self
             }
+        }
+    };
+}
 
-            /// Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`] with the specified value. [Read more]
-            ///
-            /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
-            /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
+#[cfg(windows)]
+macro_rules! impl_options_windows_ext {
+    ($name: ident) => {
+        #[cfg(windows)]
+        impl $name {
+                        /// Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`] with the specified value. [Read more]
+                        ///
+                        /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+                        /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn access_mode(mut self, access: u32) -> Self {
                 self.file_opts.access_mode(access);
