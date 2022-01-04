@@ -24,25 +24,25 @@ English | [简体中文](README-zh_CN.md)
 - std
     ```toml
     [dependencies]
-    fmmap = 0.1 
+    fmmap = 0.2 
     ```
 
 - [tokio][tokio]
     ```toml
     [dependencies]
-    fmmap = { version = "0.1", features = ["tokio-async"] }
+    fmmap = { version = "0.2", features = ["tokio-async"] }
     ```
 
 - [async-std][async-std]
     ```toml
     [dependencies]
-    fmmap = { version = "0.1", features = ["std-async"] }
+    fmmap = { version = "0.2", features = ["std-async"] }
     ```
 
 - [smol][smol]
     ```toml
     [dependencies]
-    fmmap = { version = "0.1", features = ["smol-async"] }
+    fmmap = { version = "0.2", features = ["smol-async"] }
     ```
 
 ## Features

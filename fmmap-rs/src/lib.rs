@@ -24,25 +24,25 @@
 //! - std
 //! ```toml
 //! [dependencies]
-//! fmmap = 0.1
+//! fmmap = 0.2
 //! ```
 //!
 //! - [tokio][tokio]
 //! ```toml
 //! [dependencies]
-//! fmmap = { version = "0.1", features = ["tokio-async"] }
+//! fmmap = { version = "0.2", features = ["tokio-async"] }
 //! ```
 //!
 //! - [async-std][async-std]
 //! ```toml
 //! [dependencies]
-//! fmmap = { version = "0.1", features = ["std-async"] }
+//! fmmap = { version = "0.2", features = ["std-async"] }
 //! ```
 //!
 //! - [smol][smol]
 //! ```toml
 //! [dependencies]
-//! fmmap = { version = "0.1", features = ["smol-async"] }
+//! fmmap = { version = "0.2", features = ["smol-async"] }
 //! ```
 //!
 //! ## Features
@@ -153,6 +153,8 @@ macro_rules! cfg_async {
     }
 }
 
+/// `#[cfg(windows)]`
+#[macro_export]
 macro_rules! cfg_windows {
     ($($item:item)*) => {
         $(
@@ -163,11 +165,25 @@ macro_rules! cfg_windows {
     }
 }
 
+/// `#[cfg(unix)]`
+#[macro_export]
 macro_rules! cfg_unix {
     ($($item:item)*) => {
         $(
             #[cfg(unix)]
             #[cfg_attr(docsrs, doc(cfg(unix)))]
+            $item
+        )*
+    }
+}
+
+/// `#[cfg(test)]`
+#[macro_export]
+macro_rules! cfg_test {
+    ($($item:item)*) => {
+        $(
+            #[cfg(test)]
+            #[cfg_attr(docsrs, doc(cfg(test)))]
             $item
         )*
     }
