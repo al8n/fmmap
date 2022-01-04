@@ -359,13 +359,13 @@ mod tests {
     use crate::empty::EmptyMmapFile;
     use crate::{MetaDataExt, MmapFileExt, MmapFileMutExt, Options};
     use crate::raw::MemoryMmapFile;
-    use crate::tests::get_random_file_path;
+    use crate::tests::get_random_filename;
 
     #[test]
     fn test_metadata() {
         let mut file = Options::new()
             .max_size("Hello, fmmap!".len() as u64)
-            .create_mmap_file_mut(get_random_file_path("txt"))
+            .create_mmap_file_mut(get_random_filename())
             .unwrap();
         file.set_remove_on_drop(true);
         file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();

@@ -552,16 +552,15 @@ cfg_async! {
             mod tests {
                 use crate::$path_str::{AsyncOptions, AsyncMmapFileMut, AsyncMmapFileMutExt, AsyncMmapFileExt};
                 use scopeguard::defer;
-                use crate::tests::get_temp_dir_str;
 
                 #[$runtime]
                 async fn test_create_mmap_file_mut() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_create_mmap_file_mut.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
+                    let path = concat!($filename_prefix, "_options_create_mmap_file_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
                     let mut file = AsyncOptions::new()
                         // truncate to 100
                         .max_size(100)
-                        .create_mmap_file_mut(&path).await.unwrap();
+                        .create_mmap_file_mut(path).await.unwrap();
 
                     assert!(!file.is_empty());
                     file.write_all("some data...".as_bytes(), 0).unwrap();
@@ -570,9 +569,9 @@ cfg_async! {
 
                 #[$runtime]
                 async fn test_open_mmap_file() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_open_mmap_file.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
-                    let mut file = AsyncMmapFileMut::create(&path).await.unwrap();
+                    let path = concat!($filename_prefix, "_options_open_mmap_file.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = AsyncMmapFileMut::create(path).await.unwrap();
                     file.truncate(23).await.unwrap();
                     file.write_all("sanity text".as_bytes(), 0).unwrap();
                     file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
@@ -583,7 +582,7 @@ cfg_async! {
                     let file = AsyncOptions::new()
                         // mmap content after the sanity text
                         .offset("sanity text".as_bytes().len() as u64)
-                        .open_mmap_file(&path).await.unwrap();
+                        .open_mmap_file(path).await.unwrap();
                     let mut buf = vec![0; "some data...".len()];
                     file.read_exact(buf.as_mut_slice(), 0).unwrap();
                     assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -591,9 +590,9 @@ cfg_async! {
 
                 #[$runtime]
                 async fn test_open_mmap_file_exec() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_open_exec_mmap_file.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
-                    let mut file = AsyncMmapFileMut::create(&path).await.unwrap();
+                    let path = concat!($filename_prefix, "_options_open_exec_mmap_file.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = AsyncMmapFileMut::create(path).await.unwrap();
                     file.truncate(23).await.unwrap();
                     file.write_all("sanity text".as_bytes(), 0).unwrap();
                     file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
@@ -604,7 +603,7 @@ cfg_async! {
                     let file = AsyncOptions::new()
                         // mmap content after the sanity text
                         .offset("sanity text".as_bytes().len() as u64)
-                        .open_exec_mmap_file(&path).await.unwrap();
+                        .open_exec_mmap_file(path).await.unwrap();
                     let mut buf = vec![0; "some data...".len()];
                     file.read_exact(buf.as_mut_slice(), 0).unwrap();
                     assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -612,9 +611,9 @@ cfg_async! {
 
                 #[$runtime]
                 async fn test_open_mmap_file_mut() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_open_mmap_file_mut.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
-                    let mut file = AsyncMmapFileMut::create(&path).await.unwrap();
+                    let path = concat!($filename_prefix, "_options_open_mmap_file_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = AsyncMmapFileMut::create(path).await.unwrap();
                     file.truncate(23).await.unwrap();
                     file.write_all("sanity text".as_bytes(), 0).unwrap();
                     file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
@@ -632,7 +631,7 @@ cfg_async! {
                         .max_size(100)
                         // mmap content after the sanity text
                         .offset("sanity text".as_bytes().len() as u64)
-                        .open_mmap_file_mut(&path).await.unwrap();
+                        .open_mmap_file_mut(path).await.unwrap();
                     let mut buf = vec![0; "some data...".len()];
                     file.read_exact(buf.as_mut_slice(), 0).unwrap();
                     assert_eq!(buf.as_slice(), "some data...".as_bytes());
@@ -645,7 +644,7 @@ cfg_async! {
 
                     // reopen to check content
                     let mut buf = vec![0; "some modified data...".len()];
-                    let file = AsyncMmapFileMut::open(&path).await.unwrap();
+                    let file = AsyncMmapFileMut::open(path).await.unwrap();
                     // skip the sanity text
                     file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
                     assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
@@ -653,9 +652,9 @@ cfg_async! {
 
                 #[$runtime]
                 async fn open_exist_mmap_file_mut() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_open_exist_mmap_file_mut.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
-                    let mut file = AsyncMmapFileMut::create(&path).await.unwrap();
+                    let path = concat!($filename_prefix, "_options_open_exist_mmap_file_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = AsyncMmapFileMut::create(path).await.unwrap();
                     file.truncate(23).await.unwrap();
                     file.write_all("sanity text".as_bytes(), 0).unwrap();
                     file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
@@ -668,7 +667,7 @@ cfg_async! {
                         .max_size(100)
                         // mmap content after the sanity text
                         .offset("sanity text".as_bytes().len() as u64)
-                        .open_exist_mmap_file_mut(&path).await.unwrap();
+                        .open_exist_mmap_file_mut(path).await.unwrap();
 
                     let mut buf = vec![0; "some data...".len()];
                     file.read_exact(buf.as_mut_slice(), 0).unwrap();
@@ -680,7 +679,7 @@ cfg_async! {
                     file.flush().unwrap();
 
                     // reopen to check content, cow will not change the content.
-                    let file = AsyncMmapFileMut::open(&path).await.unwrap();
+                    let file = AsyncMmapFileMut::open(path).await.unwrap();
                     let mut buf = vec![0; "some modified data...".len()];
                     // skip the sanity text
                     file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
@@ -689,9 +688,9 @@ cfg_async! {
 
                 #[$runtime]
                 async fn open_cow_mmap_file_mut() {
-                    let path = format!("{}/{}", get_temp_dir_str(), concat!($filename_prefix, "_options_open_cow_mmap_file_mut.txt"));
-                    defer!(std::fs::remove_file(&path).unwrap());
-                    let mut file = AsyncMmapFileMut::create(&path).await.unwrap();
+                    let path = concat!($filename_prefix, "_options_open_cow_mmap_file_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = AsyncMmapFileMut::create(path).await.unwrap();
                     file.truncate(23).await.unwrap();
                     file.write_all("sanity text".as_bytes(), 0).unwrap();
                     file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
@@ -702,7 +701,7 @@ cfg_async! {
                     let mut file = AsyncOptions::new()
                         // mmap content after the sanity text
                         .offset("sanity text".as_bytes().len() as u64)
-                        .open_cow_mmap_file_mut(&path).await.unwrap();
+                        .open_cow_mmap_file_mut(path).await.unwrap();
                     assert!(file.is_cow());
 
                     let mut buf = vec![0; "some data...".len()];
@@ -718,7 +717,7 @@ cfg_async! {
                     drop(file);
 
                     // reopen to check content, cow will not change the content.
-                    let file = AsyncMmapFileMut::open(&path).await.unwrap();
+                    let file = AsyncMmapFileMut::open(path).await.unwrap();
                     let mut buf = vec![0; "some data...".len()];
                     // skip the sanity text
                     file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();

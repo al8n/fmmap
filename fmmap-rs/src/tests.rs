@@ -1,39 +1,23 @@
-use std::ffi::OsStr;
 use rand::{thread_rng, Rng};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use once_cell::sync::OnceCell;
-static TEST_TEMP_DIR: OnceCell<PathBuf> = OnceCell::new();
-
-/// Init or get the temp dir for this crate
-pub fn get_temp_dir() -> PathBuf {
-    TEST_TEMP_DIR.get_or_init(|| {
-        let name = format!("{}_tests", std::env::var("CARGO_PKG_NAME").unwrap());
-        let mut filename = std::env::temp_dir();
-        filename.push(name);
-        std::fs::create_dir(&filename).unwrap();
-        filename
-    }).clone()
-}
-
-/// Init or get the temp dir for this crate
-pub fn get_temp_dir_str() -> String {
-    get_temp_dir().to_string_lossy().to_string()
-}
-
-/// Returns a file path in temp dir by the given file name
-pub fn get_temp_file_path<P: AsRef<Path>>(name: P) -> PathBuf {
-    let mut path = get_temp_dir();
-    path.push(name);
-    path
-}
-
-/// Returns a file path in temp dir by the random file name 
-pub fn get_random_file_path<S: AsRef<OsStr>>(extension: S) -> PathBuf {
+#[cfg(not(windows))]
+pub fn get_random_filename() -> PathBuf {
     let mut rng = thread_rng();
-    let mut filename = get_temp_dir();
+    let mut filename = std::env::temp_dir();
     filename.push(rng.gen::<u32>().to_string());
-    filename.set_extension(extension);
+    filename.set_extension("txt");
+    filename
+}
+
+#[cfg(windows)]
+pub fn get_random_filename() -> PathBuf {
+    let mut rng = thread_rng();
+    let mut filename = std::env::temp_dir();
+    filename.push("fmmap");
+    let _ = std::fs::create_dir(&filename);
+    filename.push(rng.gen::<u32>().to_string());
+    filename.set_extension("txt");
     filename
 }
 
@@ -210,11 +194,11 @@ mod sync {
                 let v = file.copy_range_to_vec(0, MODIFIED_SANITY_TEXT.len());
                 assert_eq!(v.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
 
-                let pb = get_random_file_path("txt");
+                let pb = get_random_filename();
                 file.write_all_to_new_file(&pb).unwrap();
                 defer!(let _ = std::fs::remove_file(&pb););
 
-                let pb1 = get_random_file_path("txt");
+                let pb1 = get_random_filename();
                 defer!(let _ = std::fs::remove_file(&pb1););
                 file.write_range_to_new_file(&pb1, 0, MODIFIED_SANITY_TEXT.len()).unwrap();
 
@@ -247,7 +231,7 @@ mod sync {
         }],
         [test_mmap_file_mut, {
             let mut file =
-                MmapFileMut::from(DiskMmapFileMut::create(get_random_file_path("txt")).unwrap());
+                MmapFileMut::from(DiskMmapFileMut::create(get_random_filename()).unwrap());
             file.set_remove_on_drop(true);
             assert!(file.get_remove_on_drop());
             file
@@ -394,11 +378,11 @@ mod axync {
                     let v = file.copy_range_to_vec(0, MODIFIED_SANITY_TEXT.len());
                     assert_eq!(v.as_slice(), MODIFIED_SANITY_TEXT.as_bytes());
 
-                    let pb = get_random_file_path("txt");
+                    let pb = get_random_filename();
                     file.write_all_to_new_file(&pb).await.unwrap();
                     defer!(let _ = std::fs::remove_file(&pb););
 
-                    let pb1 = get_random_file_path("txt");
+                    let pb1 = get_random_filename();
                     defer!(let _ = std::fs::remove_file(&pb1););
                     file.write_range_to_new_file(&pb1, 0, MODIFIED_SANITY_TEXT.len()).await.unwrap();
 
@@ -431,7 +415,7 @@ mod axync {
         }],
         [test_async_mmap_file_mut, {
             let mut file = AsyncMmapFileMut::from(
-                AsyncDiskMmapFileMut::create(get_random_file_path("txt"))
+                AsyncDiskMmapFileMut::create(get_random_filename())
                     .await
                     .unwrap(),
             );
