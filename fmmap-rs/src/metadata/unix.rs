@@ -479,7 +479,7 @@ mod tests {
     use crate::empty::EmptyMmapFile;
     use crate::{MmapFileExt, MmapFileMutExt, Options};
     use crate::raw::MemoryMmapFile;
-    use crate::tests::get_random_filename;
+    use crate::tests::get_random_file_path;
     use super::*;
 
     macro_rules! metadata_test {
@@ -516,7 +516,7 @@ mod tests {
     fn test_metadata() {
         let mut file = Options::new()
             .max_size("Hello, fmmap!".len() as u64)
-            .create_mmap_file_mut(get_random_filename())
+            .create_mmap_file_mut(get_random_file_path("txt"))
             .unwrap();
         file.set_remove_on_drop(true);
         file.write_all("Hello, fmmap!".as_bytes(), 0).unwrap();
@@ -555,7 +555,7 @@ mod tests {
         use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
         let mut file = AsyncOptions::new()
             .max_size("Hello, fmmap!".len() as u64)
-            .create_mmap_file_mut(get_random_filename())
+            .create_mmap_file_mut(get_random_file_path("txt"))
             .await
             .unwrap();
         file.set_remove_on_drop(true);
