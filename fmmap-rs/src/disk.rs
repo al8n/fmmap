@@ -236,7 +236,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
@@ -264,7 +264,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
@@ -300,7 +300,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
@@ -328,7 +328,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFile;")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
@@ -487,7 +487,7 @@ cfg_async! {
                 ///
                 /// # Example
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileMutExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = ""]
@@ -517,7 +517,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = "use fmmap::MetaDataExt;"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
@@ -587,7 +587,7 @@ cfg_async! {
                 ///
                 /// # Example
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileMutExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -611,7 +611,7 @@ cfg_async! {
                 ///
                 /// # Example
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -643,7 +643,7 @@ cfg_async! {
                 ///
                 /// File already exists
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -678,7 +678,7 @@ cfg_async! {
                 #[doc = ""]
                 #[doc = "File does not exists"]
                 #[doc = ""]
-                #[doc = "```no_run"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -720,7 +720,7 @@ cfg_async! {
                 ///
                 /// File already exists
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = "# use scopeguard::defer;"]
                 #[doc = ""]
@@ -766,7 +766,7 @@ cfg_async! {
                 #[doc = ""]
                 #[doc = "File does not exists"]
                 #[doc = ""]
-                #[doc = "```no_run"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = "# use scopeguard::defer;"]
                 #[doc = ""]
@@ -812,7 +812,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -856,7 +856,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = " # use scopeguard::defer;"]
@@ -908,7 +908,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = "# use scopeguard::defer;"]
@@ -954,7 +954,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = concat!("use ", $path_str, "::fs::File;")]
@@ -1012,7 +1012,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileMutExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = "# use scopeguard::defer;"]
@@ -1045,7 +1045,7 @@ cfg_async! {
                 /// such as when the file has not been opened with execute permissions
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::AsyncMmapFileMutExt;")]
                 #[doc = concat!("use fmmap::raw::", $path_str, "::AsyncDiskMmapFileMut;")]
                 #[doc = "# use scopeguard::defer;"]

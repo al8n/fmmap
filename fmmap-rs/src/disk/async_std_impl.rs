@@ -19,6 +19,8 @@ declare_and_impl_async_fmmap_file_mut!("async_std_async", "async_std::task", "as
 
 impl_async_fmmap_file_mut_private!(AsyncDiskMmapFileMut);
 
+impl_async_tests!("std_async_disk", async_std::test, async_std, AsyncDiskMmapFile, AsyncDiskMmapFileMut);
+
 #[cfg(test)]
 mod test {
     use super::*;

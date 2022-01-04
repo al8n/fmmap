@@ -19,6 +19,8 @@ declare_and_impl_async_fmmap_file_mut!("smol_async", "smol", "smol", File, Async
 
 impl_async_fmmap_file_mut_private!(AsyncDiskMmapFileMut);
 
+impl_async_tests!("smol_async_disk", smol_potat::test, smol, AsyncDiskMmapFile, AsyncDiskMmapFileMut);
+
 #[cfg(test)]
 mod test {
     use super::*;

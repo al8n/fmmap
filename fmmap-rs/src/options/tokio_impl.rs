@@ -6,3 +6,5 @@ use crate::error::Error;
 use crate::raw::tokio::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 
 declare_and_impl_async_options!("tokio_async", "tokio_test", "tokio");
+
+impl_async_options_tests!("tokio_async", tokio::test, tokio);

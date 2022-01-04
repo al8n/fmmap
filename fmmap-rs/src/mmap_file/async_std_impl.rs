@@ -20,10 +20,4 @@ declare_and_impl_async_mmap_file!("async_std_async", "async_std::task", "async_s
 
 delcare_and_impl_async_mmap_file_mut!("async_std_async", "async_std::task", "async_std");
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use scopeguard::defer;
-
-    file_lock_tests!("std_async", async_std::test);
-}
+impl_async_tests!("std_async", async_std::test, async_std, AsyncMmapFile, AsyncMmapFileMut);

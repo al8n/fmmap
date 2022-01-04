@@ -30,7 +30,7 @@ impl<'a> Seek for AsyncMmapFileReader<'a> {
 
 #[cfg(test)]
 mod tests {
-    use futures::{AsyncBufReadExt, AsyncReadExt};
+    use futures_util::{AsyncBufReadExt, AsyncReadExt};
     use crate::async_std::AsyncMmapFileExt;
     use crate::raw::async_std::AsyncMemoryMmapFileMut;
 

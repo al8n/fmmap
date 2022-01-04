@@ -113,7 +113,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
         impl $name {
             #[doc = concat!("Create a in-memory ", $name_str)]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = "use bytes::{BufMut, BytesMut};"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
@@ -127,7 +127,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from Vec")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data = (0..=255u8).collect::<Vec<_>>();"]
@@ -139,7 +139,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from String")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
@@ -151,7 +151,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from static slice")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = "use bytes::Bytes;"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
@@ -164,7 +164,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from static str")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = "use bytes::Bytes;"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
@@ -177,7 +177,7 @@ macro_rules! impl_constructor_for_memory_mmap_file {
 
             #[doc = concat!("Create a in-memory ", $name_str, " by copy from slice")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_copy_from_slice(\"foo.mem\", \"some data...\".as_bytes());")]
@@ -194,7 +194,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
         impl $name {
             #[doc = concat!("Create a in-memory ", $name_str)]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory(\"foo.mem\");")]
@@ -205,7 +205,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
 
             #[doc = concat!("Create a in-memory ", $name_str, "with capacity")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_with_capacity(\"foo.mem\", 1000);")]
@@ -216,7 +216,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from Vec")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data = (0..=255u8).collect::<Vec<_>>();"]
@@ -228,7 +228,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from String")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = "let data: &'static str = \"some data...\";"]
@@ -240,7 +240,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
 
             #[doc = concat!("Create a in-memory ", $name_str, " from static str")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = "use bytes::Bytes;"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
@@ -253,7 +253,7 @@ macro_rules! impl_constructor_for_memory_mmap_file_mut {
 
             #[doc = concat!("Create a in-memory ", $name_str, " by from slice")]
             #[doc = "# Examples"]
-            #[doc = "```rust"]
+            #[doc = "```ignore"]
             #[doc = concat!("use fmmap::", $path_str, "::", $name_str, ";")]
             #[doc = ""]
             #[doc = concat!($name_str, "::memory_from_slice(\"foo.mem\", \"some data...\".as_bytes());")]
@@ -363,7 +363,7 @@ cfg_async! {
                 ///
                 /// # Example
                 ///
-                /// ```rust
+                /// ```ignore
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 #[doc = concat!("use ", $path_str, "::fs::File;")]
                 #[doc = concat!("# ", $doc_test_runtime, "::block_on(async {")]
@@ -395,7 +395,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                /// ```rust
+                /// ```ignore
                 #[doc = concat!("use fmmap::{MetaDataExt,", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt}};")]
                 /// # use scopeguard::defer;
                 ///
@@ -564,18 +564,33 @@ cfg_async! {
                 }
 
                 /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
+                ///
+                /// # Notes
+                /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn lock_exclusive(&self) -> Result<()>;
 
                 /// Locks the file for exclusive usage, blocking if the file is currently locked.
+                ///
+                /// # Notes
+                /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn lock_shared(&self) -> Result<()>;
 
                 /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+                ///
+                /// # Notes
+                /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn try_lock_exclusive(&self) -> Result<()>;
 
                 /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+                ///
+                /// # Notes
+                /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn try_lock_shared(&self) -> Result<()>;
 
                 /// Unlocks the file.
+                ///
+                /// # Notes
+                /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn unlock(&self) -> Result<()>;
 
                 /// Read bytes to the dst buf from the offset, returns how many bytes read.
@@ -1471,7 +1486,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFile, AsyncMmapFileExt};")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
@@ -1498,7 +1513,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFile, AsyncMmapFileExt};")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
@@ -1533,7 +1548,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFile, AsyncMmapFileExt};")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
@@ -1560,7 +1575,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFile, AsyncMmapFileExt};")]
                 #[doc = concat!("# use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
@@ -1627,7 +1642,7 @@ cfg_async! {
                 /// without truncating.
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1650,7 +1665,7 @@ cfg_async! {
                 ///
                 /// # Example
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncOptions, AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1681,7 +1696,7 @@ cfg_async! {
                 ///
                 /// File already exists
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1715,7 +1730,7 @@ cfg_async! {
                 ///
                 /// File does not exists
                 ///
-                #[doc = "```no_run"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1757,7 +1772,7 @@ cfg_async! {
                 ///
                 /// File already exists
                 ///
-                /// ```rust
+                /// ```ignore
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1804,7 +1819,7 @@ cfg_async! {
                 ///
                 /// File does not exists
                 ///
-                /// ```no_run
+                /// ```ignore
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1850,7 +1865,7 @@ cfg_async! {
                 /// Open an existing file and mmap this file
                 ///
                 /// # Examples
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1893,7 +1908,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                /// ```rust
+                /// ```ignore
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1944,7 +1959,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -1989,7 +2004,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};")]
                 /// use std::io::SeekFrom;
                 /// # use scopeguard::defer;
@@ -2051,7 +2066,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///
@@ -2093,7 +2108,7 @@ cfg_async! {
                 ///
                 /// # Examples
                 ///
-                #[doc = "```rust"]
+                #[doc = "```ignore"]
                 #[doc = concat!("use fmmap::", $path_str, "::{AsyncMmapFileMut, AsyncMmapFileMutExt};")]
                 /// # use scopeguard::defer;
                 ///

@@ -294,7 +294,7 @@ macro_rules! define_and_impl_constructor_for_mmap_file_mut {
     };
 }
 
-cfg_sync!(
+cfg_sync! {
     macro_rules! impl_mmap_file_ext {
         ($name: ident) => {
             impl MmapFileExt for $name {
@@ -327,7 +327,7 @@ cfg_sync!(
     }
     mod sync_impl;
     pub use sync_impl::{MemoryMmapFile, MemoryMmapFileMut};
-);
+}
 
 cfg_async! {
     macro_rules! impl_async_mmap_file_ext {

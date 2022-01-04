@@ -28,7 +28,7 @@ impl DiskMmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileExt;
     /// use fmmap::raw::DiskMmapFile;
     /// use std::fs::{remove_file, File};
@@ -53,7 +53,7 @@ impl DiskMmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{Options, MmapFileExt};
     /// use fmmap::raw::DiskMmapFile;
     /// use std::fs::File;
@@ -94,7 +94,7 @@ impl DiskMmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileExt;
     /// use fmmap::raw::DiskMmapFile;
     /// use std::fs::{remove_file, File};
@@ -119,7 +119,7 @@ impl DiskMmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{Options, MmapFileExt};
     /// use fmmap::raw::DiskMmapFile;
     /// use std::fs::File;
@@ -281,7 +281,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileMutExt;
     /// use fmmap::raw::DiskMmapFileMut;
     ///
@@ -308,7 +308,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MetaDataExt, MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -347,7 +347,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MetaDataExt, MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -388,7 +388,7 @@ impl DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileMutExt;
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -410,7 +410,7 @@ impl DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{Options, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -440,7 +440,7 @@ impl DiskMmapFileMut {
     ///
     /// File already exists
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -473,7 +473,7 @@ impl DiskMmapFileMut {
     ///
     /// File does not exists
     ///
-    /// ```no_run
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -515,7 +515,7 @@ impl DiskMmapFileMut {
     ///
     /// File already exists
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -561,7 +561,7 @@ impl DiskMmapFileMut {
     ///
     /// File does not exists
     ///
-    /// ```no_run
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -608,7 +608,7 @@ impl DiskMmapFileMut {
     /// Open an existing file and mmap this file
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -646,7 +646,7 @@ impl DiskMmapFileMut {
     /// Open an existing file and mmap this file with [`Options`]
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -695,7 +695,7 @@ impl DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -739,7 +739,7 @@ impl DiskMmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```ignore
     /// use fmmap::{MmapFileExt, MmapFileMutExt, Options};
     /// use fmmap::raw::DiskMmapFileMut;
     /// use std::fs::File;
@@ -793,7 +793,7 @@ impl DiskMmapFileMut {
     /// such as when the file has not been opened with read permissions.
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileMutExt;
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -824,7 +824,7 @@ impl DiskMmapFileMut {
     /// such as when the file has not been opened with execute permissions
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// use fmmap::MmapFileMutExt;
     /// use fmmap::raw::DiskMmapFileMut;
     /// # use scopeguard::defer;
@@ -987,16 +987,12 @@ impl DiskMmapFileMut {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use scopeguard::defer;
+impl_sync_tests!("disk", DiskMmapFile, DiskMmapFileMut);
 
-    #[test]
-    fn test_close_with_truncate_on_empty_file() {
-        let file = DiskMmapFileMut::create("disk_close_with_truncate_test.txt").unwrap();
-        defer!(std::fs::remove_file("disk_close_with_truncate_test.txt").unwrap());
-        file.close_with_truncate(10).unwrap();
-        assert_eq!(10, File::open("disk_close_with_truncate_test.txt").unwrap().metadata().unwrap().len());
-    }
+#[test]
+fn test_close_with_truncate_on_empty_file() {
+    let file = DiskMmapFileMut::create("disk_close_with_truncate_test.txt").unwrap();
+    scopeguard::defer!(std::fs::remove_file("disk_close_with_truncate_test.txt").unwrap());
+    file.close_with_truncate(10).unwrap();
+    assert_eq!(10, File::open("disk_close_with_truncate_test.txt").unwrap().metadata().unwrap().len());
 }

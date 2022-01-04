@@ -44,7 +44,7 @@ impl<'a> Write for AsyncMmapFileWriter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use futures::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+    use futures_util::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
     use crate::async_std::AsyncMmapFileMutExt;
     use crate::raw::async_std::AsyncMemoryMmapFileMut;
 

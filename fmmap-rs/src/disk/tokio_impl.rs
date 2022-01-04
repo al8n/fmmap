@@ -19,6 +19,9 @@ declare_and_impl_async_fmmap_file_mut!("tokio_async", "tokio_test", "tokio", Fil
 
 impl_async_fmmap_file_mut_private!(AsyncDiskMmapFileMut);
 
+impl_async_tests!("tokio_async_disk", tokio::test, tokio, AsyncDiskMmapFile, AsyncDiskMmapFileMut);
+
+
 #[cfg(test)]
 mod test {
     use super::*;

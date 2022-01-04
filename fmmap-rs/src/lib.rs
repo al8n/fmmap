@@ -184,6 +184,901 @@ macro_rules! noop_file_lock {
     };
 }
 
+cfg_sync! {
+    macro_rules! impl_sync_tests {
+        ($filename_prefix: literal, $mmap_file: ident, $mmap_file_mut: ident) => {
+            #[cfg(test)]
+            mod test {
+                use super::*;
+                use scopeguard::defer;
+                use std::fs::File;
+                use crate::MetaDataExt;
+
+                #[test]
+                fn test_flush() {
+                    let path = concat!($filename_prefix, "_flush.txt");
+                    let mut file1 = <$mmap_file_mut>::create_with_options(path, Options::new().max_size(100)).unwrap();
+                    defer!(std::fs::remove_file(path).unwrap(););
+                    file1.write_all(vec![1; 100].as_slice(), 0).unwrap();
+                    file1.flush_range(0, 10).unwrap();
+                    file1.flush_async_range(11, 20).unwrap();
+                    file1.flush_async().unwrap();
+                }
+
+                #[test]
+                fn test_lock_shared() {
+                    let path = concat!($filename_prefix, "_lock_shared.txt");
+                    let file1 = <$mmap_file_mut>::open(path).unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).unwrap();
+                    let file3 = <$mmap_file_mut>::open(path).unwrap();
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // Concurrent shared access is OK, but not shared and exclusive.
+                    file1.lock_shared().unwrap();
+                    file2.lock_shared().unwrap();
+                    assert!(file3.try_lock_exclusive().is_err());
+                    file1.unlock().unwrap();
+                    assert!(file3.try_lock_exclusive().is_err());
+
+                    // Once all shared file locks are dropped, an exclusive lock may be created;
+                    file2.unlock().unwrap();
+                    file3.lock_exclusive().unwrap();
+                }
+
+                #[test]
+                fn test_lock_exclusive() {
+                    let path = concat!($filename_prefix, "_lock_exclusive.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let file1 = <$mmap_file_mut>::open(path).unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).unwrap();
+
+                    // No other access is possible once an exclusive lock is created.
+                    file1.lock_exclusive().unwrap();
+                    assert!(file2.try_lock_exclusive().is_err());
+                    assert!(file2.try_lock_shared().is_err());
+
+                    // Once the exclusive lock is dropped, the second file is able to create a lock.
+                    file1.unlock().unwrap();
+                    file2.lock_exclusive().unwrap();
+                }
+
+                #[test]
+                fn test_lock_cleanup() {
+                    let path = concat!($filename_prefix, "_lock_cleanup.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let file1 = <$mmap_file_mut>::open(path).unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).unwrap();
+
+                    // No other access is possible once an exclusive lock is created.
+                    file1.lock_exclusive().unwrap();
+                    assert!(file2.try_lock_exclusive().is_err());
+                    assert!(file2.try_lock_shared().is_err());
+
+                    // Drop file1; the lock should be released.
+                    drop(file1);
+                    file2.lock_shared().unwrap();
+                }
+
+                #[test]
+                fn test_open() {
+                    let path = concat!($filename_prefix, "_open_test.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+                    // mmap the file
+                    let file = <$mmap_file>::open(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_with_options() {
+                    let path = concat!($filename_prefix, "_open_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(23).unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = Options::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    // mmap the file
+                    let file = <$mmap_file>::open_with_options(path, opts).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_exec() {
+                    let path = concat!($filename_prefix, "_open_exec.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+                    // mmap the file
+                    let file = <$mmap_file>::open_exec(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_exec_with_options() {
+                    let path = concat!($filename_prefix, "_open_exec_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(23).unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = Options::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    // mmap the file
+                    let file = <$mmap_file>::open_exec_with_options(path, opts).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_remove() {
+                    let path = concat!($filename_prefix, "_remove.txt");
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    file.remove().unwrap();
+
+                    let err = File::open(path);
+                    assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+                }
+
+                #[test]
+                fn test_close_with_truncate() {
+                    let path = concat!($filename_prefix, "_close_with_truncate.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+
+                    file.truncate(100).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    file.close_with_truncate(50).unwrap();
+
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    let meta = file.metadata().unwrap();
+                    assert_eq!(meta.len(), 50);
+                }
+
+                #[test]
+                fn test_create() {
+                    let path = concat!($filename_prefix, "_create.txt");
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    defer!(std::fs::remove_file(path).unwrap(););
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                }
+
+                #[test]
+                fn test_create_with_options() {
+                    let path = concat!($filename_prefix, "_create_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let opts = Options::new()
+                        // truncate to 100
+                        .max_size(100);
+                    let mut file = <$mmap_file_mut>::create_with_options(path, opts).unwrap();
+
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                }
+
+                #[test]
+                fn test_open_mut() {
+                    let path = concat!($filename_prefix, "_open_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate("some modified data...".len() as u64).unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_mut_with_options() {
+                    let path = concat!($filename_prefix, "_open_mut_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(23).unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = Options::new()
+                        // allow read
+                        .read(true)
+                        // allow write
+                        .write(true)
+                        // allow append
+                        .append(true)
+                        // truncate to 100
+                        .max_size(100)
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    let mut file = <$mmap_file_mut>::open_with_options(path, opts).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate(("some modified data...".len() + "sanity text".len()) as u64).unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_exist() {
+                    let path = concat!($filename_prefix, "_open_exist.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open_exist(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate("some modified data...".len() as u64).unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_exist_with_options() {
+                    let path = concat!($filename_prefix, "_open_exist_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(23).unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = Options::new()
+                        // truncate to 100
+                        .max_size(100)
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+
+                    let mut file = <$mmap_file_mut>::open_exist_with_options(path, opts).unwrap();
+
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate(("some modified data...".len() + "sanity text".len()) as u64).unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    let mut buf = vec![0; "some modified data...".len()];
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_cow() {
+                    let path = concat!($filename_prefix, "_open_cow.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open_cow(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.write_all("some data!!!".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // cow, change will only be seen in current caller
+                    assert_eq!(file.as_slice(), "some data!!!".as_bytes());
+                    drop(file);
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_open_cow_with_options() {
+                    let path = concat!($filename_prefix, "_open_cow_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(23).unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = Options::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+
+                    let mut file = <$mmap_file_mut>::open_cow_with_options(path, opts).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.write_all("some data!!!".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // cow, change will only be seen in current caller
+                    assert_eq!(file.as_slice(), "some data!!!".as_bytes());
+                    drop(file);
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[test]
+                fn test_freeze() {
+                    let path = concat!($filename_prefix, "_freeze.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    // freeze
+                    file.freeze().unwrap();
+                }
+
+                #[test]
+                fn test_freeze_exec() {
+                    let path = concat!($filename_prefix, "_freeze_exec.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).unwrap();
+                    file.truncate(12).unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    // freeze_exec
+                    file.freeze_exec().unwrap();
+                }
+            }
+        };
+    }
+
+}
+
+cfg_async! {
+    macro_rules! impl_async_tests {
+        ($filename_prefix: literal, $runtime: meta, $path_str: ident, $mmap_file: ident, $mmap_file_mut: ident) => {
+            #[cfg(test)]
+            mod tests {
+                use super::*;
+                use scopeguard::defer;
+                use $path_str::fs::File;
+                use crate::MetaDataExt;
+
+                #[$runtime]
+                async fn test_flush() {
+                    let path = concat!($filename_prefix, "_flush.txt");
+                    let mut file1 = <$mmap_file_mut>::create_with_options(path, AsyncOptions::new().max_size(100)).await.unwrap();
+                    defer!(std::fs::remove_file(path).unwrap(););
+                    file1.write_all(vec![1; 100].as_slice(), 0).unwrap();
+                    file1.flush_range(0, 10).unwrap();
+                    file1.flush_async_range(11, 20).unwrap();
+                    file1.flush_async().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_lock_shared() {
+                    let path = concat!($filename_prefix, "_lock_shared.txt");
+                    let file1 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file3 = <$mmap_file_mut>::open(path).await.unwrap();
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // Concurrent shared access is OK, but not shared and exclusive.
+                    file1.lock_shared().unwrap();
+                    file2.lock_shared().unwrap();
+                    assert!(file3.try_lock_exclusive().is_err());
+                    file1.unlock().unwrap();
+                    assert!(file3.try_lock_exclusive().is_err());
+
+                    // Once all shared file locks are dropped, an exclusive lock may be created;
+                    file2.unlock().unwrap();
+                    file3.lock_exclusive().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_lock_exclusive() {
+                    let path = concat!($filename_prefix, "_lock_exclusive.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let file1 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).await.unwrap();
+
+                    // No other access is possible once an exclusive lock is created.
+                    file1.lock_exclusive().unwrap();
+                    assert!(file2.try_lock_exclusive().is_err());
+                    assert!(file2.try_lock_shared().is_err());
+
+                    // Once the exclusive lock is dropped, the second file is able to create a lock.
+                    file1.unlock().unwrap();
+                    file2.lock_exclusive().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_lock_cleanup() {
+                    let path = concat!($filename_prefix, "_lock_cleanup.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let file1 = <$mmap_file_mut>::open(path).await.unwrap();
+                    let file2 = <$mmap_file_mut>::open(path).await.unwrap();
+
+                    // No other access is possible once an exclusive lock is created.
+                    file1.lock_exclusive().unwrap();
+                    assert!(file2.try_lock_exclusive().is_err());
+                    assert!(file2.try_lock_shared().is_err());
+
+                    // Drop file1; the lock should be released.
+                    drop(file1);
+                    file2.lock_shared().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_open() {
+                    let path = concat!($filename_prefix, "_open_test.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+                    // mmap the file
+                    let file = <$mmap_file>::open(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_with_options() {
+                    let path = concat!($filename_prefix, "_open_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(23).await.unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = AsyncOptions::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    // mmap the file
+                    let file = <$mmap_file>::open_with_options(path, opts).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_exec() {
+                    let path = concat!($filename_prefix, "_open_exec.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+                    // mmap the file
+                    let file = <$mmap_file>::open_exec(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_exec_with_options() {
+                    let path = concat!($filename_prefix, "_open_exec_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(23).await.unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = AsyncOptions::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    // mmap the file
+                    let file = <$mmap_file>::open_exec_with_options(path, opts).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_remove() {
+                    let path = concat!($filename_prefix, "_remove.txt");
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    file.remove().await.unwrap();
+
+                    let err = File::open(path).await;
+                    assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+                }
+
+                #[$runtime]
+                async fn test_close_with_truncate() {
+                    let path = concat!($filename_prefix, "_close_with_truncate.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+
+                    file.truncate(100).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    file.close_with_truncate(50).await.unwrap();
+
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    let meta = file.metadata().await.unwrap();
+                    assert_eq!(meta.len(), 50);
+                }
+
+                #[$runtime]
+                async fn test_create() {
+                    let path = concat!($filename_prefix, "_create.txt");
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    defer!(std::fs::remove_file(path).unwrap(););
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_create_with_options() {
+                    let path = concat!($filename_prefix, "_create_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let opts = AsyncOptions::new()
+                        // truncate to 100
+                        .max_size(100);
+                    let mut file = <$mmap_file_mut>::create_with_options(path, opts).await.unwrap();
+
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_open_mut() {
+                    let path = concat!($filename_prefix, "_open_mut.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate("some modified data...".len() as u64).await.unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_mut_with_options() {
+                    let path = concat!($filename_prefix, "_open_mut_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(23).await.unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = AsyncOptions::new()
+                        // allow read
+                        .read(true)
+                        // allow write
+                        .write(true)
+                        // allow append
+                        .append(true)
+                        // truncate to 100
+                        .max_size(100)
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+                    let mut file = <$mmap_file_mut>::open_with_options(path, opts).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate(("some modified data...".len() + "sanity text".len()) as u64).await.unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_exist() {
+                    let path = concat!($filename_prefix, "_open_exist.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open_exist(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate("some modified data...".len() as u64).await.unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+
+                    // reopen to check content
+                    let mut buf = vec![0; "some modified data...".len()];
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_exist_with_options() {
+                    let path = concat!($filename_prefix, "_open_exist_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(23).await.unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = AsyncOptions::new()
+                        // truncate to 100
+                        .max_size(100)
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+
+                    let mut file = <$mmap_file_mut>::open_exist_with_options(path, opts).await.unwrap();
+
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.truncate(("some modified data...".len() + "sanity text".len()) as u64).await.unwrap();
+                    file.write_all("some modified data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    let mut buf = vec![0; "some modified data...".len()];
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_cow() {
+                    let path = concat!($filename_prefix, "_open_cow.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let mut file = <$mmap_file_mut>::open_cow(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.write_all("some data!!!".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // cow, change will only be seen in current caller
+                    assert_eq!(file.as_slice(), "some data!!!".as_bytes());
+                    drop(file);
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_open_cow_with_options() {
+                    let path = concat!($filename_prefix, "_open_cow_with_options.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+
+                    // create a temp file
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(23).await.unwrap();
+                    file.write_all("sanity text".as_bytes(), 0).unwrap();
+                    file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+                    file.flush().unwrap();
+                    drop(file);
+
+                    // mmap the file
+                    let opts = AsyncOptions::new()
+                        // mmap content after the sanity text
+                        .offset("sanity text".as_bytes().len() as u64);
+
+                    let mut file = <$mmap_file_mut>::open_cow_with_options(path, opts).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    file.read_exact(buf.as_mut_slice(), 0).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+
+                    // modify the file data
+                    file.write_all("some data!!!".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+
+                    // cow, change will only be seen in current caller
+                    assert_eq!(file.as_slice(), "some data!!!".as_bytes());
+                    drop(file);
+
+                    // reopen to check content, cow will not change the content.
+                    let file = <$mmap_file_mut>::open(path).await.unwrap();
+                    let mut buf = vec![0; "some data...".len()];
+                    // skip the sanity text
+                    file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+                    assert_eq!(buf.as_slice(), "some data...".as_bytes());
+                }
+
+                #[$runtime]
+                async fn test_freeze() {
+                    let path = concat!($filename_prefix, "_freeze.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    // freeze
+                    file.freeze().unwrap();
+                }
+
+                #[$runtime]
+                async fn test_freeze_exec() {
+                    let path = concat!($filename_prefix, "_freeze_exec.txt");
+                    defer!(std::fs::remove_file(path).unwrap());
+                    let mut file = <$mmap_file_mut>::create(path).await.unwrap();
+                    file.truncate(12).await.unwrap();
+                    file.write_all("some data...".as_bytes(), 0).unwrap();
+                    file.flush().unwrap();
+                    // freeze_exec
+                    file.freeze_exec().unwrap();
+                }
+            }
+        };
+    }
+}
+
 mod disk;
 mod empty;
 /// Errors in this crate

@@ -146,18 +146,33 @@ pub trait MmapFileExt {
     }
 
     /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
+    ///
+    /// # Notes
+    /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn lock_exclusive(&self) -> Result<()>;
 
     /// Locks the file for exclusive usage, blocking if the file is currently locked.
+    ///
+    /// # Notes
+    /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn lock_shared(&self) -> Result<()>;
 
     /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    ///
+    /// # Notes
+    /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn try_lock_exclusive(&self) -> Result<()>;
 
     /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    ///
+    /// # Notes
+    /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn try_lock_shared(&self) -> Result<()>;
 
     /// Unlocks the file.
+    ///
+    /// # Notes
+    /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn unlock(&self) -> Result<()>;
 
     /// Read bytes to the dst buf from the offset, returns how many bytes read.
@@ -692,7 +707,7 @@ impl MmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFile, MmapFileExt};
     /// use std::fs::{remove_file, File};
     /// use std::io::Write;
@@ -717,7 +732,7 @@ impl MmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{Options, MmapFile, MmapFileExt};
     /// # use scopeguard::defer;
     ///
@@ -755,7 +770,7 @@ impl MmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFile, MmapFileExt};
     /// use std::fs::{remove_file, File};
     /// use std::io::Write;
@@ -780,7 +795,7 @@ impl MmapFile {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{Options, MmapFile, MmapFileExt};
     /// # use scopeguard::defer;
     ///
@@ -855,7 +870,7 @@ impl MmapFileMutExt for MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileMutExt};
     /// # use scopeguard::defer;
     ///
@@ -886,7 +901,7 @@ impl MmapFileMutExt for MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MetaDataExt, MmapFileMut, MmapFileExt, MmapFileMutExt};
     /// # use scopeguard::defer;
     ///
@@ -921,7 +936,7 @@ impl MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
@@ -945,7 +960,7 @@ impl MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
     /// # use scopeguard::defer;
     ///
@@ -976,7 +991,7 @@ impl MmapFileMut {
     ///
     /// File already exists
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
     /// use std::fs::File;
     /// use std::io::{Read, Write};
@@ -1049,7 +1064,7 @@ impl MmapFileMut {
     ///
     /// File already exists
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
     /// use std::fs::{remove_file, File};
     /// use std::io::{Read, Seek, SeekFrom, Write};
@@ -1140,7 +1155,7 @@ impl MmapFileMut {
     /// Open an existing file and mmap this file
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
     /// use std::fs::File;
     /// use std::io::{Read, Write};
@@ -1177,7 +1192,7 @@ impl MmapFileMut {
     /// Open an existing file and mmap this file with [`Options`]
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
     /// use std::fs::File;
     /// use std::io::{Read, Seek, SeekFrom, Write};
@@ -1225,7 +1240,7 @@ impl MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt};
     /// use std::fs::File;
     /// use std::io::{Read, Write};
@@ -1270,7 +1285,7 @@ impl MmapFileMut {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileExt, MmapFileMutExt, Options};
     /// use std::fs::File;
     /// use std::io::{Read, Seek, Write, SeekFrom};
@@ -1323,7 +1338,7 @@ impl MmapFileMut {
     /// If `remove_on_drop` is set to `true`, then the underlying file will not be removed on drop if this function is invoked. [Read more]
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileMut, MmapFileMutExt};
     /// # use scopeguard::defer;
     ///
@@ -1357,7 +1372,7 @@ impl MmapFileMut {
     /// such as when the file has not been opened with execute permissions
     ///
     /// # Examples
-    /// ```rust
+    /// ```no_compile
     /// use fmmap::{MmapFileExt, MmapFileMut, MmapFileMutExt};
     /// # use scopeguard::defer;
     ///
@@ -1404,3 +1419,5 @@ impl MmapFileMut {
 impl_constructor_for_memory_mmap_file_mut!(MemoryMmapFileMut, MmapFileMut, "MmapFileMut", "sync");
 
 impl_drop!(MmapFileMut, MmapFileMutInner, EmptyMmapFile);
+
+impl_sync_tests!("", MmapFile, MmapFileMut);

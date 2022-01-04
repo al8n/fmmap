@@ -14,7 +14,7 @@ nightly = []
 sync = ["fs4/sync"]
 tokio-async = ["fs4/tokio-async", "async-trait", "pin-project-lite", "tokio/io-std", "tokio/io-util", "tokio/fs"]
 smol-async = ["fs4/smol-async", "async-trait", "pin-project-lite", "smol"]
-std-async = ["fs4/std-async", "async-trait", "pin-project-lite", "async-std/async-io", "async-std/futures-lite"]
+std-async = ["fs4/std-async", "async-trait", "pin-project-lite", "async-std/async-io", "async-std/futures-lite", "futures-util/io"]
 
 [dependencies]
 async-std = { version = "1.10", optional = true }
@@ -23,7 +23,7 @@ bytes = "1.1"
 byteorder = "0.5"
 enum_dispatch = "0.3"
 fs4 = { version = "0.5", optional = true }
-futures = { version = "0.3", optional = true }
+futures-util = { version = "0.3", optional = true }
 memmap2 = "0.5"
 pin-project-lite = { version = "0.2", optional = true }
 smol = { version = "0.4", optional = true }
