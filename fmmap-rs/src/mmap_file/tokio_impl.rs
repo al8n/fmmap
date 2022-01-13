@@ -7,7 +7,7 @@ use tokio::io::AsyncWriteExt;
 use crate::tokio::{AsyncMmapFileReader, AsyncMmapFileWriter, AsyncOptions};
 use crate::disk::tokio_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 use crate::empty::tokio_impl::AsyncEmptyMmapFile;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::memory::tokio_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
 

@@ -6,7 +6,7 @@ use smol::io::{Cursor, AsyncWriteExt};
 use crate::smol::{AsyncMmapFileReader, AsyncMmapFileWriter, AsyncOptions};
 use crate::disk::smol_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 use crate::empty::smol_impl::AsyncEmptyMmapFile;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::memory::smol_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
 

@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::metadata::{EmptyMetaData, MetaData};
 use crate::mmap_file::{MmapFileExt, MmapFileMutExt};
 use crate::{MmapFileReader, MmapFileWriter};
@@ -44,33 +44,33 @@ impl MmapFileExt for EmptyMmapFile {
     }
 
     fn write_all_to_new_file<P: AsRef<Path>>(&self, _new_file_path: P) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     fn write_range_to_new_file<P: AsRef<Path>>(&self, _new_file_path: P, _offset: usize, _len: usize) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     fn reader(&self, _offset: usize) -> Result<MmapFileReader> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     fn range_reader(&self, _offset: usize, _len: usize) -> Result<MmapFileReader> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     noop_file_lock!();
 
     fn read_exact(&self, _dst: &mut [u8], _offset: usize) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     fn read_i8(&self, _offset: usize) -> Result<i8> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     fn read_u8(&self, _offset: usize) -> Result<u8> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 }
 
@@ -112,12 +112,12 @@ impl MmapFileMutExt for EmptyMmapFile {
 
     #[inline]
     fn writer(&mut self, _offset: usize) -> Result<MmapFileWriter> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     #[inline]
     fn range_writer(&mut self, _offset: usize, _len: usize) -> Result<MmapFileWriter> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 
     #[inline]
@@ -125,7 +125,7 @@ impl MmapFileMutExt for EmptyMmapFile {
 
     #[inline]
     fn write_all(&mut self, _src: &[u8], _offset: usize) -> Result<()> {
-        Err(Error::InvokeEmptyMmap)
+        Err(Error::from(ErrorKind::InvokeEmptyMmap))
     }
 }
 

@@ -27,7 +27,7 @@ macro_rules! remmap {
                         }
                     }
                 }
-                .map_err(|e| Error::RemmapFailed(format!("path: {:?}, err: {}", path, e)))
+                .map_err(|e| Error::new_source_msg(ErrorKind::RemmapFailed, path.to_string_lossy(), e))
             }
         }
     };
@@ -38,25 +38,25 @@ macro_rules! impl_flush {
         fn flush(&self) -> crate::error::Result<()> {
             self.mmap
                 .flush()
-                .map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
+                .map_err(|e| Error::new_source_msg(ErrorKind::FlushFailed, self.path_string(), e))
         }
 
         fn flush_async(&self) -> crate::error::Result<()> {
             self.mmap
                 .flush_async()
-                .map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
+                .map_err(|e| Error::new_source_msg(ErrorKind::FlushFailed, self.path_string(), e))
         }
 
         fn flush_range(&self, offset: usize, len: usize) -> crate::error::Result<()> {
             self.mmap
                 .flush_range(offset, len)
-                .map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
+                .map_err(|e| Error::new_source_msg(ErrorKind::FlushFailed, self.path_string(), e))
         }
 
         fn flush_async_range(&self, offset: usize, len: usize) -> crate::error::Result<()> {
             self.mmap
                 .flush_async_range(offset, len)
-                .map_err(|e| Error::FlushFailed(format!("path: {:?}, err: {}", self.path(), e)))
+                .map_err(|e| Error::new_source_msg(ErrorKind::FlushFailed, self.path_string(), e))
         }
     };
 }
@@ -65,27 +65,27 @@ macro_rules! impl_file_lock {
     () => {
         #[inline]
         fn lock_exclusive(&self) -> crate::error::Result<()> {
-            self.file.lock_exclusive().map_err(Error::IO)
+            self.file.lock_exclusive().map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn lock_shared(&self) -> crate::error::Result<()> {
-            self.file.lock_shared().map_err(Error::IO)
+            self.file.lock_shared().map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn try_lock_exclusive(&self) -> crate::error::Result<()> {
-            self.file.try_lock_exclusive().map_err(Error::IO)
+            self.file.try_lock_exclusive().map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn try_lock_shared(&self) -> crate::error::Result<()> {
-            self.file.try_lock_shared().map_err(Error::IO)
+            self.file.try_lock_shared().map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn unlock(&self) -> crate::error::Result<()> {
-            self.file.unlock().map_err(Error::IO)
+            self.file.unlock().map_err(|e| Error::new(ErrorKind::IO, e))
         }
     };
 }
@@ -106,7 +106,7 @@ cfg_sync! {
             }
 
             fn metadata(&self) -> crate::error::Result<MetaData> {
-                self.file.metadata().map(MetaData::disk).map_err(Error::IO)
+                self.file.metadata().map(MetaData::disk).map_err(|e| Error::new(ErrorKind::IO, e))
             }
 
             impl_file_lock!();
@@ -168,7 +168,7 @@ cfg_async! {
                         .metadata()
                         .await
                         .map(MetaData::disk)
-                        .map_err(Error::IO)
+                        .map_err(|e| Error::new(ErrorKind::IO, e))
                 }
 
                 /// Whether the mmap is executable.
@@ -204,7 +204,7 @@ cfg_async! {
                         .metadata()
                         .await
                         .map(MetaData::disk)
-                        .map_err(Error::IO)
+                        .map_err(|e| Error::new(ErrorKind::IO, e))
                 }
 
                 /// Whether the mmap is executable.
@@ -361,12 +361,12 @@ cfg_async! {
                 }
 
                 async fn open_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
-                    let file = open_read_only_file_async(&path).await.map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                    let file = open_read_only_file_async(&path).await.map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
                     match opts  {
                         None => {
                             let mmap = unsafe {
-                                Mmap::map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                                Mmap::map(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                             };
                             Ok(Self {
                                 mmap,
@@ -377,7 +377,7 @@ cfg_async! {
                         }
                         Some(opts) => {
                             let mmap = unsafe {
-                                opts.mmap_opts.map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                                opts.mmap_opts.map(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                             };
                             Ok(Self {
                                 mmap,
@@ -392,12 +392,12 @@ cfg_async! {
                 async fn open_exec_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
                     let file = open_read_only_file_async(&path)
                         .await
-                        .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                        .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
                     match opts  {
                         None => {
                             let mmap = unsafe {
-                                MmapOptions::new().map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                                MmapOptions::new().map_exec(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                             };
                             Ok(Self {
                                 mmap,
@@ -408,7 +408,7 @@ cfg_async! {
                         }
                         Some(opts) => {
                             let mmap = unsafe {
-                                opts.mmap_opts.map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                                opts.mmap_opts.map_exec(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                             };
                             Ok(Self {
                                 mmap,
@@ -440,11 +440,11 @@ cfg_async! {
                 #[cfg(not(target_os = "linux"))]
                 async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
                     if self.is_cow() {
-                        return Err(Error::TruncationFailed(String::from("cannot truncate a copy-on-write mmap file")));
+                        return Err(Error::new_with_message(ErrorKind::TruncationFailed, "cannot truncate a copy-on-write mmap file"));
                     }
 
                     // sync data
-                    let meta = self.file.metadata().await.map_err(Error::IO)?;
+                    let meta = self.file.metadata().await.map_err(|e| Error::new(ErrorKind::IO, e))?;
                     if meta.len() > 0 {
                         self.flush()?;
                     }
@@ -454,7 +454,7 @@ cfg_async! {
                         drop_in_place(&mut self.mmap);
 
                         // truncate
-                        self.file.set_len(max_sz).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+                        self.file.set_len(max_sz).await.map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, self.path_lossy(), e))?;
 
                         // remap
                         let mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -468,14 +468,14 @@ cfg_async! {
                 #[cfg(target_os = "linux")]
                 async fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
                     if self.is_cow() {
-                        return Err(Error::TruncationFailed(String::from("cannot truncate a copy-on-write mmap file")));
+                        return Err(Error::new_with_message(ErrorKind::TruncationFailed, "cannot truncate a copy-on-write mmap file"));
                     }
 
                     // sync data
                     self.flush()?;
 
                     // truncate
-                    self.file.set_len(max_sz).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+                    self.file.set_len(max_sz).await.map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, self.path_lossy(), e))?;
 
                     // remap
                     self.mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -507,9 +507,9 @@ cfg_async! {
                 async fn remove(mut self) -> crate::error::Result<()> {
                     let path = self.path;
                     drop(self.mmap);
-                    self.file.set_len(0).await.map_err(Error::IO)?;
+                    self.file.set_len(0).await.map_err(|e| Error::new(ErrorKind::IO, e))?;
                     drop(self.file);
-                    remove_file(path).await.map_err(Error::IO)?;
+                    remove_file(path).await.map_err(|e| Error::new(ErrorKind::IO, e))?;
                     Ok(())
                 }
 
@@ -540,7 +540,7 @@ cfg_async! {
                     #[cfg(not(target_os = "linux"))]
                     {
                         // sync data
-                        let meta = self.file.metadata().await.map_err(Error::IO)?;
+                        let meta = self.file.metadata().await.map_err(|e| Error::new(ErrorKind::IO, e))?;
                         if meta.len() > 0 {
                             self.flush()?;
                         }
@@ -552,7 +552,7 @@ cfg_async! {
 
                     drop(self.mmap);
                     if max_sz >= 0 {
-                        self.file.set_len(max_sz as u64).await.map_err(Error::IO)?;
+                        self.file.set_len(max_sz as u64).await.map_err(|e| Error::new(ErrorKind::IO, e))?;
                         sync_parent_async(&self.path).await?;
                     }
                     Ok(())
@@ -1029,7 +1029,7 @@ cfg_async! {
                 #[doc = "```"]
                 pub fn freeze(self) -> Result<$immutable_file, Error> {
                     Ok($immutable_file {
-                        mmap: self.mmap.make_read_only().map_err(Error::IO)?,
+                        mmap: self.mmap.make_read_only().map_err(|e| Error::new(ErrorKind::IO, e))?,
                         file: self.file,
                         path: self.path,
                         exec: false,
@@ -1062,7 +1062,7 @@ cfg_async! {
                 #[doc = "```"]
                 pub fn freeze_exec(self) -> Result<$immutable_file, Error> {
                     Ok($immutable_file {
-                        mmap: self.mmap.make_exec().map_err(Error::IO)?,
+                        mmap: self.mmap.make_exec().map_err(|e| Error::new(ErrorKind::IO, e))?,
                         file: self.file,
                         path: self.path,
                         exec: true
@@ -1078,11 +1078,11 @@ cfg_async! {
                 async fn create_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
                     let file = create_file_async(&path)
                         .await
-                        .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                        .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
                     match opts {
                         None => {
-                            let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                            let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
 
                             Ok(Self {
                                 mmap,
@@ -1094,12 +1094,12 @@ cfg_async! {
                         }
                         Some(opts) => {
                             if opts.max_size > 0 {
-                                file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                                file.set_len(opts.max_size).await.map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                                 sync_parent_async(&path).await?;
                             }
 
                             let opts_bk = opts.mmap_opts.clone();
-                            let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                            let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
 
                             Ok(Self {
                                 mmap,
@@ -1117,9 +1117,9 @@ cfg_async! {
                         None => {
                             let file = open_or_create_file_async(&path)
                                 .await
-                                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                                .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
-                            let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                            let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
                             Ok(Self {
                                 mmap,
                                 file,
@@ -1131,17 +1131,17 @@ cfg_async! {
                         Some(mut opts) => {
                             let file = opts.file_opts.create(true).open(&path)
                                 .await
-                                .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                                .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
                             let meta = file.metadata().await?;
                             let file_sz = meta.len();
                             if file_sz == 0 && opts.max_size > 0 {
-                                file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                                file.set_len(opts.max_size).await.map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                                 sync_parent_async(&path).await?;
                             }
 
                             let opts_bk = opts.mmap_opts.clone();
                             let mmap = unsafe {
-                                opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                                opts.mmap_opts.map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                             };
                             Ok(Self {
                                 mmap,
@@ -1157,7 +1157,7 @@ cfg_async! {
                 async fn open_exist_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
                     let file = open_exist_file_with_append_async(&path)
                         .await
-                        .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                        .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
                     match opts {
                         None => {
@@ -1174,7 +1174,7 @@ cfg_async! {
                             let meta = file.metadata().await?;
                             let file_sz = meta.len();
                             if file_sz == 0 && opts.max_size > 0 {
-                                file.set_len(opts.max_size).await.map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                                file.set_len(opts.max_size).await.map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                                 sync_parent_async(&path).await?;
                             }
 
@@ -1196,7 +1196,7 @@ cfg_async! {
                 async fn open_cow_in<P: AsRef<Path>>(path: P, opts: Option<AsyncOptions>) -> Result<Self, Error> {
                     let file = open_exist_file_with_append_async(&path)
                         .await
-                        .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                        .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
                     match opts {
                         None => {

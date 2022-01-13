@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::MetaData;
 use crate::smol::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};
 use crate::disk::MmapFileMutType;
-use crate::error::Error;
+use crate::error::{Error, ErrorKind};
 use crate::utils::smol::{create_file_async, open_exist_file_with_append_async, open_or_create_file_async, open_read_only_file_async, sync_parent_async};
 use fs4::smol::AsyncFileExt;
 use memmap2::{Mmap, MmapMut, MmapOptions, MmapAsRawDesc};

@@ -6,7 +6,7 @@ use fs4::FileExt;
 use memmap2::{Mmap, MmapMut, MmapOptions, MmapAsRawDesc};
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
 use crate::disk::MmapFileMutType;
-use crate::error::Error;
+use crate::error::{Error, ErrorKind};
 use crate::options::Options;
 use crate::utils::{create_file, open_exist_file_with_append, open_or_create_file, open_read_only_file, sync_parent};
 
@@ -151,11 +151,11 @@ impl DiskMmapFile {
     }
 
     fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
-        let file = open_read_only_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+        let file = open_read_only_file(&path).map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
         match opts  {
             None => {
                 let mmap = unsafe {
-                    Mmap::map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                    Mmap::map(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                 };
                 Ok(Self {
                     mmap,
@@ -166,7 +166,7 @@ impl DiskMmapFile {
             }
             Some(opts) => {
                 let mmap = unsafe {
-                    opts.mmap_opts.map(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                    opts.mmap_opts.map(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                 };
                 Ok(Self {
                     mmap,
@@ -179,12 +179,12 @@ impl DiskMmapFile {
     }
 
     fn open_exec_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
-        let file = open_read_only_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+        let file = open_read_only_file(&path).map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
         match opts  {
             None => {
                 let mmap = unsafe {
-                    MmapOptions::new().map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                    MmapOptions::new().map_exec(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                 };
                 Ok(Self {
                     mmap,
@@ -195,7 +195,7 @@ impl DiskMmapFile {
             }
             Some(opts) => {
                 let mmap = unsafe {
-                    opts.mmap_opts.map_exec(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                    opts.mmap_opts.map_exec(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                 };
                 Ok(Self {
                     mmap,
@@ -234,11 +234,11 @@ impl MmapFileMutExt for DiskMmapFileMut {
     #[cfg(not(target_os = "linux"))]
     fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         if self.is_cow() {
-            return Err(Error::TruncationFailed(String::from("cannot truncate a copy-on-write mmap file")));
+            return Err(Error::new_with_message(ErrorKind::TruncationFailed, "cannot truncate a copy-on-write mmap file"));
         }
 
         // sync data
-        let meta = self.file.metadata().map_err(Error::IO)?;
+        let meta = self.file.metadata().map_err(|e| Error::new(ErrorKind::IO, e))?;
         if meta.len() > 0 {
             self.flush()?;
         }
@@ -248,7 +248,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
             drop_in_place(&mut self.mmap);
 
             // truncate
-            self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+            self.file.set_len(max_sz).map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, self.path_string(), e))?;
 
             // remap
             let mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -262,14 +262,14 @@ impl MmapFileMutExt for DiskMmapFileMut {
     #[cfg(target_os = "linux")]
     fn truncate(&mut self, max_sz: u64) -> Result<(), Error> {
         if self.is_cow() {
-            return Err(Error::TruncationFailed(String::from("cannot truncate a copy-on-write mmap file")));
+            return Err(Error::new_with_message(ErrorKind::TruncationFailed, "cannot truncate a copy-on-write mmap file"));
         }
 
         // sync data
         self.flush()?;
 
         // truncate
-        self.file.set_len(max_sz).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", self.path(), e)))?;
+        self.file.set_len(max_sz).map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, self.path_string(), e))?;
 
         // remap
         self.mmap = remmap(self.path(), &self.file, self.opts.as_ref(), self.typ)?;
@@ -299,9 +299,9 @@ impl MmapFileMutExt for DiskMmapFileMut {
     fn remove(self) -> crate::error::Result<()> {
         let path = self.path;
         drop(self.mmap);
-        self.file.set_len(0).map_err(Error::IO)?;
+        self.file.set_len(0).map_err(|e| Error::new(ErrorKind::IO, e))?;
         drop(self.file);
-        remove_file(path).map_err(Error::IO)
+        remove_file(path).map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     /// Close and truncate the underlying file
@@ -328,17 +328,17 @@ impl MmapFileMutExt for DiskMmapFileMut {
     #[cfg(not(target_os = "linux"))]
     fn close_with_truncate(self, max_sz: i64) -> crate::error::Result<()> {
         // sync data
-        let meta = self.file.metadata().map_err(Error::IO)?;
+        let meta = self.file.metadata().map_err(|e| Error::new(ErrorKind::IO, e))?;
         if meta.len() > 0 {
             self.flush()?;
         }
 
         drop(self.mmap);
         if max_sz >= 0 {
-            self.file.set_len(max_sz as u64).map_err(Error::IO)?;
-            let abs = self.path.canonicalize().map_err(Error::IO)?;
+            self.file.set_len(max_sz as u64).map_err(|e| Error::new(ErrorKind::IO, e))?;
+            let abs = self.path.canonicalize().map_err(|e| Error::new(ErrorKind::IO, e))?;
             let parent = abs.parent().unwrap();
-            File::open(parent).map_err(Error::IO)?.sync_all().map_err(|e| Error::SyncDirFailed(e.to_string()))?
+            File::open(parent).map_err(|e| Error::new(ErrorKind::IO, e))?.sync_all().map_err(|e| Error::new(ErrorKind::SyncDirFailed, e))?
         }
         Ok(())
     }
@@ -369,10 +369,10 @@ impl MmapFileMutExt for DiskMmapFileMut {
         self.flush()?;
         drop(self.mmap);
         if max_sz >= 0 {
-            self.file.set_len(max_sz as u64).map_err(Error::IO)?;
-            let abs = self.path.canonicalize().map_err(Error::IO)?;
+            self.file.set_len(max_sz as u64).map_err(|e| Error::new(ErrorKind::IO, e))?;
+            let abs = self.path.canonicalize().map_err(|e| Error::new(ErrorKind::IO, e))?;
             let parent = abs.parent().unwrap();
-            File::open(parent).map_err(Error::IO)?.sync_all().map_err(|e| Error::SyncDirFailed(e.to_string()))?
+            File::open(parent).map_err(|e| Error::new(ErrorKind::IO, e))?.sync_all().map_err(|e| Error::new(ErrorKind::SyncDirFailed, e))?
         }
         Ok(())
     }
@@ -808,7 +808,7 @@ impl DiskMmapFileMut {
     /// ```
     pub fn freeze(self) -> Result<DiskMmapFile, Error> {
         Ok(DiskMmapFile {
-            mmap: self.mmap.make_read_only().map_err(Error::IO)?,
+            mmap: self.mmap.make_read_only().map_err(|e| Error::new(ErrorKind::IO, e))?,
             file: self.file,
             path: self.path,
             exec: false
@@ -839,7 +839,7 @@ impl DiskMmapFileMut {
     /// ```
     pub fn freeze_exec(self) -> Result<DiskMmapFile, Error> {
         Ok(DiskMmapFile {
-            mmap: self.mmap.make_exec().map_err(Error::IO)?,
+            mmap: self.mmap.make_exec().map_err(|e| Error::new(ErrorKind::IO, e))?,
             file: self.file,
             path: self.path,
             exec: true,
@@ -848,11 +848,11 @@ impl DiskMmapFileMut {
 
     fn create_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         let file = create_file(&path)
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+            .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
         match opts {
             None => {
-                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
 
                 Ok(Self {
                     mmap,
@@ -864,12 +864,12 @@ impl DiskMmapFileMut {
             }
             Some(opts) => {
                 if opts.max_size > 0 {
-                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    file.set_len(opts.max_size).map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                     sync_parent(&path)?;
                 }
 
                 let opts_bk = opts.mmap_opts.clone();
-                let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                let mmap = unsafe { opts.mmap_opts.map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
 
                 Ok(Self {
                     mmap,
@@ -885,8 +885,8 @@ impl DiskMmapFileMut {
     fn open_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         match opts {
             None => {
-                let file = open_or_create_file(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
-                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))? };
+                let file = open_or_create_file(&path).map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
+                let mmap = unsafe { MmapMut::map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))? };
                 Ok(Self {
                     mmap,
                     file,
@@ -896,17 +896,17 @@ impl DiskMmapFileMut {
                 })
             }
             Some(mut opts) => {
-                let file = opts.file_opts.create(true).open(&path).map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+                let file = opts.file_opts.create(true).open(&path).map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
                 let meta = file.metadata()?;
                 let file_sz = meta.len();
                 if file_sz == 0 && opts.max_size > 0 {
-                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    file.set_len(opts.max_size).map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                     sync_parent(&path)?;
                 }
 
                 let opts_bk = opts.mmap_opts.clone();
                 let mmap = unsafe {
-                    opts.mmap_opts.map_mut(&file).map_err(|e| Error::MmapFailed(e.to_string()))?
+                    opts.mmap_opts.map_mut(&file).map_err(|e| Error::new(ErrorKind::MmapFailed, e))?
                 };
                 Ok(Self {
                     mmap,
@@ -921,7 +921,7 @@ impl DiskMmapFileMut {
 
     fn open_exist_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         let file = open_exist_file_with_append(&path)
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+            .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
         match opts {
             None => {
@@ -938,7 +938,7 @@ impl DiskMmapFileMut {
                 let meta = file.metadata()?;
                 let file_sz = meta.len();
                 if file_sz == 0 && opts.max_size > 0 {
-                    file.set_len(opts.max_size).map_err(|e| Error::TruncationFailed(format!("path: {:?}, err: {}", path.as_ref(), e)))?;
+                    file.set_len(opts.max_size).map_err(|e| Error::new_source_msg(ErrorKind::TruncationFailed, path.as_ref().to_string_lossy(), e))?;
                     sync_parent(&path)?;
                 }
                 let opts_bk = opts.mmap_opts.clone();
@@ -958,7 +958,7 @@ impl DiskMmapFileMut {
 
     fn open_cow_in<P: AsRef<Path>>(path: P, opts: Option<Options>) -> Result<Self, Error> {
         let file = open_exist_file_with_append(&path)
-            .map_err(|e| Error::OpenFailed(format!("path: {:?}, err: {:?}", path.as_ref(), e)))?;
+            .map_err(|e| Error::new_source_msg(ErrorKind::OpenFailed, path.as_ref().to_string_lossy(), e))?;
 
         match opts {
             None => {

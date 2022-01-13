@@ -26,7 +26,7 @@ cfg_async! {
 
                 #[inline]
                 fn bytes(&self, _offset: usize, _sz: usize) -> Result<&[u8]> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
@@ -56,39 +56,39 @@ cfg_async! {
 
                 #[inline]
                 async fn write_all_to_new_file<P: AsRef<Path> + Send>(&self, _new_file_path: P) -> Result<()> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 async fn write_range_to_new_file<P: AsRef<Path> + Send>(&self, _new_file_path: P, _offset: usize, _sz: usize) -> Result<()> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 fn reader(&self, _offset: usize) -> Result<AsyncMmapFileReader> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 fn range_reader(&self, _offset: usize, _len: usize) -> Result<AsyncMmapFileReader> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 noop_file_lock!();
 
                 #[inline]
                 fn read_exact(&self, _dst: &mut [u8], _offset: usize) -> Result<()> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 fn read_i8(&self, _offset: usize) -> Result<i8> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 fn read_u8(&self, _offset: usize) -> Result<u8> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
             }
 
@@ -106,7 +106,7 @@ cfg_async! {
 
                 #[inline]
                 fn bytes_mut(&mut self, _offset: usize, _len: usize) -> Result<&mut [u8]> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
@@ -131,12 +131,12 @@ cfg_async! {
 
                 #[inline]
                 fn writer(&mut self, _offset: usize) -> Result<AsyncMmapFileWriter> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
                 fn range_writer(&mut self, _offset: usize, _len: usize) -> Result<AsyncMmapFileWriter> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
 
                 #[inline]
@@ -144,7 +144,7 @@ cfg_async! {
 
                 #[inline]
                 fn write_all(&mut self, _src: &[u8], _offset: usize) -> Result<()> {
-                    Err(Error::InvokeEmptyMmap)
+                    Err(Error::from(ErrorKind::InvokeEmptyMmap))
                 }
             }
         };

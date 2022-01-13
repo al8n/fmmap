@@ -455,11 +455,11 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                /// `Err(Error::EOF)`.
+                /// `Err(Error::from(ErrorKind::EOF))`.
                 fn bytes(&self, offset: usize, sz: usize) -> Result<&[u8]> {
                     let buf = self.as_slice();
                     if buf.len() < offset + sz {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(&buf[offset..offset+sz])
                     }
@@ -522,7 +522,7 @@ cfg_async! {
                 async fn write_range_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
                     let buf = self.as_slice();
                     if buf.len() < offset + len {
-                        return Err(Error::EOF);
+                        return Err(Error::from(ErrorKind::EOF));
                     }
                     let opts = <$opts>::new().max_size(len as u64);
 
@@ -535,13 +535,13 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                ///  `Err(Error::EOF)`.
+                ///  `Err(Error::from(ErrorKind::EOF))`.
                 ///
                 /// [`AsyncMmapFileReader`]: structs.AsyncMmapFileReader.html
                 fn reader(&self, offset: usize) -> Result<$reader> {
                     let buf = self.as_slice();
                     if buf.len() < offset {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(<$reader>::new(Cursor::new(&buf[offset..]), offset, buf.len() - offset))
                     }
@@ -551,13 +551,13 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                ///  `Err(Error::EOF)`.
+                ///  `Err(Error::from(ErrorKind::EOF))`.
                 ///
                 /// [`AsyncMmapFileReader`]: structs.AsyncMmapFileReader.html
                 fn range_reader(&self, offset: usize, len: usize) -> Result<$reader> {
                     let buf = self.as_slice();
                     if buf.len() < offset + len {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(<$reader>::new(Cursor::new(&buf[offset.. offset + len]), offset, len))
                     }
@@ -617,11 +617,11 @@ cfg_async! {
                     let buf = self.as_slice();
                     let remaining = buf.len().checked_sub(offset);
                     match remaining {
-                        None => Err(Error::EOF),
+                        None => Err(Error::from(ErrorKind::EOF)),
                         Some(remaining) => {
                             let dst_len = dst.len();
                             if remaining < dst_len {
-                                Err(Error::EOF)
+                                Err(Error::from(ErrorKind::EOF))
                             } else {
                                 dst.copy_from_slice(&buf[offset..offset + dst_len]);
                                 Ok(())
@@ -636,10 +636,10 @@ cfg_async! {
 
                     let remaining = buf.len().checked_sub(offset);
                     match remaining {
-                        None => Err(Error::EOF),
+                        None => Err(Error::from(ErrorKind::EOF)),
                         Some(remaining) => {
                             if remaining < 1 {
-                                Err(Error::EOF)
+                                Err(Error::from(ErrorKind::EOF))
                             } else {
                                 Ok(buf[offset] as i8)
                             }
@@ -703,10 +703,10 @@ cfg_async! {
 
                     let remaining = buf.len().checked_sub(offset);
                     match remaining {
-                        None => Err(Error::EOF),
+                        None => Err(Error::from(ErrorKind::EOF)),
                         Some(remaining) => {
                             if remaining < 1 {
-                                Err(Error::EOF)
+                                Err(Error::from(ErrorKind::EOF))
                             } else {
                                 Ok(buf[offset])
                             }
@@ -818,11 +818,11 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                /// `Err(Error::EOF)`.
+                /// `Err(Error::from(ErrorKind::EOF))`.
                 fn bytes_mut(&mut self, offset: usize, sz: usize) -> Result<&mut [u8]> {
                     let buf = self.as_mut_slice();
                     if buf.len() < offset + sz {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(&mut buf[offset..offset+sz])
                     }
@@ -891,7 +891,7 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                ///  `Err(Error::EOF)`.
+                ///  `Err(Error::from(ErrorKind::EOF))`.
                 ///
                 /// [`flush`]: traits.MmapFileMutExt.html#methods.flush
                 /// [`flush_range`]: traits.MmapFileMutExt.html#methods.flush_range
@@ -902,7 +902,7 @@ cfg_async! {
                     let buf = self.as_mut_slice();
                     let buf_len = buf.len();
                     if buf_len < offset {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(<$writer>::new(Cursor::new(&mut buf[offset..]), offset, buf_len - offset))
                     }
@@ -917,7 +917,7 @@ cfg_async! {
                 ///
                 /// # Errors
                 /// If there's not enough data, it would return
-                ///  `Err(Error::EOF)`.
+                ///  `Err(Error::from(ErrorKind::EOF))`.
                 ///
                 /// [`flush`]: traits.AsyncMmapFileMutExt.html#methods.flush
                 /// [`flush_range`]: traits.AsyncMmapFileMutExt.html#methods.flush_range
@@ -927,7 +927,7 @@ cfg_async! {
                 fn range_writer(&mut self, offset: usize, len: usize) -> Result<$writer> {
                     let buf = self.as_mut_slice();
                     if buf.len() < offset + len {
-                        Err(Error::EOF)
+                        Err(Error::from(ErrorKind::EOF))
                     } else {
                         Ok(<$writer>::new(
                             Cursor::new(&mut buf[offset..offset + len]), offset, len))
@@ -957,11 +957,11 @@ cfg_async! {
                     let buf = self.as_mut_slice();
                     let remaining = buf.len().checked_sub(offset);
                     match remaining {
-                        None => Err(Error::EOF),
+                        None => Err(Error::from(ErrorKind::EOF)),
                         Some(remaining) => {
                             let src_len = src.len();
                             if remaining < src_len {
-                                Err(Error::EOF)
+                                Err(Error::from(ErrorKind::EOF))
                             } else {
                                 buf[offset..offset + src_len].copy_from_slice(src);
                                 Ok(())

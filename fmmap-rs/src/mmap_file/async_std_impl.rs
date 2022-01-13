@@ -6,7 +6,7 @@ use async_std::io::{WriteExt as AsyncWriteExt, Cursor};
 use crate::async_std::{AsyncMmapFileReader, AsyncMmapFileWriter, AsyncOptions};
 use crate::disk::async_std_impl::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 use crate::empty::async_std_impl::AsyncEmptyMmapFile;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::memory::async_std_impl::{AsyncMemoryMmapFile, AsyncMemoryMmapFileMut};
 use crate::metadata::MetaData;
 

@@ -154,11 +154,11 @@ impl MetaDataExt for MemoryMetaData {
 #[cfg(windows)]
 impl MetaDataExt for DiskMetaData {
     fn accessed(&self) -> Result<SystemTime> {
-        self.inner.accessed().map_err(Error::IO)
+        self.inner.accessed().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn created(&self) -> Result<SystemTime> {
-        self.inner.created().map_err(Error::IO)
+        self.inner.created().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn is_file(&self) -> bool {
@@ -176,7 +176,7 @@ impl MetaDataExt for DiskMetaData {
     }
 
     fn modified(&self) -> Result<SystemTime> {
-        self.inner.modified().map_err(Error::IO)
+        self.inner.modified().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn file_attributes(&self) -> u32 {

@@ -1,6 +1,6 @@
 use std::os::unix::fs::MetadataExt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::MetaData;
 use crate::metadata::{DiskMetaData, EmptyMetaData, MemoryMetaData};
 
@@ -198,11 +198,11 @@ impl MetaDataExt for MemoryMetaData {
 
 impl MetaDataExt for DiskMetaData {
     fn accessed(&self) -> Result<SystemTime> {
-        self.inner.accessed().map_err(Error::IO)
+        self.inner.accessed().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn created(&self) -> Result<SystemTime> {
-        self.inner.created().map_err(Error::IO)
+        self.inner.created().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn is_file(&self) -> bool {
@@ -220,7 +220,7 @@ impl MetaDataExt for DiskMetaData {
     }
 
     fn modified(&self) -> Result<SystemTime> {
-        self.inner.modified().map_err(Error::IO)
+        self.inner.modified().map_err(|e| Error::new(ErrorKind::IO, e))
     }
 
     fn dev(&self) -> u64 {

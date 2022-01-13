@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::mem;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::metadata::MetaData;
 use crate::{MmapFileReader, MmapFileWriter};
 use crate::disk::{DiskMmapFile, DiskMmapFileMut};
@@ -39,11 +39,11 @@ pub trait MmapFileExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    /// `Err(Error::EOF)`.
+    /// `Err(Error::from(ErrorKind::EOF))`.
     fn bytes(&self, offset: usize, sz: usize) -> Result<&[u8]> {
         let buf = self.as_slice();
         if buf.len() < offset + sz {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(&buf[offset..offset+sz])
         }
@@ -105,7 +105,7 @@ pub trait MmapFileExt {
     fn write_range_to_new_file<P: AsRef<Path>>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
         let buf = self.as_slice();
         if buf.len() < offset + len {
-            return Err(Error::EOF)
+            return Err(Error::from(ErrorKind::EOF))
         }
         let opts = Options::new().max_size(len as u64);
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
@@ -117,13 +117,13 @@ pub trait MmapFileExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    ///  `Err(Error::EOF)`.
+    ///  `Err(Error::from(ErrorKind::EOF))`.
     ///
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn reader(&self, offset: usize) -> Result<MmapFileReader> {
         let buf = self.as_slice();
         if buf.len() < offset {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(MmapFileReader::new(Cursor::new(&buf[offset..]), offset, buf.len() - offset))
         }
@@ -133,13 +133,13 @@ pub trait MmapFileExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    ///  `Err(Error::EOF)`.
+    ///  `Err(Error::from(ErrorKind::EOF))`.
     ///
     /// [`MmapFileReader`]: structs.MmapFileReader.html
     fn range_reader(&self, offset: usize, len: usize) -> Result<MmapFileReader> {
         let buf = self.as_slice();
         if buf.len() < offset + len {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(MmapFileReader::new(Cursor::new(&buf[offset.. offset + len]), offset, len))
         }
@@ -199,11 +199,11 @@ pub trait MmapFileExt {
         let buf = self.as_slice();
         let remaining = buf.len().checked_sub(offset);
         match remaining {
-            None => Err(Error::EOF),
+            None => Err(Error::from(ErrorKind::EOF)),
             Some(remaining) => {
                 let dst_len = dst.len();
                 if remaining < dst_len {
-                    Err(Error::EOF)
+                    Err(Error::from(ErrorKind::EOF))
                 } else {
                     dst.copy_from_slice(&buf[offset..offset + dst_len]);
                     Ok(())
@@ -218,10 +218,10 @@ pub trait MmapFileExt {
 
         let remaining = buf.len().checked_sub(offset);
         match remaining {
-            None => Err(Error::EOF),
+            None => Err(Error::from(ErrorKind::EOF)),
             Some(remaining) => {
                 if remaining < 1 {
-                    Err(Error::EOF)
+                    Err(Error::from(ErrorKind::EOF))
                 } else {
                     Ok(buf[offset] as i8)
                 }
@@ -285,10 +285,10 @@ pub trait MmapFileExt {
 
         let remaining = buf.len().checked_sub(offset);
         match remaining {
-            None => Err(Error::EOF),
+            None => Err(Error::from(ErrorKind::EOF)),
             Some(remaining) => {
                 if remaining < 1 {
-                    Err(Error::EOF)
+                    Err(Error::from(ErrorKind::EOF))
                 } else {
                     Ok(buf[offset])
                 }
@@ -395,11 +395,11 @@ pub trait MmapFileMutExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    /// `Err(Error::EOF)`.
+    /// `Err(Error::from(ErrorKind::EOF))`.
     fn bytes_mut(&mut self, offset: usize, sz: usize) -> Result<&mut [u8]> {
         let buf = self.as_mut_slice();
         if buf.len() <= offset + sz {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(&mut buf[offset..offset+sz])
         }
@@ -468,7 +468,7 @@ pub trait MmapFileMutExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    ///  `Err(Error::EOF)`.
+    ///  `Err(Error::from(ErrorKind::EOF))`.
     ///
     /// [`flush`]: traits.MmapFileMutExt.html#methods.flush
     /// [`flush_range`]: traits.MmapFileMutExt.html#methods.flush_range
@@ -479,7 +479,7 @@ pub trait MmapFileMutExt {
         let buf = self.as_mut_slice();
         let buf_len = buf.len();
         if buf_len <= offset {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(MmapFileWriter::new(Cursor::new(&mut buf[offset..]), offset, buf_len - offset))
         }
@@ -494,7 +494,7 @@ pub trait MmapFileMutExt {
     ///
     /// # Errors
     /// If there's not enough data, it would return
-    ///  `Err(Error::EOF)`.
+    ///  `Err(Error::from(ErrorKind::EOF))`.
     ///
     /// [`flush`]: traits.MmapFileMutExt.html#methods.flush
     /// [`flush_range`]: traits.MmapFileMutExt.html#methods.flush_range
@@ -504,7 +504,7 @@ pub trait MmapFileMutExt {
     fn range_writer(&mut self, offset: usize, len: usize) -> Result<MmapFileWriter> {
         let buf = self.as_mut_slice();
         if buf.len() < offset + len {
-            Err(Error::EOF)
+            Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(MmapFileWriter::new(
                 Cursor::new(&mut buf[offset..offset + len]), offset, len))
@@ -534,11 +534,11 @@ pub trait MmapFileMutExt {
         let buf = self.as_mut_slice();
         let remaining = buf.len().checked_sub(offset);
         match remaining {
-            None => Err(Error::EOF),
+            None => Err(Error::from(ErrorKind::EOF)),
             Some(remaining) => {
                 let src_len = src.len();
                 if remaining < src_len {
-                    Err(Error::EOF)
+                    Err(Error::from(ErrorKind::EOF))
                 } else {
                     buf[offset..offset + src_len].copy_from_slice(src);
                     Ok(())
