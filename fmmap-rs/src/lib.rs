@@ -102,6 +102,7 @@
 //!
 #![cfg_attr(feature = "nightly", feature(io_error_more))]
 #![cfg_attr(all(feature = "nightly", windows), feature(windows_by_handle))]
+#![cfg_attr(all(feature = "nightly", unix), feature(is_symlink))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![doc(html_root_url = "https://docs.rs/fmmap/0.2.3")]
