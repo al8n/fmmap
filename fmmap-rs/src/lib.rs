@@ -104,7 +104,7 @@
 #![cfg_attr(all(feature = "nightly", windows), feature(windows_by_handle))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(docsrs, allow(unused_attributes))]
-#![doc(html_root_url = "https://docs.rs/fmmap/0.2.3")]
+#![doc(html_root_url = "https://docs.rs/fmmap/0.2.4")]
 #![allow(
     rustdoc::broken_intra_doc_links,
     unused_macros,
