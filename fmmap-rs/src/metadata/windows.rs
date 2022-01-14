@@ -1,6 +1,6 @@
 use std::os::windows::fs::MetadataExt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::MetaData;
 use crate::metadata::{DiskMetaData, EmptyMetaData, MemoryMetaData};
 
