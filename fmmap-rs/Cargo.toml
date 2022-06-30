@@ -1,13 +1,13 @@
 [package]
 name = "fmmap"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
 description = "A flexible and convenient high-level mmap for zero-copy file I/O."
 license = "MIT OR Apache-2.0"
 authors = ["Al Liu <scygliu@gmail.com>"]
 documentation = "https://docs.rs/fmmap"
-keywords = ["file", "file-system", "lock", "io", "flock"]
+keywords = ["file", "memmap2", "mmap", "memory-map", "io", "flock"]
 categories = ["filesystem", "external-ffi-bindings", "asynchronous"]
 
 [lib]
@@ -22,7 +22,7 @@ smol-async = ["fs4/smol-async", "async-trait", "pin-project-lite", "smol"]
 std-async = ["fs4/std-async", "async-trait", "pin-project-lite", "async-std/async-io", "async-std/futures-lite", "futures-util/io"]
 
 [dependencies]
-async-std = { version = "1.10", optional = true }
+async-std = { version = "1.12", optional = true }
 async-trait = { version = "0.1", optional = true }
 bytes = "1.1"
 byteorder = "1.4"
@@ -33,11 +33,11 @@ memmap2 = "0.5"
 pin-project-lite = { version = "0.2", optional = true }
 parse-display = "0.5"
 smol = { version = "1.2", optional = true }
-tokio = { version = "1.14", optional = true }
+tokio = { version = "1.19", optional = true }
 
 [dev-dependencies]
-async-std = { version = "1.10.0", features = ["attributes"] }
-ctor = "0.1.21"
+async-std = { version = "1.12", features = ["attributes"] }
+ctor = "0.1"
 criterion = "0.3.5"
 rand = "0.8.4"
 smol-potat = "1.1.2"
