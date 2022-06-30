@@ -1,6 +1,6 @@
 [package]
 name = "fmmap"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2021"
 repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
 description = "A flexible and convenient high-level mmap for zero-copy file I/O."
@@ -25,14 +25,14 @@ std-async = ["fs4/std-async", "async-trait", "pin-project-lite", "async-std/asyn
 async-std = { version = "1.10", optional = true }
 async-trait = { version = "0.1", optional = true }
 bytes = "1.1"
-byteorder = "0.5"
+byteorder = "1.4"
 enum_dispatch = "0.3"
 fs4 = { version = "0.5", optional = true }
 futures-util = { version = "0.3", optional = true }
 memmap2 = "0.5"
 pin-project-lite = { version = "0.2", optional = true }
 parse-display = "0.5"
-smol = { version = "0.4", optional = true }
+smol = { version = "1.2", optional = true }
 tokio = { version = "1.14", optional = true }
 
 [dev-dependencies]
@@ -43,7 +43,7 @@ rand = "0.8.4"
 smol-potat = "1.1.2"
 scopeguard = "1.1.0"
 tempdir = "0.3.7"
-tokio = { version = "1.14.0", features = ["full"]}
+tokio = { version = "1.19", features = ["full"]}
 tokio-test = "0.4.2"
 
 [package.metadata.docs.rs]
