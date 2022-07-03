@@ -1,13 +1,13 @@
-use std::path::Path;
-use smol::fs::OpenOptions;
+use crate::error::Error;
+use crate::raw::smol::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+use crate::smol::{AsyncMmapFile, AsyncMmapFileMut};
+use memmapix::MmapOptions;
 #[cfg(unix)]
 use smol::fs::unix::OpenOptionsExt;
 #[cfg(windows)]
 use smol::fs::windows::OpenOptionsExt;
-use memmap2::MmapOptions;
-use crate::smol::{AsyncMmapFile, AsyncMmapFileMut};
-use crate::error::Error;
-use crate::raw::smol::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
+use smol::fs::OpenOptions;
+use std::path::Path;
 
 declare_and_impl_async_options!("smol_async", "smol", "smol");
 

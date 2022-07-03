@@ -1,13 +1,13 @@
+use crate::error::Error;
+use crate::raw::{DiskMmapFile, DiskMmapFileMut};
+use crate::{MmapFile, MmapFileMut};
+use memmapix::MmapOptions;
 use std::fs::OpenOptions;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 #[cfg(windows)]
 use std::os::windows::fs::OpenOptionsExt;
 use std::path::Path;
-use memmap2::MmapOptions;
-use crate::error::Error;
-use crate::{MmapFile, MmapFileMut};
-use crate::raw::{DiskMmapFile, DiskMmapFileMut};
 
 declare_and_impl_options!(Options, OpenOptions);
 
@@ -36,7 +36,9 @@ impl Options {
     ///
     /// [`Options`]: struct.Options.html
     pub fn create_mmap_file_mut<P: AsRef<Path>>(self, path: P) -> Result<MmapFileMut, Error> {
-        Ok(MmapFileMut::from(DiskMmapFileMut::create_with_options(path, self)?))
+        Ok(MmapFileMut::from(DiskMmapFileMut::create_with_options(
+            path, self,
+        )?))
     }
 
     /// Open a readable memory map backed by a file with [`Options`]
@@ -107,7 +109,9 @@ impl Options {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_exec_mmap_file<P: AsRef<Path>>(self, path: P) -> Result<MmapFile, Error> {
-        Ok(MmapFile::from(DiskMmapFile::open_exec_with_options(path, self)?))
+        Ok(MmapFile::from(DiskMmapFile::open_exec_with_options(
+            path, self,
+        )?))
     }
 
     /// Open or Create(if not exists) a file and mmap this file with [`Options`].
@@ -203,7 +207,9 @@ impl Options {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_mmap_file_mut<P: AsRef<Path>>(self, path: P) -> Result<MmapFileMut, Error> {
-        Ok(MmapFileMut::from(DiskMmapFileMut::open_with_options(path, self)?))
+        Ok(MmapFileMut::from(DiskMmapFileMut::open_with_options(
+            path, self,
+        )?))
     }
 
     /// Open an existing file and mmap this file with [`Options`]
@@ -250,7 +256,9 @@ impl Options {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_exist_mmap_file_mut<P: AsRef<Path>>(self, path: P) -> Result<MmapFileMut, Error> {
-        Ok(MmapFileMut::from(DiskMmapFileMut::open_exist_with_options(path, self)?))
+        Ok(MmapFileMut::from(DiskMmapFileMut::open_exist_with_options(
+            path, self,
+        )?))
     }
 
     /// Open and mmap an existing file in copy-on-write mode(copy-on-write memory map backed by a file) with [`Options`].
@@ -302,14 +310,15 @@ impl Options {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_cow_mmap_file_mut<P: AsRef<Path>>(self, path: P) -> Result<MmapFileMut, Error> {
-        Ok(MmapFileMut::from(DiskMmapFileMut::open_cow_with_options(path, self)?))
+        Ok(MmapFileMut::from(DiskMmapFileMut::open_cow_with_options(
+            path, self,
+        )?))
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::sync::{Options, MmapFileMut, MmapFileMutExt, MmapFileExt};
+    use crate::sync::{MmapFileExt, MmapFileMut, MmapFileMutExt, Options};
     use scopeguard::defer;
 
     #[test]
@@ -319,13 +328,14 @@ mod tests {
         let mut file = Options::new()
             // truncate to 100
             .max_size(100)
-            .create_mmap_file_mut(path).unwrap();
-    
+            .create_mmap_file_mut(path)
+            .unwrap();
+
         assert!(!file.is_empty());
         file.write_all("some data...".as_bytes(), 0).unwrap();
         file.flush().unwrap();
     }
-    
+
     #[test]
     fn test_open_mmap_file() {
         let path = concat!("sync", "_options_open_mmap_file.txt");
@@ -333,20 +343,22 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         // mmap the file
         let file = Options::new()
             // mmap content after the sanity text
             .offset("sanity text".as_bytes().len() as u64)
-            .open_mmap_file(path).unwrap();
+            .open_mmap_file(path)
+            .unwrap();
         let mut buf = vec![0; "some data...".len()];
         file.read_exact(buf.as_mut_slice(), 0).unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }
-    
+
     #[test]
     fn test_open_mmap_file_exec() {
         let path = concat!("sync", "_options_open_exec_mmap_file.txt");
@@ -354,20 +366,22 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         // mmap the file
         let file = Options::new()
             // mmap content after the sanity text
             .offset("sanity text".as_bytes().len() as u64)
-            .open_exec_mmap_file(path).unwrap();
+            .open_exec_mmap_file(path)
+            .unwrap();
         let mut buf = vec![0; "some data...".len()];
         file.read_exact(buf.as_mut_slice(), 0).unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }
-    
+
     #[test]
     fn test_open_mmap_file_mut() {
         let path = concat!("sync", "_options_open_mmap_file_mut.txt");
@@ -375,10 +389,11 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         let mut file = Options::new()
             // allow read
             .read(true)
@@ -390,25 +405,29 @@ mod tests {
             .max_size(100)
             // mmap content after the sanity text
             .offset("sanity text".as_bytes().len() as u64)
-            .open_mmap_file_mut(path).unwrap();
+            .open_mmap_file_mut(path)
+            .unwrap();
         let mut buf = vec![0; "some data...".len()];
         file.read_exact(buf.as_mut_slice(), 0).unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
-    
+
         // modify the file data
-        file.truncate(("some modified data...".len() + "sanity text".len()) as u64).unwrap();
-        file.write_all("some modified data...".as_bytes(), 0).unwrap();
+        file.truncate(("some modified data...".len() + "sanity text".len()) as u64)
+            .unwrap();
+        file.write_all("some modified data...".as_bytes(), 0)
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         // reopen to check content
         let mut buf = vec![0; "some modified data...".len()];
         let file = MmapFileMut::open(path).unwrap();
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+            .unwrap();
         assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     }
-    
+
     #[test]
     fn open_exist_mmap_file_mut() {
         let path = concat!("sync", "_options_open_exist_mmap_file_mut.txt");
@@ -416,35 +435,40 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         // mmap the file
         let mut file = Options::new()
             // truncate to 100
             .max_size(100)
             // mmap content after the sanity text
             .offset("sanity text".as_bytes().len() as u64)
-            .open_exist_mmap_file_mut(path).unwrap();
-    
+            .open_exist_mmap_file_mut(path)
+            .unwrap();
+
         let mut buf = vec![0; "some data...".len()];
         file.read_exact(buf.as_mut_slice(), 0).unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
-    
+
         // modify the file data
-        file.truncate(("some modified data...".len() + "sanity text".len()) as u64).unwrap();
-        file.write_all("some modified data...".as_bytes(), 0).unwrap();
+        file.truncate(("some modified data...".len() + "sanity text".len()) as u64)
+            .unwrap();
+        file.write_all("some modified data...".as_bytes(), 0)
+            .unwrap();
         file.flush().unwrap();
-    
+
         // reopen to check content, cow will not change the content.
         let file = MmapFileMut::open(path).unwrap();
         let mut buf = vec![0; "some modified data...".len()];
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+            .unwrap();
         assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     }
-    
+
     #[test]
     fn open_cow_mmap_file_mut() {
         let path = concat!("sync", "_options_open_cow_mmap_file_mut.txt");
@@ -452,34 +476,37 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len()).unwrap();
+        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+            .unwrap();
         file.flush().unwrap();
         drop(file);
-    
+
         // mmap the file
         let mut file = Options::new()
             // mmap content after the sanity text
             .offset("sanity text".as_bytes().len() as u64)
-            .open_cow_mmap_file_mut(path).unwrap();
+            .open_cow_mmap_file_mut(path)
+            .unwrap();
         assert!(file.is_cow());
-    
+
         let mut buf = vec![0; "some data...".len()];
         file.read_exact(buf.as_mut_slice(), 0).unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
-    
+
         // modify the file data
         file.write_all("some data!!!".as_bytes(), 0).unwrap();
         file.flush().unwrap();
-    
+
         // cow, change will only be seen in current caller
         assert_eq!(file.as_slice(), "some data!!!".as_bytes());
         drop(file);
-    
+
         // reopen to check content, cow will not change the content.
         let file = MmapFileMut::open(path).unwrap();
         let mut buf = vec![0; "some data...".len()];
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len()).unwrap();
+        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+            .unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }
 }
