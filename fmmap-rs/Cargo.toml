@@ -7,7 +7,7 @@ description = "A flexible and convenient high-level mmap for zero-copy file I/O.
 license = "MIT OR Apache-2.0"
 authors = ["Al Liu <scygliu@gmail.com>"]
 documentation = "https://docs.rs/fmmap"
-keywords = ["file", "memmap2", "mmap", "memory-map", "io", "flock"]
+keywords = ["file", "memmap2", "mmap", "memory-map", "io"]
 categories = ["filesystem", "external-ffi-bindings", "asynchronous"]
 
 [lib]
@@ -27,7 +27,7 @@ async-trait = { version = "0.1", optional = true }
 bytes = "1.1"
 byteorder = "1.4"
 enum_dispatch = "0.3"
-fs4 = { version = "0.5", optional = true }
+fs4 = { version = "0.6", optional = true }
 futures-util = { version = "0.3", optional = true }
 memmap2 = "0.5"
 pin-project-lite = { version = "0.2", optional = true }
