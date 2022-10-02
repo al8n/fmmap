@@ -2155,6 +2155,25 @@ cfg_async! {
                 pub fn set_remove_on_drop(&mut self, val: bool) {
                     self.remove_on_drop = val;
                 }
+
+                /// Close the file. It would also truncate the file if max_sz >= 0.
+                #[inline]
+                pub async fn close(&mut self, max_sz: i64) -> Result<()> {
+                    let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
+                    // swap the inner to empty
+                    let inner = mem::replace(&mut self.inner, empty);
+                    match inner {
+                        AsyncMmapFileMutInner::Disk(disk) => {
+                            disk.flush()?;
+                            if max_sz >= 0 {
+                                disk.file.set_len(max_sz as u64).await.map_err(From::from)
+                            } else {
+                                Ok(())
+                            }
+                        },
+                        _ => Ok(()),
+                    }
+                }
             }
 
             impl_constructor_for_memory_mmap_file_mut!(AsyncMemoryMmapFileMut, AsyncMmapFileMut, "AsyncMmapFileMut", $path_str);

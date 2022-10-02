@@ -72,7 +72,7 @@
 //! - [ ] add benchmarks
 //!
 //! #### License
-//! 
+//!
 //! <sup>
 //! Licensed under either of <a href="https://opensource.org/licenses/Apache-2.0">Apache License, Version
 //! 2.0</a> or <a href="https://opensource.org/licenses/MIT">MIT license</a> at your option.

@@ -185,10 +185,10 @@ macro_rules! impl_options_windows_ext {
     ($name: ident) => {
         #[cfg(windows)]
         impl $name {
-                        /// Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`] with the specified value. [Read more]
-                        ///
-                        /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
-                        /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
+            /// Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`] with the specified value. [Read more]
+            ///
+            /// [`CreateFile`]: https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+            /// [Read more]: https://doc.rust-lang.org/std/os/windows/fs/trait.OpenOptionsExt.html#tymethod.security_qos_flags
             #[cfg(windows)]
             pub fn access_mode(mut self, access: u32) -> Self {
                 self.file_opts.access_mode(access);

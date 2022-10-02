@@ -50,19 +50,19 @@ This crate supports std and popular async runtime(tokio, async-std, smol), and t
 - [tokio][tokio]
     ```toml
     [dependencies]
-    fmmap = { version = "0.2", features = ["tokio-async"] }
+    fmmap = { version = "0.3", features = ["tokio-async"] }
     ```
 
 - [async-std][async-std]
     ```toml
     [dependencies]
-    fmmap = { version = "0.2", features = ["std-async"] }
+    fmmap = { version = "0.3", features = ["std-async"] }
     ```
 
 - [smol][smol]
     ```toml
     [dependencies]
-    fmmap = { version = "0.2", features = ["smol-async"] }
+    fmmap = { version = "0.3", features = ["smol-async"] }
     ```
 
 ## Examples

@@ -27,7 +27,9 @@ macro_rules! remmap {
                         }
                     }
                 }
-                .map_err(|e| Error::new_source_msg(ErrorKind::RemmapFailed, path.to_string_lossy(), e))
+                .map_err(|e| {
+                    Error::new_source_msg(ErrorKind::RemmapFailed, path.to_string_lossy(), e)
+                })
             }
         }
     };
@@ -65,22 +67,30 @@ macro_rules! impl_file_lock {
     () => {
         #[inline]
         fn lock_exclusive(&self) -> crate::error::Result<()> {
-            self.file.lock_exclusive().map_err(|e| Error::new(ErrorKind::IO, e))
+            self.file
+                .lock_exclusive()
+                .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn lock_shared(&self) -> crate::error::Result<()> {
-            self.file.lock_shared().map_err(|e| Error::new(ErrorKind::IO, e))
+            self.file
+                .lock_shared()
+                .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn try_lock_exclusive(&self) -> crate::error::Result<()> {
-            self.file.try_lock_exclusive().map_err(|e| Error::new(ErrorKind::IO, e))
+            self.file
+                .try_lock_exclusive()
+                .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
         fn try_lock_shared(&self) -> crate::error::Result<()> {
-            self.file.try_lock_shared().map_err(|e| Error::new(ErrorKind::IO, e))
+            self.file
+                .try_lock_shared()
+                .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]

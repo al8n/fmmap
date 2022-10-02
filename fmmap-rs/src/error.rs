@@ -1,5 +1,5 @@
-use std::io;
 use parse_display::Display;
+use std::io;
 
 /// alias for [`Result<T, Error>`]
 ///
@@ -99,18 +99,21 @@ impl Error {
     }
 
     pub(crate) fn new_with_message<M>(kd: ErrorKind, msg: M) -> Self
-        where
-            M: Into<String>,
+    where
+        M: Into<String>,
     {
         Self {
-            repr: Repr::Message { kd, msg: msg.into() },
+            repr: Repr::Message {
+                kd,
+                msg: msg.into(),
+            },
         }
     }
 
     pub(crate) fn new_source_msg<M, E>(kd: ErrorKind, msg: M, src: E) -> Self
-        where
-            E: Into<Box<dyn std::error::Error + Send + Sync>>,
-            M: Into<String>,
+    where
+        E: Into<Box<dyn std::error::Error + Send + Sync>>,
+        M: Into<String>,
     {
         Self {
             repr: Repr::SourceMessage {
