@@ -373,19 +373,19 @@ cfg_async! {
                 /// file.write_all("some data...".as_bytes(), 0).unwrap();
                 /// file.flush().unwrap();
                 ///
-                /// file.remove().await.unwrap();
+                /// file.drop_remove().await.unwrap();
                 ///
                 #[doc = concat!("let err = File::open(\"", $filename_prefix, "_remove_test.txt\").await;")]
                 /// assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
                 /// # })
                 /// ```
-                async fn remove(mut self) -> Result<()> {
+                async fn drop_remove(mut self) -> Result<()> {
                     let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
                     // swap the inner to empty
                     let inner = mem::replace(&mut self.inner, empty);
                     if !self.remove_on_drop {
                         // do remove
-                        inner.remove().await?;
+                        inner.drop_remove().await?;
                         self.deleted = true;
                     }
                     Ok(())
@@ -877,7 +877,7 @@ cfg_async! {
                 async fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
                 /// Remove the underlying file
-                async fn remove(self) -> Result<()>;
+                async fn drop_remove(self) -> Result<()>;
 
                 /// Close and truncate the underlying file
                 async fn close_with_truncate(self, max_sz: i64) -> Result<()>;
@@ -1435,11 +1435,11 @@ cfg_async! {
                     }
                 }
 
-                async fn remove(self) -> Result<()> {
+                async fn drop_remove(self) -> Result<()> {
                     match self {
-                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::remove(inner).await,
-                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::remove(inner).await,
-                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::remove(inner).await,
+                        AsyncMmapFileMutInner::Empty(inner) => AsyncMmapFileMutExt::drop_remove(inner).await,
+                        AsyncMmapFileMutInner::Memory(inner) => AsyncMmapFileMutExt::drop_remove(inner).await,
+                        AsyncMmapFileMutInner::Disk(inner) => AsyncMmapFileMutExt::drop_remove(inner).await,
                     }
                 }
 
@@ -2170,6 +2170,28 @@ cfg_async! {
                             } else {
                                 Ok(())
                             }
+                        },
+                        _ => Ok(()),
+                    }
+                }
+
+                /// Remove the underlying file without dropping, leaving an [`AsyncEmptyMmapFile`].
+                #[inline]
+                pub async fn remove(&mut self) -> Result<()> {
+                    let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
+                    // swap the inner to empty
+                    let inner = mem::replace(&mut self.inner, empty);
+                    match inner {
+                        AsyncMmapFileMutInner::Disk(disk) => {
+                            let path = disk.path;
+                            drop(disk.mmap);
+                            disk.file
+                                .set_len(0)
+                                .await?;
+                            drop(disk.file);
+                            remove_file(path)
+                                .await
+                                .map_err(From::from)
                         },
                         _ => Ok(()),
                     }

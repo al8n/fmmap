@@ -32,7 +32,7 @@ impl MmapFileMutExt for MemoryMmapFileMut {
     }
 
     #[inline]
-    fn remove(self) -> crate::error::Result<()> {
+    fn drop_remove(self) -> crate::error::Result<()> {
         Ok(())
     }
 

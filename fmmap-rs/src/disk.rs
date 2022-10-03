@@ -508,13 +508,13 @@ cfg_async! {
                 #[doc = "file.write_all(\"some data...\".as_bytes(), 0).unwrap();"]
                 #[doc = "file.flush().unwrap();"]
                 #[doc = ""]
-                #[doc = "file.remove().await.unwrap();"]
+                #[doc = "file.drop_remove().await.unwrap();"]
                 #[doc = ""]
                 #[doc = concat!("let err = ", $path_str, "::fs::File::open(\"", $filename_prefix, "_disk_remove_test.txt\").await;")]
                 #[doc = "assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);"]
                 #[doc = "# })"]
                 #[doc = "```"]
-                async fn remove(mut self) -> crate::error::Result<()> {
+                async fn drop_remove(mut self) -> crate::error::Result<()> {
                     let path = self.path;
                     drop(self.mmap);
                     self.file.set_len(0).await.map_err(|e| Error::new(ErrorKind::IO, e))?;

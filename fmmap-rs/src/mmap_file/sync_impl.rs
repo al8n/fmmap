@@ -454,7 +454,7 @@ pub trait MmapFileMutExt {
     fn truncate(&mut self, max_sz: u64) -> Result<()>;
 
     /// Remove the underlying file
-    fn remove(self) -> Result<()>;
+    fn drop_remove(self) -> Result<()>;
 
     /// Close and truncate the underlying file
     fn close_with_truncate(self, max_sz: i64) -> Result<()>;
@@ -880,18 +880,18 @@ impl MmapFileMutExt for MmapFileMut {
     /// file.write_all("some data...".as_bytes(), 0).unwrap();
     /// file.flush().unwrap();
     ///
-    /// file.remove().unwrap();
+    /// file.drop_remove().unwrap();
     ///
     /// let err = std::fs::File::open("remove_test.txt");
     /// assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
     /// ```
-    fn remove(mut self) -> Result<()> {
+    fn drop_remove(mut self) -> Result<()> {
         let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
         // swap the inner to empty
         let inner = mem::replace(&mut self.inner, empty);
         if !self.remove_on_drop {
             // do remove
-            inner.remove()?;
+            inner.drop_remove()?;
             self.deleted = true;
         }
         Ok(())
@@ -1434,6 +1434,28 @@ impl MmapFileMut {
             },
             _ => Ok(()),
         }
+    }
+
+    /// Remove the underlying file without dropping, leaving an [`EmptyMmapFile`].
+    #[inline]
+    pub fn remove(&mut self) -> Result<()> {
+        let empty = MmapFileMutInner::Empty(EmptyMmapFile::default());
+        // swap the inner to empty
+        let inner = mem::replace(&mut self.inner, empty);
+        match inner {
+            MmapFileMutInner::Disk(disk) => {
+                let path = disk.path;
+                drop(disk.mmap);
+                disk.file
+                    .set_len(0)
+                    .and_then(|_| {
+                        drop(disk.file);
+                        std::fs::remove_file(path)
+                    })
+                    .map_err(From::from)
+            },
+            _ => Ok(()),
+        } 
     }
 }
 

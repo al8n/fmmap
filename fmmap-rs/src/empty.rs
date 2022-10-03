@@ -120,7 +120,7 @@ cfg_async! {
                 }
 
                 #[inline]
-                async fn remove(self) -> Result<()> {
+                async fn drop_remove(self) -> Result<()> {
                     Ok(())
                 }
 
@@ -192,7 +192,7 @@ cfg_async! {
                     file.zero_range(0, 0);
                     file.clone().close_with_truncate(0).await.unwrap();
                     file.truncate(0).await.unwrap();
-                    file.clone().remove().await.unwrap();
+                    file.clone().drop_remove().await.unwrap();
                 }
             }
         };

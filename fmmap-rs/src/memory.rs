@@ -385,7 +385,7 @@ cfg_async! {
                 }
 
                 #[inline]
-                async fn remove(self) -> crate::error::Result<()> {
+                async fn drop_remove(self) -> crate::error::Result<()> {
                     Ok(())
                 }
 

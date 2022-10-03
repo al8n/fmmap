@@ -414,7 +414,7 @@ cfg_sync! {
                     file.truncate(12).unwrap();
                     file.write_all("some data...".as_bytes(), 0).unwrap();
                     file.flush().unwrap();
-                    file.remove().unwrap();
+                    file.drop_remove().unwrap();
 
                     let err = File::open(path);
                     assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
@@ -862,7 +862,7 @@ cfg_async! {
                     file.truncate(12).await.unwrap();
                     file.write_all("some data...".as_bytes(), 0).unwrap();
                     file.flush().unwrap();
-                    file.remove().await.unwrap();
+                    file.drop_remove().await.unwrap();
 
                     let err = File::open(path).await;
                     assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);

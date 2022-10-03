@@ -101,7 +101,7 @@ impl MmapFileMutExt for EmptyMmapFile {
     }
 
     #[inline]
-    fn remove(self) -> Result<()> {
+    fn drop_remove(self) -> Result<()> {
         Ok(())
     }
 
@@ -169,6 +169,6 @@ mod tests {
         file.zero_range(0, 0);
         file.clone().close_with_truncate(0).unwrap();
         file.truncate(0).unwrap();
-        file.clone().remove().unwrap();
+        file.clone().drop_remove().unwrap();
     }
 }

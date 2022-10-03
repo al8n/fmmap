@@ -320,7 +320,7 @@ impl MmapFileMutExt for DiskMmapFileMut {
     /// let err = std::fs::File::open("disk_remove_test.txt");
     /// assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);
     /// ```
-    fn remove(self) -> crate::error::Result<()> {
+    fn drop_remove(self) -> crate::error::Result<()> {
         let path = self.path;
         drop(self.mmap);
         self.file
