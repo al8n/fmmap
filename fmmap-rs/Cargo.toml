@@ -1,6 +1,6 @@
 [package]
 name = "fmmap"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
 description = "A flexible and convenient high-level mmap for zero-copy file I/O."
