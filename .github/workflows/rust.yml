@@ -25,20 +25,30 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
-  nightly: nightly-2021-11-23
+  nightly: nightly
   minrust: 1.60
 
 
 jobs:
-  tests-pass:
-    name: all systems go
+  check:
     runs-on: ubuntu-latest
-    needs:
-      - unit-tests
-      - tarpaulin
-      - docs
     steps:
-      - run: exit 0
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-pc-windows-gnu
+        components: clippy, rustfmt
+
+    - name: Run checks
+      env:
+        CLIPPY_OPTS: --all-targets
+      run: |
+        cargo fmt --check
+        cargo clippy $CLIPPY_OPTS
+        cargo clippy --target x86_64-pc-windows-gnu $CLIPPY_OPTS
 
   unit-tests:
     name: unit tests
@@ -49,6 +59,7 @@ jobs:
           - nightly
         os:
           - macos-latest
+          - ubuntu-latest
           # see https://github.com/al8n/fmmap/issues/1
           # - windows-latest
     steps:
@@ -73,44 +84,46 @@ jobs:
         run: cargo test --all-features
         working-directory: fmmap-rs
 
-  tarpaulin:
-    name: ubuntu-test and cargo tarpaulin
+  coverage:
+    name: cargo tarpaulin
     runs-on: ubuntu-latest
+    needs: 
+      - check
+      - unit-tests
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install latest nightly
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
           override: true
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v1
-
-      - uses: actions/cache@v2
+      - uses: actions-rs/install@v0.1
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - uses: actions-rs/tarpaulin@v0.1
-      - name: Run cargo tarpaulin
-        run: cargo tarpaulin --all-features --run-types Tests,Doctests --out Xml
-        working-directory: fmmap-rs
-
-      # Build benchmarks. Run of benchmarks is done by bench.yml workflow.
-      # - name: build benches
-      #  run: cargo build --benches
-      #  working-directory: benches
-      # bench.yml workflow runs benchmarks only on linux.
-      #  if: startsWith(matrix.os, 'ubuntu')
+          crate: cargo-tarpaulin
+          version: latest
+      - name: Cache ~/.cargo
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-coverage-dotcargo
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-coverage-cargo-build-target
+      - name: Change dir
+        run: cd fmmap-rs
+      - name: Run tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: tarpaulin
+          args: --run-types all-targets --workspace --out xml
 
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1.0.2
+        uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: file
+          fail_ci_if_error: true
 
   docs:
     name: docs

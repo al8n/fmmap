@@ -57,7 +57,6 @@ mod sync {
                 writter.write_f64_le(46.0).unwrap();
                 writter.flush().unwrap();
                 writter.seek(SeekFrom::End(0)).unwrap();
-                drop(writter);
                 let mut reader = file.reader(0).unwrap();
                 let mut buf = [0; SANITY_TEXT.len()];
                 reader.read_exact(&mut buf).unwrap();
@@ -266,7 +265,6 @@ mod axync {
                     AsyncWriteExt::write_i64(&mut writter, -64).await.unwrap();
                     writter.flush().await.unwrap();
                     writter.seek(SeekFrom::End(0)).await.unwrap();
-                    drop(writter);
                     let mut reader = file.reader(0).unwrap();
                     let mut buf = [0; SANITY_TEXT.len()];
                     reader.read_exact(&mut buf).await.unwrap();
