@@ -47,7 +47,7 @@ shall be dual licensed as above, without any additional terms or conditions.
 
 
 [Github-url]: https://github.com/al8n/fmmap/
-[rust-ci-url]: https://github.com/al8n/memmapix-rs/actions/workflows/main.yml
+[rust-ci-url]: https://github.com/al8n/fmmap/actions/workflows/rust.yml
 [doc-url]: https://docs.rs/fmmap
 [crates-url]: https://crates.io/crates/fmmap
 [codecov-url]: https://app.codecov.io/gh/al8n/fmmap/
