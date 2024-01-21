@@ -563,25 +563,25 @@ cfg_async! {
                     }
                 }
 
-                /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
+                /// Locks the file for exclusive usage, blocking if the file is currently locked.
                 ///
                 /// # Notes
                 /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn lock_exclusive(&self) -> Result<()>;
 
-                /// Locks the file for exclusive usage, blocking if the file is currently locked.
+                /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
                 ///
                 /// # Notes
                 /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn lock_shared(&self) -> Result<()>;
 
-                /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+                /// Locks the file for exclusive usage, or returns a an error if the file is currently locked (see lock_contended_error).
                 ///
                 /// # Notes
                 /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
                 fn try_lock_exclusive(&self) -> Result<()>;
 
-                /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+                /// Locks the file for shared usage, or returns a an error if the file is currently locked exclusively (see lock_contended_error).
                 ///
                 /// # Notes
                 /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
