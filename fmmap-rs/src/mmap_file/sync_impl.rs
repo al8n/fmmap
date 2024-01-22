@@ -1,14 +1,14 @@
-use std::borrow::Cow;
-use std::mem;
-use std::io::{Cursor, Write};
-use std::path::{Path, PathBuf};
-use crate::error::{Error, ErrorKind, Result};
-use crate::metadata::MetaData;
-use crate::{MmapFileReader, MmapFileWriter};
 use crate::disk::{DiskMmapFile, DiskMmapFileMut};
 use crate::empty::EmptyMmapFile;
+use crate::error::{Error, ErrorKind, Result};
 use crate::memory::{MemoryMmapFile, MemoryMmapFileMut};
+use crate::metadata::MetaData;
 use crate::options::Options;
+use crate::{MmapFileReader, MmapFileWriter};
+use std::borrow::Cow;
+use std::io::{Cursor, Write};
+use std::mem;
+use std::path::{Path, PathBuf};
 
 /// Utility methods to [`MmapFile`]
 ///
@@ -32,7 +32,7 @@ pub trait MmapFileExt {
     /// If there's not enough data, it would
     /// panic.
     fn slice(&self, offset: usize, sz: usize) -> &[u8] {
-        &self.as_slice()[offset..offset+sz]
+        &self.as_slice()[offset..offset + sz]
     }
 
     /// bytes returns data starting from offset off of size sz.
@@ -45,7 +45,7 @@ pub trait MmapFileExt {
         if buf.len() < offset + sz {
             Err(Error::from(ErrorKind::EOF))
         } else {
-            Ok(&buf[offset..offset+sz])
+            Ok(&buf[offset..offset + sz])
         }
     }
 
@@ -102,10 +102,15 @@ pub trait MmapFileExt {
 
     /// Write a range of content of the mmap file to new file.
     #[inline]
-    fn write_range_to_new_file<P: AsRef<Path>>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
+    fn write_range_to_new_file<P: AsRef<Path>>(
+        &self,
+        new_file_path: P,
+        offset: usize,
+        len: usize,
+    ) -> Result<()> {
         let buf = self.as_slice();
         if buf.len() < offset + len {
-            return Err(Error::from(ErrorKind::EOF))
+            return Err(Error::from(ErrorKind::EOF));
         }
         let opts = Options::new().max_size(len as u64);
         let mut mmap = DiskMmapFileMut::create_with_options(new_file_path, opts)?;
@@ -125,7 +130,11 @@ pub trait MmapFileExt {
         if buf.len() < offset {
             Err(Error::from(ErrorKind::EOF))
         } else {
-            Ok(MmapFileReader::new(Cursor::new(&buf[offset..]), offset, buf.len() - offset))
+            Ok(MmapFileReader::new(
+                Cursor::new(&buf[offset..]),
+                offset,
+                buf.len() - offset,
+            ))
         }
     }
 
@@ -141,29 +150,33 @@ pub trait MmapFileExt {
         if buf.len() < offset + len {
             Err(Error::from(ErrorKind::EOF))
         } else {
-            Ok(MmapFileReader::new(Cursor::new(&buf[offset.. offset + len]), offset, len))
+            Ok(MmapFileReader::new(
+                Cursor::new(&buf[offset..offset + len]),
+                offset,
+                len,
+            ))
         }
     }
 
-    /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
+    /// Locks the file for exclusively usage, blocking if the file is currently locked.
     ///
     /// # Notes
     /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn lock_exclusive(&self) -> Result<()>;
 
-    /// Locks the file for exclusive usage, blocking if the file is currently locked.
+    /// Locks the file for shared usage, blocking if the file is currently locked exclusively.
     ///
     /// # Notes
     /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn lock_shared(&self) -> Result<()>;
 
-    /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    /// Locks the file for exclusively usage, or returns a an error if the file is currently locked (see lock_contended_error).
     ///
     /// # Notes
     /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
     fn try_lock_exclusive(&self) -> Result<()>;
 
-    /// Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).Locks the file for shared usage, or returns a an error if the file is currently locked (see lock_contended_error).
+    /// Locks the file for shared usage, or returns a an error if the file is currently locked exclusively (see lock_contended_error).
     ///
     /// # Notes
     /// This function will do nothing if the underlying is not a real file, e.g. in-memory.
@@ -385,7 +398,7 @@ pub trait MmapFileMutExt {
     /// If there's not enough data, it would
     /// panic.
     fn slice_mut(&mut self, offset: usize, sz: usize) -> &mut [u8] {
-        &mut self.as_mut_slice()[offset..offset+sz]
+        &mut self.as_mut_slice()[offset..offset + sz]
     }
 
     /// Whether mmap is copy on write
@@ -401,7 +414,7 @@ pub trait MmapFileMutExt {
         if buf.len() <= offset + sz {
             Err(Error::from(ErrorKind::EOF))
         } else {
-            Ok(&mut buf[offset..offset+sz])
+            Ok(&mut buf[offset..offset + sz])
         }
     }
 
@@ -481,7 +494,11 @@ pub trait MmapFileMutExt {
         if buf_len <= offset {
             Err(Error::from(ErrorKind::EOF))
         } else {
-            Ok(MmapFileWriter::new(Cursor::new(&mut buf[offset..]), offset, buf_len - offset))
+            Ok(MmapFileWriter::new(
+                Cursor::new(&mut buf[offset..]),
+                offset,
+                buf_len - offset,
+            ))
         }
     }
 
@@ -507,7 +524,10 @@ pub trait MmapFileMutExt {
             Err(Error::from(ErrorKind::EOF))
         } else {
             Ok(MmapFileWriter::new(
-                Cursor::new(&mut buf[offset..offset + len]), offset, len))
+                Cursor::new(&mut buf[offset..offset + len]),
+                offset,
+                len,
+            ))
         }
     }
 
@@ -682,7 +702,7 @@ pub trait MmapFileMutExt {
 enum MmapFileInner {
     Empty(EmptyMmapFile),
     Memory(MemoryMmapFile),
-    Disk(DiskMmapFile)
+    Disk(DiskMmapFile),
 }
 
 /// A read-only memory map file.
@@ -700,7 +720,11 @@ pub struct MmapFile {
 
 impl_mmap_file_ext!(MmapFile);
 
-impl_from!(MmapFile, MmapFileInner, [EmptyMmapFile, MemoryMmapFile, DiskMmapFile]);
+impl_from!(
+    MmapFile,
+    MmapFileInner,
+    [EmptyMmapFile, MemoryMmapFile, DiskMmapFile]
+);
 
 impl MmapFile {
     /// Open a readable memory map backed by a file
@@ -820,7 +844,9 @@ impl MmapFile {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_exec_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
-        Ok(Self::from(DiskMmapFile::open_exec_with_options(path, opts)?))
+        Ok(Self::from(DiskMmapFile::open_exec_with_options(
+            path, opts,
+        )?))
     }
 }
 
@@ -830,7 +856,7 @@ impl_constructor_for_memory_mmap_file!(MemoryMmapFile, MmapFile, "MmapFile", "sy
 enum MmapFileMutInner {
     Empty(EmptyMmapFile),
     Memory(MemoryMmapFileMut),
-    Disk(DiskMmapFileMut)
+    Disk(DiskMmapFileMut),
 }
 
 /// A writable memory map file.
@@ -847,7 +873,11 @@ pub struct MmapFileMut {
     deleted: bool,
 }
 
-impl_from_mut!(MmapFileMut, MmapFileMutInner, [EmptyMmapFile, MemoryMmapFileMut, DiskMmapFileMut]);
+impl_from_mut!(
+    MmapFileMut,
+    MmapFileMutInner,
+    [EmptyMmapFile, MemoryMmapFileMut, DiskMmapFileMut]
+);
 
 impl_mmap_file_ext!(MmapFileMut);
 
@@ -926,7 +956,6 @@ impl MmapFileMutExt for MmapFileMut {
 }
 
 impl MmapFileMut {
-
     /// Create a new file and mmap this file
     ///
     /// # Notes
@@ -977,7 +1006,9 @@ impl MmapFileMut {
     ///
     /// [`Options`]: struct.Options.html
     pub fn create_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
-        Ok(Self::from(DiskMmapFileMut::create_with_options(path, opts)?))
+        Ok(Self::from(DiskMmapFileMut::create_with_options(
+            path, opts,
+        )?))
     }
 
     /// Open or Create(if not exists) a file and mmap this file.
@@ -1232,7 +1263,9 @@ impl MmapFileMut {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_exist_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
-        Ok(Self::from(DiskMmapFileMut::open_exist_with_options(path, opts)?))
+        Ok(Self::from(DiskMmapFileMut::open_exist_with_options(
+            path, opts,
+        )?))
     }
 
     /// Open and mmap an existing file in copy-on-write mode(copy-on-write memory map backed by a file).
@@ -1328,9 +1361,10 @@ impl MmapFileMut {
     ///
     /// [`Options`]: struct.Options.html
     pub fn open_cow_with_options<P: AsRef<Path>>(path: P, opts: Options) -> Result<Self> {
-        Ok(Self::from(DiskMmapFileMut::open_cow_with_options(path, opts)?))
+        Ok(Self::from(DiskMmapFileMut::open_cow_with_options(
+            path, opts,
+        )?))
     }
-
 
     /// Make the mmap file read-only.
     ///
@@ -1422,16 +1456,13 @@ impl MmapFileMut {
         // swap the inner to empty
         let inner = mem::replace(&mut self.inner, empty);
         match inner {
-            MmapFileMutInner::Disk(disk) => {
-                disk.flush()
-                    .and_then(|_| {
-                        if max_sz >= 0 {
-                            disk.file.set_len(max_sz as u64).map_err(From::from)
-                        } else {
-                            Ok(())
-                        }
-                    })
-            },
+            MmapFileMutInner::Disk(disk) => disk.flush().and_then(|_| {
+                if max_sz >= 0 {
+                    disk.file.set_len(max_sz as u64).map_err(From::from)
+                } else {
+                    Ok(())
+                }
+            }),
             _ => Ok(()),
         }
     }
@@ -1453,9 +1484,9 @@ impl MmapFileMut {
                         std::fs::remove_file(path)
                     })
                     .map_err(From::from)
-            },
+            }
             _ => Ok(()),
-        } 
+        }
     }
 }
 
