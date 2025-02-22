@@ -116,7 +116,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: tarpaulin
-          args: --run-types all-targets --workspace --out xml
+          args: --run-types AllTargets --workspace --out xml
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v5
