@@ -118,8 +118,8 @@ extern crate enum_dispatch;
 macro_rules! cfg_async_std {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "async-std", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "async-std", feature = "async-trait"))))]
+            #[cfg(feature = "async-std")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
             $item
         )*
     }
@@ -128,8 +128,8 @@ macro_rules! cfg_async_std {
 macro_rules! cfg_smol {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "smol", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "smol", feature = "async-trait"))))]
+            #[cfg(feature = "smol")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
             $item
         )*
     }
@@ -138,8 +138,8 @@ macro_rules! cfg_smol {
 macro_rules! cfg_tokio {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "tokio", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "tokio", feature = "async-trait"))))]
+            #[cfg(feature = "tokio")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
             $item
         )*
     }
@@ -158,8 +158,8 @@ macro_rules! cfg_sync {
 macro_rules! cfg_async {
     ($($item:item)*) => {
         $(
-            #[cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))))]
+            #[cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"),))]
+            #[cfg_attr(docsrs, doc(cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"),))))]
             $item
         )*
     }
@@ -1161,7 +1161,7 @@ mod mmap_file;
 mod options;
 mod reader;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 /// File I/O utils function
 pub mod utils;
 mod writer;
@@ -1179,11 +1179,6 @@ cfg_sync!(
     pub use writer::{MmapFileWriter, MmapFileWriterExt};
     pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
     pub use options::Options;
-);
-
-cfg_async!(
-    #[macro_use]
-    extern crate async_trait;
 );
 
 cfg_async_std!(

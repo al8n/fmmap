@@ -6,13 +6,13 @@ use pin_project_lite::pin_project;
 
 declare_and_impl_basic_writer!();
 
-impl<'a> Read for AsyncMmapFileWriter<'a> {
+impl Read for AsyncMmapFileWriter<'_> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         self.project().w.poll_read(cx, buf)
     }
 }
 
-impl<'a> BufRead for AsyncMmapFileWriter<'a> {
+impl BufRead for AsyncMmapFileWriter<'_> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
         self.project().w.poll_fill_buf(cx)
     }
@@ -22,13 +22,13 @@ impl<'a> BufRead for AsyncMmapFileWriter<'a> {
     }
 }
 
-impl<'a> Seek for AsyncMmapFileWriter<'a> {
+impl Seek for AsyncMmapFileWriter<'_> {
     fn poll_seek(self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom) -> Poll<std::io::Result<u64>> {
         self.project().w.poll_seek(cx, pos)
     }
 }
 
-impl<'a> Write for AsyncMmapFileWriter<'a> {
+impl Write for AsyncMmapFileWriter<'_> {
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
         self.project().w.poll_write(cx, buf)
     }

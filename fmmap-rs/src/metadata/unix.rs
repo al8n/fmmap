@@ -549,7 +549,7 @@ mod tests {
         // meta.blksize();
     }
 
-    #[cfg(feature = "tokio-async")]
+    #[cfg(feature = "tokio")]
     #[tokio::test]
     async fn test_async_metadata() {
         use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMutExt, AsyncOptions};

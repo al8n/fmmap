@@ -6,7 +6,7 @@ use crate::utils::tokio::{
     open_read_only_file_async, sync_parent_async,
 };
 use crate::MetaData;
-use async_trait::async_trait;
+
 use fs4::tokio::AsyncFileExt;
 use memmapix::{Mmap, MmapAsRawDesc, MmapMut, MmapOptions};
 use std::path::{Path, PathBuf};

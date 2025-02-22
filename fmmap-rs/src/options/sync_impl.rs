@@ -343,7 +343,7 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+        file.write_all("some data...".as_bytes(), "sanity text".len())
             .unwrap();
         file.flush().unwrap();
         drop(file);
@@ -351,7 +351,7 @@ mod tests {
         // mmap the file
         let file = Options::new()
             // mmap content after the sanity text
-            .offset("sanity text".as_bytes().len() as u64)
+            .offset("sanity text".len() as u64)
             .open_mmap_file(path)
             .unwrap();
         let mut buf = vec![0; "some data...".len()];
@@ -366,7 +366,7 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+        file.write_all("some data...".as_bytes(), "sanity text".len())
             .unwrap();
         file.flush().unwrap();
         drop(file);
@@ -374,7 +374,7 @@ mod tests {
         // mmap the file
         let file = Options::new()
             // mmap content after the sanity text
-            .offset("sanity text".as_bytes().len() as u64)
+            .offset("sanity text".len() as u64)
             .open_exec_mmap_file(path)
             .unwrap();
         let mut buf = vec![0; "some data...".len()];
@@ -389,7 +389,7 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+        file.write_all("some data...".as_bytes(), "sanity text".len())
             .unwrap();
         file.flush().unwrap();
         drop(file);
@@ -404,7 +404,7 @@ mod tests {
             // truncate to 100
             .max_size(100)
             // mmap content after the sanity text
-            .offset("sanity text".as_bytes().len() as u64)
+            .offset("sanity text".len() as u64)
             .open_mmap_file_mut(path)
             .unwrap();
         let mut buf = vec![0; "some data...".len()];
@@ -423,7 +423,7 @@ mod tests {
         let mut buf = vec![0; "some modified data...".len()];
         let file = MmapFileMut::open(path).unwrap();
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+        file.read_exact(buf.as_mut_slice(), "sanity text".len())
             .unwrap();
         assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     }
@@ -435,7 +435,7 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+        file.write_all("some data...".as_bytes(), "sanity text".len())
             .unwrap();
         file.flush().unwrap();
         drop(file);
@@ -445,7 +445,7 @@ mod tests {
             // truncate to 100
             .max_size(100)
             // mmap content after the sanity text
-            .offset("sanity text".as_bytes().len() as u64)
+            .offset("sanity text".len() as u64)
             .open_exist_mmap_file_mut(path)
             .unwrap();
 
@@ -464,7 +464,7 @@ mod tests {
         let file = MmapFileMut::open(path).unwrap();
         let mut buf = vec![0; "some modified data...".len()];
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+        file.read_exact(buf.as_mut_slice(), "sanity text".len())
             .unwrap();
         assert_eq!(buf.as_slice(), "some modified data...".as_bytes());
     }
@@ -476,7 +476,7 @@ mod tests {
         let mut file = MmapFileMut::create(path).unwrap();
         file.truncate(23).unwrap();
         file.write_all("sanity text".as_bytes(), 0).unwrap();
-        file.write_all("some data...".as_bytes(), "sanity text".as_bytes().len())
+        file.write_all("some data...".as_bytes(), "sanity text".len())
             .unwrap();
         file.flush().unwrap();
         drop(file);
@@ -484,7 +484,7 @@ mod tests {
         // mmap the file
         let mut file = Options::new()
             // mmap content after the sanity text
-            .offset("sanity text".as_bytes().len() as u64)
+            .offset("sanity text".len() as u64)
             .open_cow_mmap_file_mut(path)
             .unwrap();
         assert!(file.is_cow());
@@ -505,7 +505,7 @@ mod tests {
         let file = MmapFileMut::open(path).unwrap();
         let mut buf = vec![0; "some data...".len()];
         // skip the sanity text
-        file.read_exact(buf.as_mut_slice(), "sanity text".as_bytes().len())
+        file.read_exact(buf.as_mut_slice(), "sanity text".len())
             .unwrap();
         assert_eq!(buf.as_slice(), "some data...".as_bytes());
     }

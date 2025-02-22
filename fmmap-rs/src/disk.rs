@@ -73,6 +73,7 @@ macro_rules! impl_file_lock {
         }
 
         #[inline]
+        #[allow(warnings)]
         fn lock_shared(&self) -> crate::error::Result<()> {
             self.file
                 .lock_shared()
@@ -83,17 +84,21 @@ macro_rules! impl_file_lock {
         fn try_lock_exclusive(&self) -> crate::error::Result<()> {
             self.file
                 .try_lock_exclusive()
+                .map(|_| ())
                 .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
+        #[allow(warnings)]
         fn try_lock_shared(&self) -> crate::error::Result<()> {
             self.file
                 .try_lock_shared()
+                .map(|_| ())
                 .map_err(|e| Error::new(ErrorKind::IO, e))
         }
 
         #[inline]
+        #[allow(warnings)]
         fn unlock(&self) -> crate::error::Result<()> {
             self.file.unlock().map_err(|e| Error::new(ErrorKind::IO, e))
         }
@@ -158,7 +163,7 @@ cfg_sync! {
 cfg_async! {
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
-            #[async_trait]
+
             impl AsyncMmapFileExt for $name {
                 fn len(&self) -> usize {
                     self.mmap.len()
@@ -194,7 +199,7 @@ cfg_async! {
 
     macro_rules! impl_async_mmap_file_ext_for_mut {
         ($name: ident) => {
-            #[async_trait]
+
             impl AsyncMmapFileExt for $name {
                 fn len(&self) -> usize {
                     self.mmap.len()
@@ -435,7 +440,7 @@ cfg_async! {
 
     macro_rules! impl_async_mmap_file_mut_ext_for_mut {
         ($filename_prefix: literal, $doc_test_runtime: literal, $path_str: literal) => {
-            #[async_trait]
+
             impl AsyncMmapFileMutExt for AsyncDiskMmapFileMut {
                 fn as_mut_slice(&mut self) -> &mut [u8] {
                     self.mmap.as_mut()
@@ -514,7 +519,7 @@ cfg_async! {
                 #[doc = "assert_eq!(err.unwrap_err().kind(), std::io::ErrorKind::NotFound);"]
                 #[doc = "# })"]
                 #[doc = "```"]
-                async fn drop_remove(mut self) -> crate::error::Result<()> {
+                async fn drop_remove(self) -> crate::error::Result<()> {
                     let path = self.path;
                     drop(self.mmap);
                     self.file.set_len(0).await.map_err(|e| Error::new(ErrorKind::IO, e))?;

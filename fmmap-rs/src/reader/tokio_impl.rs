@@ -8,13 +8,13 @@ use tokio::io::{AsyncBufRead, AsyncRead, AsyncSeek, ReadBuf};
 
 declare_and_impl_basic_reader!();
 
-impl<'a> AsyncRead for AsyncMmapFileReader<'a> {
+impl AsyncRead for AsyncMmapFileReader<'_> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
         self.project().r.poll_read(cx, buf)
     }
 }
 
-impl<'a> AsyncSeek for AsyncMmapFileReader<'a> {
+impl AsyncSeek for AsyncMmapFileReader<'_> {
     fn start_seek(self: Pin<&mut Self>, position: SeekFrom) -> std::io::Result<()> {
         self.project().r.start_seek(position)
     }
@@ -24,7 +24,7 @@ impl<'a> AsyncSeek for AsyncMmapFileReader<'a> {
     }
 }
 
-impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
+impl AsyncBufRead for AsyncMmapFileReader<'_> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
         self.project().r.poll_fill_buf(cx)
     }
@@ -34,7 +34,7 @@ impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
     }
 }
 
-impl<'a> Buf for AsyncMmapFileReader<'a> {
+impl Buf for AsyncMmapFileReader<'_> {
     fn remaining(&self) -> usize {
         self.r.remaining()
     }

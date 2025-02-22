@@ -9,3 +9,4 @@ members = [
   # internal
   "benchmarks"
 ]
+resolver = "2"

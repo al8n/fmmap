@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::mem;
 use std::path::{Path, PathBuf};
-use async_trait::async_trait;
+
 use smol::fs::remove_file;
 use smol::io::{Cursor, AsyncWriteExt};
 use crate::smol::{AsyncMmapFileReader, AsyncMmapFileWriter, AsyncOptions};

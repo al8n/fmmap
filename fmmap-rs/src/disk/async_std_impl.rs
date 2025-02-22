@@ -8,7 +8,7 @@ use crate::utils::async_std::{
 use crate::MetaData;
 use async_std::fs::{remove_file, File};
 use async_std::path::{Path, PathBuf};
-use async_trait::async_trait;
+
 use fs4::async_std::AsyncFileExt;
 use memmapix::{Mmap, MmapAsRawDesc, MmapMut, MmapOptions};
 #[cfg(not(target_os = "linux"))]

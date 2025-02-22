@@ -332,7 +332,7 @@ cfg_sync! {
 cfg_async! {
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
-            #[async_trait]
+
             impl AsyncMmapFileExt for $name {
                 fn len(&self) -> usize {
                     self.mmap.len()
@@ -364,7 +364,7 @@ cfg_async! {
 
     macro_rules! impl_async_mmap_file_mut_ext {
         () => {
-            #[async_trait]
+
             impl AsyncMmapFileMutExt for AsyncMemoryMmapFileMut {
                 #[inline]
                 fn as_mut_slice(&mut self) -> &mut [u8] {

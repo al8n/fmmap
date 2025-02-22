@@ -46,13 +46,13 @@ impl Debug for MmapFileReader<'_> {
     }
 }
 
-impl<'a> io::Seek for MmapFileReader<'a> {
+impl io::Seek for MmapFileReader<'_> {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         self.r.seek(pos)
     }
 }
 
-impl<'a> io::BufRead for MmapFileReader<'a> {
+impl io::BufRead for MmapFileReader<'_> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         self.r.fill_buf()
     }
@@ -62,13 +62,13 @@ impl<'a> io::BufRead for MmapFileReader<'a> {
     }
 }
 
-impl<'a> io::Read for MmapFileReader<'a> {
+impl io::Read for MmapFileReader<'_> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.r.read(buf)
     }
 }
 
-impl<'a> Buf for MmapFileReader<'a> {
+impl Buf for MmapFileReader<'_> {
     fn remaining(&self) -> usize {
         self.r.remaining()
     }
@@ -142,7 +142,7 @@ pub trait MmapFileReaderExt {
     fn read_f64_le(&mut self) -> io::Result<f64>;
 }
 
-impl<'a> MmapFileReaderExt for MmapFileReader<'a> {
+impl MmapFileReaderExt for MmapFileReader<'_> {
     #[inline]
     fn read_i8(&mut self) -> io::Result<i8> {
         self.r.read_i8()

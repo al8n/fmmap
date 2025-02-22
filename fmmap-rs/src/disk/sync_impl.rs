@@ -5,7 +5,7 @@ use crate::utils::{
     create_file, open_exist_file_with_append, open_or_create_file, open_read_only_file, sync_parent,
 };
 use crate::{MetaData, MmapFileExt, MmapFileMutExt};
-use fs4::FileExt;
+use fs4::fs_std::FileExt;
 use memmapix::{Mmap, MmapAsRawDesc, MmapMut, MmapOptions};
 use std::fs::{remove_file, File};
 use std::path::{Path, PathBuf};
