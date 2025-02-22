@@ -1,15 +1,15 @@
 [package]
 name = "fmmap"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2021"
 repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
 description = "A flexible and convenient high-level mmap for zero-copy file I/O."
 license = "MIT OR Apache-2.0"
 authors = ["Al Liu <scygliu@gmail.com>"]
 documentation = "https://docs.rs/fmmap"
-keywords = ["file", "memmapix", "mmap", "memory-map", "io"]
+keywords = ["file", "memmap2", "mmap", "memory-map", "io"]
 categories = ["filesystem", "external-ffi-bindings", "asynchronous"]
-rust-version = "1.60.0"
+rust-version = "1.65.0"
 
 [lib]
 doctest = true
@@ -18,39 +18,33 @@ doctest = true
 default = ["sync"]
 nightly = []
 sync = ["dep:fs4", "fs4?/sync"]
-tokio-async = ["dep:fs4", "fs4?/tokio-async", "async-trait", "dep:async-trait", "dep:pin-project-lite", "tokio", "dep:tokio", "tokio?/io-std", "tokio?/io-util", "tokio?/fs"]
-smol-async = ["dep:fs4", "fs4?/smol-async", "async-trait", "dep:async-trait", "dep:pin-project-lite", "dep:smol"]
-std-async = ["dep:fs4", "fs4?/std-async", "async-trait", "dep:async-trait", "dep:pin-project-lite", "async-std", "dep:async-std", "async-std?/async-io", "async-std?/futures-lite", "dep:futures-util", "futures-util?/io"]
+tokio = ["dep:tokio", "fs4/tokio", "dep:pin-project-lite", "tokio?/io-std", "tokio?/io-util", "tokio?/fs"]
+smol = ["dep:smol", "fs4/smol", "dep:pin-project-lite"]
+async-std = ["dep:async-std", "fs4/async-std", "dep:pin-project-lite", "async-std?/async-io", "async-std?/futures-lite", "dep:futures-util", "futures-util?/io"]
 
-# TODO: these features is for backward compatibility, but they were not explicitly declared before!
-#       this crate's code usies them in varios `cfg!` checks, but they should probably be fixed
-tokio = ["dep:tokio"]
-async-std = ["dep:async-std"]
-async-trait = ["dep:async-trait"]
 
 [dependencies]
-async-std = { version = "1.12", optional = true }
-async-trait = { version = "0.1", optional = true }
-bytes = "1.5"
-byteorder = "1.4"
+async-std = { version = "1", optional = true }
+bytes = "1"
+byteorder = "1"
 enum_dispatch = "0.3"
-fs4 = { version = "0.6", optional = true }
+fs4 = { version = "0.12", optional = true }
 futures-util = { version = "0.3", optional = true }
-memmapix = "0.7"
+memmap2 = "0.9"
 pin-project-lite = { version = "0.2", optional = true }
-parse-display = "0.8"
-smol = { version = "1.3", optional = true }
-tokio = { version = "1.32", optional = true }
+parse-display = "0.10"
+smol = { version = "2", optional = true }
+tokio = { version = "1", optional = true }
 
 [dev-dependencies]
-async-std = { version = "1.12", features = ["attributes"] }
-ctor = "0.2"
+async-std = { version = "1", features = ["attributes"] }
+ctor = "0.3"
 criterion = "0.5"
-rand = "0.8"
-smol-potat = "1.1"
+rand = "0.9"
+smol-potat = "1"
 scopeguard = "1.2"
 tempdir = "0.3"
-tokio = { version = "1.31", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 tokio-test = "0.4"
 
 [package.metadata.docs.rs]

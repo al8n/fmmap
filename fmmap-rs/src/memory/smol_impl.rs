@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use async_trait::async_trait;
+
 use bytes::{Bytes, BytesMut};
 use crate::smol::{AsyncMmapFileExt, AsyncMmapFileMutExt};
 use crate::MetaData;

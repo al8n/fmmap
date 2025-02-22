@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::mem;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use async_trait::async_trait;
 use tokio::io::AsyncWriteExt;
 use tokio::fs::remove_file;
 use crate::tokio::{AsyncMmapFileReader, AsyncMmapFileWriter, AsyncOptions};

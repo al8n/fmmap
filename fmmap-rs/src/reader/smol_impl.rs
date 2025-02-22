@@ -6,19 +6,19 @@ use smol::io::{AsyncBufRead, AsyncRead, AsyncSeek, Cursor, SeekFrom};
 
 declare_and_impl_basic_reader!();
 
-impl<'a> AsyncRead for AsyncMmapFileReader<'a> {
+impl AsyncRead for AsyncMmapFileReader<'_> {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         self.project().r.poll_read(cx, buf)
     }
 }
 
-impl<'a> AsyncSeek for AsyncMmapFileReader<'a> {
+impl AsyncSeek for AsyncMmapFileReader<'_> {
     fn poll_seek(self: Pin<&mut Self>, cx: &mut Context<'_>, pos: SeekFrom) -> Poll<std::io::Result<u64>> {
         self.project().r.poll_seek(cx, pos)
     }
 }
 
-impl<'a> AsyncBufRead for AsyncMmapFileReader<'a> {
+impl AsyncBufRead for AsyncMmapFileReader<'_> {
     fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<&[u8]>> {
         self.project().r.poll_fill_buf(cx)
     }

@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::raw::smol::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 use crate::smol::{AsyncMmapFile, AsyncMmapFileMut};
-use memmapix::MmapOptions;
+use memmap2::MmapOptions;
 #[cfg(unix)]
 use smol::fs::unix::OpenOptionsExt;
 #[cfg(windows)]

@@ -1,22 +1,22 @@
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use std::path::PathBuf;
 
 #[cfg(not(windows))]
 pub fn get_random_filename() -> PathBuf {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut filename = std::env::temp_dir();
-    filename.push(rng.gen::<u32>().to_string());
+    filename.push(rng.random::<u32>().to_string());
     filename.set_extension("txt");
     filename
 }
 
 #[cfg(windows)]
 pub fn get_random_filename() -> PathBuf {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut filename = std::env::temp_dir();
     filename.push("fmmap");
     let _ = std::fs::create_dir(&filename);
-    filename.push(rng.gen::<u32>().to_string());
+    filename.push(rng.random::<u32>().to_string());
     filename.set_extension("txt");
     filename
 }
@@ -238,7 +238,7 @@ mod sync {
     );
 }
 
-#[cfg(feature = "tokio-async")]
+#[cfg(feature = "tokio")]
 mod axync {
     macro_rules! tokio_async_tests {
         ($([$test_fn: ident, $init: block]), +$(,)?) => {
@@ -250,7 +250,7 @@ mod axync {
             const MODIFIED_SANITY_TEXT: &'static str = "Hello, modified async file!";
 
             $(
-                #[cfg(feature = "tokio-async")]
+                #[cfg(feature = "tokio")]
                 #[tokio::test]
                 async fn $test_fn() {
                     let mut file = $init;

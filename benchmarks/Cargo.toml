@@ -6,5 +6,5 @@ edition = "2021"
 
 [dependencies]
 criterion = "0.5"
-fmmap = { path = "../fmmap-rs", features = ["sync", "tokio-async"] }
-tokio = { version = "1.31", features = ["full"] }
+fmmap = { path = "../fmmap-rs", features = ["sync", "tokio"] }
+tokio = { version = "1", features = ["full"] }

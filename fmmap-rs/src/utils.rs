@@ -62,7 +62,6 @@ cfg_sync! {
     pub fn open_exist_file_with_append<P: AsRef<Path>>(path: P) -> Result<File> {
         OpenOptions::new()
             .read(true)
-            .write(true)
             .append(true)
             .open(path)
             .map_err(|e| Error::new(ErrorKind::IO, e))
@@ -82,6 +81,7 @@ cfg_sync! {
     pub fn open_or_create_file<P: AsRef<Path>>(path: P) -> Result<File> {
         OpenOptions::new()
             .create(true)
+            .truncate(false)
             .read(true)
             .write(true)
             .open(path)
@@ -93,7 +93,6 @@ cfg_sync! {
         OpenOptions::new()
             .create_new(true)
             .read(true)
-            .write(true)
             .append(true)
             .open(path)
             .map_err(|e| Error::new(ErrorKind::IO, e))

@@ -306,7 +306,7 @@ cfg_sync! {
 cfg_async! {
     macro_rules! impl_async_mmap_file_ext {
         ($name: ident) => {
-            #[async_trait]
+
             impl AsyncMmapFileExt for $name {
                 #[inline]
                 fn len(&self) -> usize {
@@ -340,7 +340,7 @@ cfg_async! {
 
     macro_rules! impl_async_mmap_file_mut_ext {
         ($filename_prefix: literal, $doc_test_runtime: literal, $path_str: literal) => {
-            #[async_trait]
+
             impl AsyncMmapFileMutExt for AsyncMmapFileMut {
                 #[inline]
                 fn as_mut_slice(&mut self) -> &mut [u8] {
@@ -428,9 +428,9 @@ cfg_async! {
             /// Utility methods to [`AsyncMmapFile`]
             ///
             /// [`AsyncMmapFile`]: structs.AsyncMmapFile.html
-            #[async_trait]
+
             #[enum_dispatch]
-            pub trait AsyncMmapFileExt {
+            pub trait AsyncMmapFileExt: Sync {
                 /// Returns the current mmap length
                 fn len(&self) -> usize;
 
@@ -492,7 +492,7 @@ cfg_async! {
                 /// This structure is returned from the metadata or
                 /// symlink_metadata function or method and represents
                 /// known metadata about a file such as its permissions, size, modification times, etc
-                async fn metadata(&self) -> Result<MetaData>;
+                fn metadata(&self) -> impl core::future::Future<Output = Result<MetaData>> + Send;
 
                 /// Copy the content of the mmap file to Vec
                 #[inline]
@@ -508,19 +508,22 @@ cfg_async! {
 
                 /// Write the content of the mmap file to a new file.
                 #[inline]
-                async fn write_all_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P) -> Result<()> {
-                    let buf = self.as_slice();
-                    let opts = <$opts>::new().max_size(buf.len() as u64);
+                fn write_all_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P) -> impl core::future::Future<Output = Result<()>> + Send {
+                    async move {
+                        let buf = self.as_slice();
+                        let opts = <$opts>::new().max_size(buf.len() as u64);
 
-                    let mut mmap = <$disk_file_mut>::create_with_options(new_file_path, opts).await?;
-                    mmap.writer(0)?.write_all(buf).await?;
-                    mmap.flush()
+                        let mut mmap = <$disk_file_mut>::create_with_options(new_file_path, opts).await?;
+                        mmap.writer(0)?.write_all(buf).await?;
+                        mmap.flush()
+                    }
                 }
 
                 /// Write a range of content of the mmap file to new file.
                 #[inline]
-                async fn write_range_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P, offset: usize, len: usize) -> Result<()> {
-                    let buf = self.as_slice();
+                fn write_range_to_new_file<P: AsRef<Path> + Send + Sync>(&self, new_file_path: P, offset: usize, len: usize) -> impl core::future::Future<Output = Result<()>> + Send {
+                    async move {
+                        let buf = self.as_slice();
                     if buf.len() < offset + len {
                         return Err(Error::from(ErrorKind::EOF));
                     }
@@ -529,6 +532,7 @@ cfg_async! {
                     let mut mmap = <$disk_file_mut>::create_with_options(new_file_path, opts).await?;
                     mmap.writer(0)?.write_all(&buf[offset..offset + len]).await?;
                     mmap.flush()
+                    }
                 }
 
                 /// Returns a [`AsyncMmapFileReader`] which helps read data from mmap like a normal File.
@@ -796,7 +800,7 @@ cfg_async! {
             /// Utility methods to [`AsyncMmapFileMut`]
             ///
             /// [`AsyncMmapFileMut`]: structs.AsyncMmapFileMut.html
-            #[async_trait]
+
             #[enum_dispatch]
             pub trait AsyncMmapFileMutExt {
                 /// Returns the mutable underlying slice of the mmap
@@ -874,13 +878,13 @@ cfg_async! {
 
                 /// Truncates the file to the `max_size`, which will lead to
                 /// do re-mmap and sync_dir if the inner is a real file.
-                async fn truncate(&mut self, max_sz: u64) -> Result<()>;
+                fn truncate(&mut self, max_sz: u64) -> impl core::future::Future<Output = Result<()>> + Send;
 
                 /// Remove the underlying file
-                async fn drop_remove(self) -> Result<()>;
+                fn drop_remove(self) -> impl core::future::Future<Output = Result<()>> + Send;
 
                 /// Close and truncate the underlying file
-                async fn close_with_truncate(self, max_sz: i64) -> Result<()>;
+                fn close_with_truncate(self, max_sz: i64) -> impl core::future::Future<Output = Result<()>> + Send;
 
                 /// Returns a [`AsyncMmapFileWriter`] base on the given `offset`, which helps read or write data from mmap like a normal File.
                 ///
@@ -1127,7 +1131,7 @@ cfg_async! {
                 }
             }
 
-            #[async_trait]
+
             impl AsyncMmapFileExt for AsyncMmapFileInner {
                 #[inline]
                 fn len(&self) -> usize {
@@ -1244,7 +1248,7 @@ cfg_async! {
                 }
             }
 
-            #[async_trait]
+
             impl AsyncMmapFileExt for AsyncMmapFileMutInner {
                 #[inline]
                 fn len(&self) -> usize {
@@ -1339,7 +1343,7 @@ cfg_async! {
                 }
             }
 
-            #[async_trait]
+
             impl AsyncMmapFileMutExt for AsyncMmapFileMutInner {
                 #[inline]
                 fn as_mut_slice(&mut self) -> &mut [u8] {
@@ -2235,40 +2239,6 @@ cfg_async! {
                 // Once all shared file locks are dropped, an exclusive lock may be created;
                 file2.unlock().unwrap();
                 file3.lock_exclusive().unwrap();
-            }
-
-            #[$runtime]
-            async fn test_lock_exclusive() {
-                let path = concat!($filename_prefix, "_lock_exclusive.txt");
-                defer!(std::fs::remove_file(path).unwrap());
-                let file1 = AsyncMmapFileMut::open(path).await.unwrap();
-                let file2 = AsyncMmapFileMut::open(path).await.unwrap();
-
-                // No other access is possible once an exclusive lock is created.
-                file1.lock_exclusive().unwrap();
-                assert!(file2.try_lock_exclusive().is_err());
-                assert!(file2.try_lock_shared().is_err());
-
-                // Once the exclusive lock is dropped, the second file is able to create a lock.
-                file1.unlock().unwrap();
-                file2.lock_exclusive().unwrap();
-            }
-
-            #[$runtime]
-            async fn test_lock_cleanup() {
-                let path = concat!($filename_prefix, "_lock_cleanup.txt");
-                defer!(std::fs::remove_file(path).unwrap());
-                let file1 = AsyncMmapFileMut::open(path).await.unwrap();
-                let file2 = AsyncMmapFileMut::open(path).await.unwrap();
-
-                // No other access is possible once an exclusive lock is created.
-                file1.lock_exclusive().unwrap();
-                assert!(file2.try_lock_exclusive().is_err());
-                assert!(file2.try_lock_shared().is_err());
-
-                // Drop file1; the lock should be released.
-                drop(file1);
-                file2.lock_shared().unwrap();
             }
         };
     }

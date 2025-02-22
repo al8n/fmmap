@@ -56,13 +56,13 @@ impl Debug for MmapFileWriter<'_> {
     }
 }
 
-impl<'a> io::Read for MmapFileWriter<'a> {
+impl io::Read for MmapFileWriter<'_> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.w.read(buf)
     }
 }
 
-impl<'a> io::BufRead for MmapFileWriter<'a> {
+impl io::BufRead for MmapFileWriter<'_> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         self.w.fill_buf()
     }
@@ -72,7 +72,7 @@ impl<'a> io::BufRead for MmapFileWriter<'a> {
     }
 }
 
-impl<'a> io::Write for MmapFileWriter<'a> {
+impl io::Write for MmapFileWriter<'_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.w.write(buf)
     }
@@ -82,13 +82,13 @@ impl<'a> io::Write for MmapFileWriter<'a> {
     }
 }
 
-impl<'a> io::Seek for MmapFileWriter<'a> {
+impl io::Seek for MmapFileWriter<'_> {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         self.w.seek(pos)
     }
 }
 
-impl<'a> Buf for MmapFileWriter<'a> {
+impl Buf for MmapFileWriter<'_> {
     fn remaining(&self) -> usize {
         self.w.remaining()
     }
@@ -162,7 +162,7 @@ pub trait MmapFileWriterExt {
     fn write_f64_le(&mut self, n: f64) -> io::Result<()>;
 }
 
-impl<'a> MmapFileWriterExt for MmapFileWriter<'a> {
+impl MmapFileWriterExt for MmapFileWriter<'_> {
     #[inline]
     fn write_i8(&mut self, n: i8) -> io::Result<()> {
         self.w.write_i8(n)
@@ -298,7 +298,7 @@ impl<'a> MmapFileWriterExt for MmapFileWriter<'a> {
 mod tests {
     use std::io::{BufRead, Read};
     use bytes::Buf;
-    use crate::{MmapFileMutExt};
+    use crate::MmapFileMutExt;
     use crate::raw::MemoryMmapFileMut;
 
     #[test]

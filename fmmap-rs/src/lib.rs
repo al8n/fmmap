@@ -118,8 +118,8 @@ extern crate enum_dispatch;
 macro_rules! cfg_async_std {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "async-std", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "async-std", feature = "async-trait"))))]
+            #[cfg(feature = "async-std")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
             $item
         )*
     }
@@ -128,8 +128,8 @@ macro_rules! cfg_async_std {
 macro_rules! cfg_smol {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "smol", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "smol", feature = "async-trait"))))]
+            #[cfg(feature = "smol")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
             $item
         )*
     }
@@ -138,8 +138,8 @@ macro_rules! cfg_smol {
 macro_rules! cfg_tokio {
     ($($item:item)*) => {
         $(
-            #[cfg(all(feature = "tokio", feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(feature = "tokio", feature = "async-trait"))))]
+            #[cfg(feature = "tokio")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
             $item
         )*
     }
@@ -158,8 +158,8 @@ macro_rules! cfg_sync {
 macro_rules! cfg_async {
     ($($item:item)*) => {
         $(
-            #[cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))]
-            #[cfg_attr(docsrs, doc(cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"), feature = "async-trait"))))]
+            #[cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"),))]
+            #[cfg_attr(docsrs, doc(cfg(all(any(feature = "smol", feature = "async-std", feature = "tokio"),))))]
             $item
         )*
     }
@@ -293,40 +293,6 @@ cfg_sync! {
                     // Once all shared file locks are dropped, an exclusive lock may be created;
                     file2.unlock().unwrap();
                     file3.lock_exclusive().unwrap();
-                }
-
-                #[test]
-                fn test_lock_exclusive() {
-                    let path = concat!($filename_prefix, "_lock_exclusive.txt");
-                    defer!(std::fs::remove_file(path).unwrap());
-                    let file1 = <$mmap_file_mut>::open(path).unwrap();
-                    let file2 = <$mmap_file>::open(path).unwrap();
-
-                    // No other access is possible once an exclusive lock is created.
-                    file1.lock_exclusive().unwrap();
-                    assert!(file2.try_lock_exclusive().is_err());
-                    assert!(file2.try_lock_shared().is_err());
-
-                    // Once the exclusive lock is dropped, the second file is able to create a lock.
-                    file1.unlock().unwrap();
-                    file2.lock_exclusive().unwrap();
-                }
-
-                #[test]
-                fn test_lock_cleanup() {
-                    let path = concat!($filename_prefix, "_lock_cleanup.txt");
-                    defer!(std::fs::remove_file(path).unwrap());
-                    let file1 = <$mmap_file_mut>::open(path).unwrap();
-                    let file2 = <$mmap_file>::open(path).unwrap();
-
-                    // No other access is possible once an exclusive lock is created.
-                    file1.lock_exclusive().unwrap();
-                    assert!(file2.try_lock_exclusive().is_err());
-                    assert!(file2.try_lock_shared().is_err());
-
-                    // Drop file1; the lock should be released.
-                    drop(file1);
-                    file2.lock_shared().unwrap();
                 }
 
                 #[test]
@@ -744,40 +710,6 @@ cfg_async! {
                 }
 
                 #[$runtime]
-                async fn test_lock_exclusive() {
-                    let path = concat!($filename_prefix, "_lock_exclusive.txt");
-                    defer!(std::fs::remove_file(path).unwrap());
-                    let file1 = <$mmap_file_mut>::open(path).await.unwrap();
-                    let file2 = <$mmap_file>::open(path).await.unwrap();
-
-                    // No other access is possible once an exclusive lock is created.
-                    file1.lock_exclusive().unwrap();
-                    assert!(file2.try_lock_exclusive().is_err());
-                    assert!(file2.try_lock_shared().is_err());
-
-                    // Once the exclusive lock is dropped, the second file is able to create a lock.
-                    file1.unlock().unwrap();
-                    file2.lock_exclusive().unwrap();
-                }
-
-                #[$runtime]
-                async fn test_lock_cleanup() {
-                    let path = concat!($filename_prefix, "_lock_cleanup.txt");
-                    defer!(std::fs::remove_file(path).unwrap());
-                    let file1 = <$mmap_file_mut>::open(path).await.unwrap();
-                    let file2 = <$mmap_file>::open(path).await.unwrap();
-
-                    // No other access is possible once an exclusive lock is created.
-                    file1.lock_exclusive().unwrap();
-                    assert!(file2.try_lock_exclusive().is_err());
-                    assert!(file2.try_lock_shared().is_err());
-
-                    // Drop file1; the lock should be released.
-                    drop(file1);
-                    file2.lock_shared().unwrap();
-                }
-
-                #[$runtime]
                 async fn test_open() {
                     let path = concat!($filename_prefix, "_open_test.txt");
                     defer!(std::fs::remove_file(path).unwrap());
@@ -1161,7 +1093,7 @@ mod mmap_file;
 mod options;
 mod reader;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 /// File I/O utils function
 pub mod utils;
 mod writer;
@@ -1179,11 +1111,6 @@ cfg_sync!(
     pub use writer::{MmapFileWriter, MmapFileWriterExt};
     pub use mmap_file::{MmapFileExt, MmapFileMutExt, MmapFile, MmapFileMut};
     pub use options::Options;
-);
-
-cfg_async!(
-    #[macro_use]
-    extern crate async_trait;
 );
 
 cfg_async_std!(

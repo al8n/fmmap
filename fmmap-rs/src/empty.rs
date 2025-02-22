@@ -12,7 +12,7 @@ cfg_async! {
                 path: PathBuf,
             }
 
-            #[async_trait]
+
             impl AsyncMmapFileExt for AsyncEmptyMmapFile {
                 #[inline]
                 fn len(&self) -> usize {
@@ -92,7 +92,7 @@ cfg_async! {
                 }
             }
 
-            #[async_trait]
+
             impl AsyncMmapFileMutExt for AsyncEmptyMmapFile {
                 #[inline]
                 fn as_mut_slice(&mut self) -> &mut [u8] {

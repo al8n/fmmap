@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::raw::tokio::{AsyncDiskMmapFile, AsyncDiskMmapFileMut};
 use crate::tokio::{AsyncMmapFile, AsyncMmapFileMut};
-use memmapix::MmapOptions;
+use memmap2::MmapOptions;
 use std::path::Path;
 use tokio::fs::OpenOptions;
 
