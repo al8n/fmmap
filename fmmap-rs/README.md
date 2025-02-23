@@ -21,7 +21,7 @@ English | [简体中文](README-zh_CN.md)
 </div>
 
 ## Design
-The design of this crate is inspired by Dgraph's mmap file implementation in [Stretto](https://github.com/dgraph-io/stretto).
+The design of this crate is inspired by Dgraph's mmap file implementation in [ristretto](https://github.com/hypermodeinc/ristretto).
 
 All of file-backed memory map has the potential for Undefined Behavior (UB) if the underlying file is subsequently modified (e.g. the file is deleted by another process), in or out of process, this crate tries to avoid this situation by provide file lock APIs. 
 
