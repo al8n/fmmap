@@ -1,0 +1,125 @@
+name: coverage
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  pull_request:
+    paths-ignore:
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Matrix dimensions covered for Codecov to reflect the platform split in
+# fmmap's metadata implementation:
+#
+# - linux-x86_64:   fmmap/src/metadata/unix.rs
+# - macos-aarch64:  fmmap/src/metadata/unix.rs
+# - windows-x86_64: fmmap/src/metadata/windows.rs
+#
+# On each runner we exclude the other OS's sources so they do not register
+# as 0/N uncovered lines. Codecov merges the three reports, so every OS file
+# ends up covered by its native host.
+jobs:
+  coverage:
+    name: coverage (${{ matrix.label }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-x86_64
+            exclude_os: >-
+              --exclude-files 'fmmap/src/metadata/windows.rs'
+            test_filter: ""
+
+          - os: macos-latest
+            label: macos-aarch64
+            exclude_os: >-
+              --exclude-files 'fmmap/src/metadata/windows.rs'
+            # macOS arm64 hardened runtime forbids PROT_EXEC mmap of regular
+            # files without JIT entitlements; Windows's
+            # FILE_GENERIC_READ-opened handle lacks FILE_EXECUTE so
+            # `MmapOptions::map_exec` returns ERROR_ACCESS_DENIED. Skip the
+            # freeze_exec / open_exec tests on both. Linux runs them fine.
+            test_filter: "--skip exec"
+
+          - os: windows-latest
+            label: windows-x86_64
+            exclude_os: >-
+              --exclude-files 'fmmap/src/metadata/unix.rs'
+            test_filter: "--skip exec"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        shell: bash
+        run: |
+          rustup toolchain install stable --component llvm-tools-preview --profile minimal
+          rustup default stable
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Generate coverage
+        shell: bash
+        run: |
+          mkdir -p coverage
+          cargo tarpaulin \
+            --engine llvm \
+            --workspace \
+            --all-features \
+            --run-types tests \
+            --ignore-tests \
+            ${{ matrix.exclude_os }} \
+            --out xml \
+            --output-dir coverage \
+            -- --test-threads 1 ${{ matrix.test_filter }}
+        continue-on-error: false
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.label }}
+          path: coverage/cobertura.xml
+
+  upload-codecov:
+    name: Upload merged coverage to Codecov
+    needs: coverage
+    runs-on: ubuntu-latest
+    if: always()
+    strategy:
+      matrix:
+        label:
+          - linux-x86_64
+          - macos-aarch64
+          - windows-x86_64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download ${{ matrix.label }} report
+        uses: actions/download-artifact@v6
+        with:
+          name: coverage-${{ matrix.label }}
+          path: coverage/
+
+      - name: Upload ${{ matrix.label }} to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage/cobertura.xml
+          flags: ${{ matrix.label }}
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

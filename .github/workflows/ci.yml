@@ -1,0 +1,207 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README'
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  pull_request:
+    paths-ignore:
+      - 'README'
+      - 'COPYRIGHT'
+      - 'LICENSE-*'
+      - '**.md'
+      - '**.txt'
+  workflow_dispatch:
+  schedule:
+    - cron: "0 1 1 * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: 1
+  nightly: nightly
+
+jobs:
+  # This represents the minimum Rust version supported by fmmap.
+  # Updating this should be done in a dedicated PR.
+  #
+  # Tests are not run here because dev-dependencies may require a newer
+  # compiler. `cargo hack --each-feature` guards against per-feature MSRV
+  # drift for the library itself. The `smol` feature is tracked in
+  # `minrust-smol` because its transitive dependencies currently need a
+  # higher compiler than the crate-level MSRV. The implicit `futures-util`
+  # feature is a dependency switch, not a standalone backend.
+  minrust:
+    name: minrust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        # Install both stable (used to compile cargo-hack itself) and the
+        # crate's MSRV (used to actually run the checks). Recent cargo-hack
+        # releases require a newer rustc than our MSRV, so we cannot install
+        # it under 1.75.
+        run: |
+          rustup toolchain install stable --no-self-update
+          rustup toolchain install 1.75.0 --no-self-update
+          rustup default 1.75.0
+      - name: Install cargo-hack
+        run: cargo +stable install cargo-hack
+      - name: Check each feature at MSRV
+        run: cargo +1.75.0 hack check --each-feature --no-dev-deps --skip smol,futures-util
+
+  # Separate MSRV track for smol. Its transitive dependencies currently
+  # require Rust 1.85, so this job keeps that higher feature-specific floor
+  # visible instead of silently folding it into the crate-level MSRV.
+  minrust-smol:
+    name: minrust-smol
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        run: rustup update 1.85.0 && rustup default 1.85.0
+      - name: Check smol feature
+        run: cargo check --no-default-features --features smol
+
+  rustfmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        run: rustup update stable && rustup default stable && rustup component add rustfmt
+      - name: Check formatting
+        run: |
+          cargo fmt --all -- --check
+          git ls-files '*.rs' | xargs rustfmt --edition 2021 --config-path rustfmt.toml --check
+
+  clippy:
+    name: clippy
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable && rustup component add clippy
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+      - name: Apply clippy lints
+        run: cargo hack clippy --each-feature --skip futures-util --all-targets
+
+  cross:
+    name: cross
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - i686-pc-windows-gnu
+          - x86_64-pc-windows-gnu
+          - i686-unknown-linux-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache cargo build and registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cross-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cross-${{ matrix.target }}-
+            ${{ runner.os }}-cross-
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+      - name: Install MinGW toolchain for Windows GNU cross targets
+        if: contains(matrix.target, 'pc-windows-gnu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64 binutils-mingw-w64
+      - name: cargo build --target ${{ matrix.target }}
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --workspace --target ${{ matrix.target }}
+
+  build:
+    name: build
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache cargo build and registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+      - name: Run build
+        run: cargo hack build --each-feature --skip futures-util --all-targets
+
+  test:
+    name: test
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Cache cargo build and registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-test-
+      - name: Install Rust
+        # --no-self-update is necessary because the windows environment cannot self-update rustup.exe.
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Install cargo-hack
+        run: cargo install cargo-hack
+      - name: Run test
+        run: cargo hack test --each-feature --skip futures-util -- --test-threads 1 --skip exec
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust nightly
+        run: rustup update ${{ env.nightly }} && rustup default ${{ env.nightly }}
+      - name: Build docs
+        run: cargo doc --workspace --lib --no-deps --all-features --document-private-items
+        env:
+          RUSTDOCFLAGS: --cfg docsrs

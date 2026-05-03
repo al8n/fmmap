@@ -1,0 +1,45 @@
+[package]
+name = "fmmap"
+version = "0.5.0"
+edition = "2021"
+repository = "https://github.com/al8n/fmmap/tree/main/fmmap-rs"
+description = "A flexible and convenient high-level mmap for zero-copy file I/O."
+license = "MIT OR Apache-2.0"
+authors = ["Al Liu <scygliu@gmail.com>"]
+documentation = "https://docs.rs/fmmap"
+keywords = ["file", "memmap2", "mmap", "memory-map", "io"]
+categories = ["filesystem", "asynchronous", "memory-management"]
+rust-version = "1.75.0"
+
+[lib]
+doctest = true
+
+[features]
+default = ["sync"]
+sync = ["dep:fs4", "fs4?/sync"]
+tokio = ["dep:tokio", "fs4/tokio", "dep:pin-project-lite", "tokio?/io-std", "tokio?/io-util", "tokio?/fs", "tokio?/rt"]
+smol = ["dep:smol", "fs4/smol", "dep:pin-project-lite"]
+
+[dependencies]
+bytes = "1"
+byteorder = "1"
+enum_dispatch = "0.3"
+fs4 = { version = "1", optional = true }
+futures-util = { version = "0.3", optional = true }
+memmapix = "0.9"
+pin-project-lite = { version = "0.2", optional = true }
+smol = { version = "2", optional = true }
+tokio = { version = "1", optional = true }
+
+[dev-dependencies]
+ctor = "0.12"
+criterion = "0.8"
+smol-potat = "1"
+scopeguard = "1.2"
+tempdir = "0.3"
+tokio = { version = "1", features = ["full"] }
+tokio-test = "0.4"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
