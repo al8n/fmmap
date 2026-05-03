@@ -18,45 +18,59 @@ A flexible and convenient high-level mmap for zero-copy file I/O.
 </div>
 
 ## Design
-The design of this crate is inspired by Dgraph's mmap file implementation in [ristretto](https://github.com/hypermodeinc/ristretto).
+Inspired by Dgraph's mmap file implementation in [ristretto](https://github.com/hypermodeinc/ristretto).
 
-All of file-backed memory map has the potential for Undefined Behavior (UB) if the underlying file is subsequently modified (e.g. the file is deleted by another process), in or out of process, this crate tries to avoid this situation by provide file lock APIs. 
+A file-backed memory map exposes the kernel's view of an inode as a `&[u8]`/`&mut [u8]`. That makes it easy to reach for, but it also means UB the moment another actor truncates, unlinks, or rewrites the file out from under the mapping — SIGBUS on Unix, mapping detachment on Windows, silent torn reads in either. `fmmap` raises a safe API over `memmapix` by treating those concerns as first-class:
 
-This crate supports std and popular async runtimes (tokio, smol), and thanks to `macro` in Rust, it is super easy to support any new async runtime. For details, please see the implementation for tokio and smol in the source code.
+- **Auto-acquired advisory lock** on every constructor — exclusive on writable maps, shared on read-only / COW maps. Aliased writable mappings of the same file (and mut-then-COW) are rejected up front.
+- **Identity-checked deletion** (POSIX `dev`+`ino`). Captured at open, used by every unlink path to refuse to delete a file someone else has swapped in at the path. Windows on stable Rust falls back to "path resolves" semantics — `file_index` is still nightly-only — and the residual race window is documented.
+- **Pre-validated mapping ranges**. Constructors reject `offset`/`len` overflow, ranges past EOF, and effective lengths > `isize::MAX` *before* any destructive `set_len` runs, so an invalid `Options` never zeroes or extends an existing file.
+- **Crash-durable unlink**. The parent directory is pinned by a handle opened *before* `remove_file`, then fsynced through that same handle, so a parent rename between unlink and fsync can't direct the durability to the wrong inode.
+- **Reentrant-safe lock methods**. `LockFileEx` deadlocks on the same Windows handle; `lock` / `lock_shared` short-circuit when the desired state is already held. The lock methods take `&mut self` so single-owner serialization is enforced by the borrow checker.
+- **Poison-safe truncate / freeze**. A failed truncate marks the wrapper poisoned; subsequent reads return `&[]` and writes/flushes/freezes return `Err` rather than handing back an anonymous-mapped placeholder pretending to be the original file.
+
+`std` plus tokio and smol are first-class. The async surface is built from the same set of macros, so adding a new runtime is small and mechanical — see `fmmap/src/disk/{tokio,smol}_impl.rs`.
 
 ## Features
-- [x] dozens of file I/O util functions
-- [x] file-backed memory maps
+- [x] file-backed memory maps with auto-locked construction
+- [x] read-only / copy-on-write / mutable / executable maps
+- [x] identity-checked, path-reuse-safe deletion
+- [x] crash-durable unlink with pre-opened parent fsync
+- [x] pre-validated mapping ranges (rejects past-EOF and `> isize::MAX` before any destructive `set_len`)
+- [x] poison-safe `truncate` / `freeze` / `freeze_exec`
 - [x] synchronous and asynchronous flushing
-- [x] copy-on-write memory maps
-- [x] read-only memory maps
-- [x] stack support (`MAP_STACK` on unix)
-- [x] executable memory maps
-- [x] file locks.
+- [x] reader / writer adapters with byteorder + seek
+- [x] dozens of file I/O util functions
+- [x] stack support (`MAP_STACK` on Unix)
 - [x] [tokio][tokio]
 - [x] [smol][smol]
 
 ## Installation
+
+`fmmap` requires Rust **1.75** or later.
+
 - std
     ```toml
     [dependencies]
-    fmmap = "0.5" 
+    fmmap = "0.5"
     ```
 
 - [tokio][tokio]
     ```toml
     [dependencies]
-    fmmap = { version = "0.5", features = ["tokio"] }
+    fmmap = { version = "0.5", default-features = false, features = ["tokio"] }
     ```
 
 - [smol][smol]
     ```toml
     [dependencies]
-    fmmap = { version = "0.5", features = ["smol"] }
+    fmmap = { version = "0.5", default-features = false, features = ["smol"] }
     ```
 
+The `sync` feature is on by default.
+
 ## Examples
-This crate is 100% documented, see [documents][doc-url] for examples.
+This crate is 100% documented, see [docs.rs][doc-url] for examples.
 
 ## License
 
