@@ -9,7 +9,7 @@ authors = ["Al Liu <scygliu@gmail.com>"]
 documentation = "https://docs.rs/fmmap"
 keywords = ["file", "memmap2", "mmap", "memory-map", "io"]
 categories = ["filesystem", "asynchronous", "memory-management"]
-rust-version = "1.75.0"
+rust-version = "1.81.0"
 
 [lib]
 doctest = true
