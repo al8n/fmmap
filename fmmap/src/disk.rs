@@ -826,18 +826,20 @@ cfg_async! {
           self.poisoned = true;
         }
 
-        /// Recovery-aware variant of `drop_remove`. On the **only**
-        /// recoverable failure mode — `fcntl_dupfd_cloexec` returning
-        /// `EMFILE` on smol while extracting the inode pin — `Self`
-        /// is returned in [`DropRemoveError::Recoverable`] so the
-        /// caller can retry once fd pressure subsides. All other
-        /// failures (probe / unlink / parent-fsync) happen after the
-        /// pin has been extracted and `Self` has been destructured;
-        /// they surface as [`DropRemoveError::Terminal`].
+        /// Recovery-aware variant of `drop_remove`. The recoverable
+        /// failure modes are the **two pre-destructive fd
+        /// allocations**: opening the parent directory handle (used
+        /// for fsync), and (on smol) `fcntl_dupfd_cloexec` for the
+        /// inode pin. Either can fail with `EMFILE` under fd
+        /// pressure; on those failures `Self` is returned in
+        /// [`DropRemoveError::Recoverable`] so the caller can retry
+        /// once fd pressure subsides. All later failures (probe /
+        /// unlink / parent-fsync) happen after `Self` has been
+        /// destructured and surface as [`DropRemoveError::Terminal`].
         ///
-        /// On tokio, `into_std()` allocates no fd and never fails for
-        /// fd-pressure reasons, so the `Recoverable` variant is
-        /// unreachable on tokio.
+        /// On tokio, `into_std()` allocates no fd, so only the
+        /// parent-handle open can be `Recoverable`; on smol both can
+        /// be.
         ///
         /// The trait method `drop_remove` (from `AsyncMmapFileMutExt`)
         /// delegates here and discards the recovered value via
@@ -850,8 +852,19 @@ cfg_async! {
         pub async fn try_drop_remove(
           #[cfg_attr(not(unix), allow(unused_mut))] mut self,
         ) -> std::result::Result<(), crate::error::DropRemoveError<Self>> {
-          // Phase 1 (recoverable): extract the inode pin. On dup
-          // failure, restore self.file and surface as Recoverable.
+          // Phase 1 (recoverable): open the parent handle BEFORE
+          // touching any of self's owned resources. An `open()` here
+          // can fail with EMFILE under fd pressure; if it does,
+          // self is still fully intact and we surface Recoverable.
+          let parent_handle = match crate::utils::open_parent_for_sync(&self.path) {
+            Ok(h) => h,
+            Err(e) => return Err(crate::error::DropRemoveError::Recoverable(self, e)),
+          };
+
+          // Phase 2 (recoverable): extract the inode pin. On dup
+          // failure (smol EMFILE), restore self.file and surface
+          // as Recoverable. Drop the parent_handle on the way out
+          // (fresh fd, no-op cleanup).
           #[cfg(unix)]
           let pin: std::fs::File = {
             let async_file = self.file;
@@ -859,6 +872,7 @@ cfg_async! {
               Ok(p) => p,
               Err((file_back, e)) => {
                 self.file = file_back;
+                drop(parent_handle);
                 return Err(crate::error::DropRemoveError::Recoverable(self, e));
               }
             }
@@ -866,9 +880,10 @@ cfg_async! {
           #[cfg(not(unix))]
           drop(self.file);
 
-          // Phase 2 (terminal from here on): destructure Self and
-          // run the blocking unlink + fsync sequence. Any failure
-          // here can't return Self (mmap dropped, file consumed).
+          // Phase 3 (terminal from here on): destructure Self and
+          // run the blocking unlink + fsync sequence using the
+          // already-open parent_handle. Any failure here can't
+          // return Self (mmap dropped, file consumed).
           let path = self.path;
           let identity = self.file_identity;
           drop(self.mmap);
@@ -878,7 +893,6 @@ cfg_async! {
           let inode_pin: Option<std::fs::File> = None;
           run_blocking_io(move || -> crate::error::Result<()> {
             let _inode_pin = inode_pin;
-            let parent_handle = crate::utils::open_parent_for_sync(&path)?;
             match crate::utils::identity_at_or_path(&parent_handle, &path) {
               Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
               Err(e) => return Err(e),
