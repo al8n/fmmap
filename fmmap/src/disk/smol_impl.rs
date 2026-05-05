@@ -25,29 +25,33 @@ where
   smol::unblock(f).await
 }
 
-/// Convert the runtime-specific async file into an owned
-/// `std::fs::File` to use as the inode pin during durable delete.
+/// Extract the inode pin from a runtime-specific async file. Mirrors
+/// `mmap_file::smol_impl::extract_pin_or_err` (same name, same shape).
 ///
 /// Smol uses `async-fs`, which does **not** expose an `into_std`
 /// equivalent — its inner `std::fs::File` is held by an `Arc<File>`
 /// shared with a background `Unblock` task and cannot be unwrapped
-/// without an upstream API change. The fallback is to dup the fd via
-/// `fcntl_dupfd_cloexec`. Under fd pressure (EMFILE) this returns
-/// Err; the caller's raw `AsyncDiskMmapFileMut::drop_remove(self)`
-/// will then surface the error and the file will not be deleted.
-/// The wrapper-level `AsyncMmapFileMut::drop_remove` and `remove`
-/// have a `remove_on_drop = true` recovery path that lets `Drop`
-/// retry the dup once fds free up.
+/// without upstream API support (see smol-rs/async-fs#56). The
+/// fallback is to dup the fd via `fcntl_dupfd_cloexec`. Under fd
+/// pressure (EMFILE) the dup fails and the file is returned in
+/// `Err((file, error))` so the caller (raw `drop_remove` or wrapper
+/// `drop_remove`/`remove`) can decide whether to surface the error,
+/// reconstruct itself, or trigger a retry.
 #[cfg(unix)]
-async fn extract_inode_pin(file: File) -> std::io::Result<std::fs::File> {
+async fn extract_pin_or_err(
+  file: File,
+) -> std::result::Result<std::fs::File, (File, Error)> {
   use std::os::fd::{AsRawFd, BorrowedFd};
   let raw = file.as_raw_fd();
   // SAFETY: file is alive for the duration of this borrow.
   let borrowed = unsafe { BorrowedFd::borrow_raw(raw) };
-  let owned = rustix::io::fcntl_dupfd_cloexec(borrowed, 0).map_err(std::io::Error::from)?;
-  // dup is independent now; close the async wrapper.
-  drop(file);
-  Ok(std::fs::File::from(owned))
+  match rustix::io::fcntl_dupfd_cloexec(borrowed, 0) {
+    Ok(owned) => {
+      drop(file);
+      Ok(std::fs::File::from(owned))
+    }
+    Err(e) => Err((file, std::io::Error::from(e))),
+  }
 }
 
 declare_and_impl_async_fmmap_file!("smol_async", "smol", "smol", File);

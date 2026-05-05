@@ -29,12 +29,17 @@ where
   }
 }
 
-/// Convert the runtime-specific async file into an owned
-/// `std::fs::File` to use as the inode pin during durable delete.
-/// `tokio::fs::File::into_std` moves the underlying `std::fs::File`
-/// out without allocating a new fd — no EMFILE risk.
+/// Extract the inode pin from a runtime-specific async file. Mirrors
+/// `mmap_file::tokio_impl::extract_pin_or_err` (same name, same shape)
+/// so the helper API is uniform between the wrapper and raw async
+/// delete paths. tokio's `into_std()` moves the underlying
+/// `std::fs::File` without allocating a new fd, so the `Err` arm is
+/// unreachable on tokio — but the shape is kept symmetric with smol
+/// for trait-free helper-name dispatch from the disk macro.
 #[cfg(unix)]
-async fn extract_inode_pin(file: File) -> std::io::Result<std::fs::File> {
+async fn extract_pin_or_err(
+  file: File,
+) -> std::result::Result<std::fs::File, (File, Error)> {
   Ok(file.into_std().await)
 }
 

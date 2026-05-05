@@ -731,7 +731,12 @@ cfg_async! {
           // recovery path that retries via Drop).
           drop(self.mmap);
           #[cfg(unix)]
-          let inode_pin: Option<std::fs::File> = Some(extract_inode_pin(self.file).await?);
+          let inode_pin: Option<std::fs::File> = match extract_pin_or_err(self.file).await {
+            Ok(pin) => Some(pin),
+            // Discard the recovered file; the trait method's
+            // `Result<()>` shape can't return `Self`.
+            Err((_file_back, e)) => return Err(e),
+          };
           #[cfg(not(unix))]
           let inode_pin: Option<std::fs::File> = {
             drop(self.file);
