@@ -73,6 +73,19 @@ mod test {
   use super::*;
   use scopeguard::defer;
 
+  /// `try_drop_remove` succeeds on the happy path. The recoverable
+  /// arm (smol-EMFILE on the dup) requires fault injection that's
+  /// not exercised in CI; see #15.
+  #[smol_potat::test]
+  async fn try_drop_remove_happy_path() {
+    let path = "smol_async_disk_try_drop_remove_test.txt";
+    let file = unsafe { AsyncDiskMmapFileMut::create(path) }.await.unwrap();
+    defer!(let _ = std::fs::remove_file(path););
+    let result = file.try_drop_remove().await;
+    assert!(result.is_ok(), "happy path returns Ok");
+    assert!(!std::path::Path::new(path).exists());
+  }
+
   #[smol_potat::test]
   async fn test_close_with_truncate_on_empty_file() {
     let file =

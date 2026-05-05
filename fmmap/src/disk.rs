@@ -719,60 +719,13 @@ cfg_async! {
         #[doc = "# })"]
         #[doc = "```"]
         async fn drop_remove(self) -> crate::error::Result<()> {
-          let path = self.path;
-          let identity = self.file_identity;
-          // Take ownership of the inode pin via runtime-specific
-          // helper. tokio uses `tokio::fs::File::into_std` (no fd
-          // alloc — closes the EMFILE-during-drop_remove window). smol
-          // falls back to `fcntl_dupfd_cloexec` because async-fs has
-          // no into_std equivalent; on EMFILE the raw API returns Err
-          // and the file is not deleted (documented limitation; the
-          // wrapper's `drop_remove`/`remove` route through their own
-          // recovery path that retries via Drop).
-          drop(self.mmap);
-          #[cfg(unix)]
-          let inode_pin: Option<std::fs::File> = match extract_pin_or_err(self.file).await {
-            Ok(pin) => Some(pin),
-            // Discard the recovered file; the trait method's
-            // `Result<()>` shape can't return `Self`.
-            Err((_file_back, e)) => return Err(e),
-          };
-          #[cfg(not(unix))]
-          let inode_pin: Option<std::fs::File> = {
-            drop(self.file);
-            None
-          };
-          // Run the entire blocking sequence on the runtime's
-          // blocking-task pool, matching the wrapper-level async paths
-          // so a slow filesystem can't stall the executor.
-          run_blocking_io(move || -> crate::error::Result<()> {
-            let _inode_pin = inode_pin;
-            let parent_handle = crate::utils::open_parent_for_sync(&path)?;
-            match crate::utils::identity_at_or_path(&parent_handle, &path) {
-              Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
-              Err(e) => return Err(e),
-              Ok(probe_id) => {
-                if !identity.is_known_equal(&probe_id) {
-                  return Err(Error::other(format!(
-                    "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
-                    path.display(),
-                  )));
-                }
-              }
-            }
-            crate::utils::unlink_at_or_path(&parent_handle, &path, identity)?;
-            crate::utils::sync_parent_handle(&parent_handle).map_err(|e| {
-              Error::new(
-                e.kind(),
-                format!(
-                  "file '{}' unlinked but parent dir fsync failed: {e}; \
-                   the unlink is committed but not yet crash-durable",
-                  path.display(),
-                ),
-              )
-            })
-          })
-          .await
+          // Trait method: discard the recovered value on Err and
+          // surface just the error. Callers needing recovery should
+          // use the inherent `try_drop_remove` method.
+          self
+            .try_drop_remove()
+            .await
+            .map_err(crate::error::DropRemoveError::into_error)
         }
 
         /// Close and truncate the underlying file
@@ -871,6 +824,87 @@ cfg_async! {
         #[allow(dead_code)]
         pub(crate) fn force_poison_for_test(&mut self) {
           self.poisoned = true;
+        }
+
+        /// Recovery-aware variant of `drop_remove`. On the **only**
+        /// recoverable failure mode — `fcntl_dupfd_cloexec` returning
+        /// `EMFILE` on smol while extracting the inode pin — `Self`
+        /// is returned in [`DropRemoveError::Recoverable`] so the
+        /// caller can retry once fd pressure subsides. All other
+        /// failures (probe / unlink / parent-fsync) happen after the
+        /// pin has been extracted and `Self` has been destructured;
+        /// they surface as [`DropRemoveError::Terminal`].
+        ///
+        /// On tokio, `into_std()` allocates no fd and never fails for
+        /// fd-pressure reasons, so the `Recoverable` variant is
+        /// unreachable on tokio.
+        ///
+        /// The trait method `drop_remove` (from `AsyncMmapFileMutExt`)
+        /// delegates here and discards the recovered value via
+        /// [`DropRemoveError::into_error`] for users who don't need
+        /// recovery semantics.
+        ///
+        /// [`DropRemoveError::Recoverable`]: crate::error::DropRemoveError::Recoverable
+        /// [`DropRemoveError::Terminal`]: crate::error::DropRemoveError::Terminal
+        /// [`DropRemoveError::into_error`]: crate::error::DropRemoveError::into_error
+        pub async fn try_drop_remove(
+          #[cfg_attr(not(unix), allow(unused_mut))] mut self,
+        ) -> std::result::Result<(), crate::error::DropRemoveError<Self>> {
+          // Phase 1 (recoverable): extract the inode pin. On dup
+          // failure, restore self.file and surface as Recoverable.
+          #[cfg(unix)]
+          let pin: std::fs::File = {
+            let async_file = self.file;
+            match extract_pin_or_err(async_file).await {
+              Ok(p) => p,
+              Err((file_back, e)) => {
+                self.file = file_back;
+                return Err(crate::error::DropRemoveError::Recoverable(self, e));
+              }
+            }
+          };
+          #[cfg(not(unix))]
+          drop(self.file);
+
+          // Phase 2 (terminal from here on): destructure Self and
+          // run the blocking unlink + fsync sequence. Any failure
+          // here can't return Self (mmap dropped, file consumed).
+          let path = self.path;
+          let identity = self.file_identity;
+          drop(self.mmap);
+          #[cfg(unix)]
+          let inode_pin: Option<std::fs::File> = Some(pin);
+          #[cfg(not(unix))]
+          let inode_pin: Option<std::fs::File> = None;
+          run_blocking_io(move || -> crate::error::Result<()> {
+            let _inode_pin = inode_pin;
+            let parent_handle = crate::utils::open_parent_for_sync(&path)?;
+            match crate::utils::identity_at_or_path(&parent_handle, &path) {
+              Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
+              Err(e) => return Err(e),
+              Ok(probe_id) => {
+                if !identity.is_known_equal(&probe_id) {
+                  return Err(Error::other(format!(
+                    "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
+                    path.display(),
+                  )));
+                }
+              }
+            }
+            crate::utils::unlink_at_or_path(&parent_handle, &path, identity)?;
+            crate::utils::sync_parent_handle(&parent_handle).map_err(|e| {
+              Error::new(
+                e.kind(),
+                format!(
+                  "file '{}' unlinked but parent dir fsync failed: {e}; \
+                   the unlink is committed but not yet crash-durable",
+                  path.display(),
+                ),
+              )
+            })
+          })
+          .await
+          .map_err(crate::error::DropRemoveError::Terminal)
         }
 
         /// In-place close-with-truncate so the wrapper can keep the
