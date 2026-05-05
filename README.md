@@ -31,27 +31,32 @@ A file-backed memory map exposes the kernel's view of an inode as a `&[u8]`/`&mu
 
 `std` plus tokio and smol are first-class. The async surface is built from the same set of macros, so adding a new runtime is small and mechanical — see `fmmap/src/disk/{tokio,smol}_impl.rs`.
 
-### Path-reuse limitations
+### What identity-checked delete actually guarantees
 
-Identity-checked deletion is best-effort and the rest of the safety surface assumes a non-adversarial filesystem. Specifically:
+Identity-checked deletion is built on the strongest atomic primitives each platform exposes; what's left is a small, documented set of irreducible races.
 
-- **One-syscall probe→unlink TOCTOU.** Between the identity probe and the actual `remove_file`, an attacker with rights to mutate the parent directory could swap the entry. Closing this fully needs atomic primitives that `std` doesn't expose — `unlinkat(parent_fd, basename, 0)` after `fstatat` on POSIX, or `SetFileInformationByHandle(FileDispositionInfo)` on a `FILE_SHARE_DELETE` handle on Windows. The narrow window (one syscall) is dramatically smaller than the broad handle-drop-to-retry window the identity check *does* close, but it isn't zero.
-- **POSIX inode recycling.** The kernel can reuse recently-freed inode numbers; on small-id filesystems (tmpfs in particular) a fresh file may occasionally land on the original inode, defeating the comparison. Holding any other handle on the original inode pins it (we keep the parent dir handle alive across the unlink, which already pins the parent inode).
-- **External NotFound never claims durable deletion.** When the path probe returns `NotFound` (the file is missing at probe time, or `unlinkat` finds nothing), fmmap stays in `NeedsUnlink` and surfaces `NotFound` rather than claiming the deletion succeeded. Earlier versions used a `nlink == 0` check to converge on "durably gone", but that signal can't distinguish "unlink in our parent" from "rename + unlink in another parent" — and our parent's fsync only commits the former. Drop's best-effort fsync of our parent still helps in the typical "external `rm` in our parent" case, but the API contract is now: explicit `remove()` only returns `Ok` if fmmap itself observed `unlinkat` succeed in the parent it then fsynced. Callers who want crash-durable identity-checked deletion under concurrent rename should serialize external mutations or `fsync` the relevant parents themselves.
+**POSIX**: probe + unlink + parent fsync are all bound to the same parent fd via `rustix`'s `fstatat` + `unlinkat`. A parent rename mid-operation can't direct the unlink or fsync to a different directory than the one we verified. The original file's open-file description is held alive (via `fcntl(F_DUPFD_CLOEXEC)` or, in the tokio wrapper, `tokio::fs::File::into_std()`) across probe + unlink, so the kernel cannot recycle `(dev, ino)` to a fresh file in the window. Identity capture itself is allocation-free (`fstat` on a `BorrowedFd`), so EMFILE has no path to defeating the identity check.
 
-### Async wrapper EMFILE on consuming `drop_remove`
+**Windows**: probe and unlink are bound to a single handle. The handle is opened with `DELETE | FILE_SHARE_*` and `FILE_FLAG_OPEN_REPARSE_POINT`; we re-verify identity and refuse reparse points on that handle, then issue `SetFileInformationByHandle(FileDispositionInfoEx)` with `POSIX_SEMANTICS | IGNORE_READONLY_ATTRIBUTE`. Older Windows / FAT32 fall back to `FileDispositionInfo` after a `ReOpenFile` widens access to clear `FILE_ATTRIBUTE_READONLY` (using `FILE_ATTRIBUTE_NORMAL` as the cleared-state sentinel — Windows treats `0` as "no change"). Identity is captured directly via `GetFileInformationByHandle` on a borrowed `HANDLE` — no `DuplicateHandle`, no fd alloc.
 
-On smol, `AsyncMmapFileMut::drop_remove(self)` allocates a duplicate file descriptor for the inode pin (smol's `async-fs::File` has no `into_std()` equivalent). Under fd pressure (`EMFILE`) the dup fails and `drop_remove` returns `Err` deterministically — the file is *not* deleted, no hidden Drop-time retry attempts to clean up. Callers can recover by calling `std::fs::remove_file(path)` themselves, or use `AsyncMmapFileMut::remove(&mut self)` which preserves `self` for an explicit retry once fd pressure subsides.
+**API contract**: explicit `remove()` (and `drop_remove()`) only returns `Ok` if fmmap itself observed the unlink succeed in the parent it then fsynced. `NotFound` from the probe or unlink is *never* converted into a durable-success retry — the wrapper stays in `NeedsUnlink` and surfaces the error, even when the inode's `nlink` has dropped to 0 (which can't distinguish "unlink in our parent" from "external rename + unlink elsewhere"). Drop's best-effort cleanup still fsyncs the parent in the common case, but the API doesn't promise durability we can't verify.
 
-Tokio's wrapper extracts the inode pin via `tokio::fs::File::into_std()` (no fd allocation), so EMFILE doesn't apply on tokio.
+### Residual races (irreducible at this layer)
+
+- **One-syscall TOCTOU on POSIX.** Between `fstatat` and `unlinkat` — both bound to the same parent fd — there's still a single-syscall window where the entry could be replaced. Closing this needs an inode-bound `unlinkat` primitive POSIX doesn't expose. The window is dramatically narrower than the handle-drop-to-retry window the identity check *does* close, but it's not zero.
+- **External rename + unlink elsewhere.** A concurrent actor can rename our file into a different directory and unlink it there. The inode's `nlink` drops to 0 but our parent's fsync doesn't commit *their* unlink. fmmap detects this only as "the file is gone" and surfaces `NotFound`; under that scenario, callers who need crash-durability should serialize external mutations or `fsync` the relevant parents themselves.
+- **Smol consuming `drop_remove(self)` under EMFILE.** smol's `async-fs::File` exposes no `into_std()`, so the inode pin is a `fcntl_dupfd_cloexec` of the underlying fd. Under fd pressure the dup fails, `drop_remove` returns `Err` deterministically (no hidden Drop-time retry), and the file remains on disk. Callers can recover via `std::fs::remove_file(path)` directly or `AsyncMmapFileMut::remove(&mut self)` which preserves `self` for an explicit retry. Tokio's `into_std()` allocates no fd so this limitation doesn't apply on tokio.
 
 If your threat model includes an active local adversary, do not rely on identity-checked delete for safety — perform the cleanup yourself with whatever atomic primitives your platform provides.
 
 ## Features
 - [x] file-backed memory maps with auto-locked construction
 - [x] read-only / copy-on-write / mutable / executable maps
-- [x] best-effort path-reuse mitigation on deletion (POSIX dev+ino, Windows volume+fileIndex via `windows-sys`; see [Design](#design) for limits)
-- [x] crash-durable unlink with pre-opened parent fsync (the same handle is reused on retry)
+- [x] identity-checked deletion bound to a single kernel-verified handle (POSIX `fstatat`+`unlinkat` on a parent fd; Windows `SetFileInformationByHandle(FileDispositionInfoEx)` on a `DELETE | FILE_SHARE_DELETE` handle); see [Design](#design) for residual races
+- [x] inode pin across probe + unlink (POSIX `F_DUPFD_CLOEXEC` or tokio `into_std`) — defends against `(dev, ino)` recycling on tmpfs / small-id filesystems
+- [x] crash-durable unlink with pre-opened parent fsync (same handle reused on retry)
+- [x] symlink / reparse-point refusal at the same syscall as the identity probe (POSIX `AT_SYMLINK_NOFOLLOW`, Windows `FILE_FLAG_OPEN_REPARSE_POINT`)
+- [x] readonly-file delete on Windows (`FileDispositionInfoEx` with `IGNORE_READONLY_ATTRIBUTE`, legacy `FileDispositionInfo` fallback for pre-1607)
 - [x] pre-validated mapping ranges (rejects past-EOF and `> isize::MAX` before any destructive `set_len`)
 - [x] poison-safe `truncate` / `freeze` / `freeze_exec`
 - [x] synchronous and asynchronous flushing
