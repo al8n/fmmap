@@ -678,7 +678,26 @@ cfg_async! {
           Ok(())
         }
 
-        /// Remove the underlying file
+        /// Remove the underlying file.
+        ///
+        /// # Durability semantics
+        ///
+        /// On success, the unlink is committed AND the parent directory's
+        /// metadata is fsynced (crash-durable). On parent-fsync failure
+        /// after a successful unlink, the unlink is committed but not
+        /// crash-durable; the raw API has no `NeedsParentSync` state
+        /// machine, so the caller cannot retry fsync on the original
+        /// parent inode. **For crash-durable identity-checked deletion,
+        /// prefer the wrapper API** (`AsyncMmapFileMut::drop_remove` /
+        /// `AsyncMmapFileMut::remove`) which carries the parent handle
+        /// in `PendingDelete::NeedsParentSync` and retries on the same
+        /// inode.
+        ///
+        /// On smol under fd pressure (EMFILE), the inode-pin dup may
+        /// fail and the file is not deleted; `self` is consumed and the
+        /// caller has no retry path. tokio uses `into_std` to extract
+        /// the pin without allocating an fd, so no EMFILE failure mode
+        /// applies on tokio.
         ///
         /// # Example
         ///
@@ -702,47 +721,53 @@ cfg_async! {
         async fn drop_remove(self) -> crate::error::Result<()> {
           let path = self.path;
           let identity = self.file_identity;
+          // Take ownership of the inode pin via runtime-specific
+          // helper. tokio uses `tokio::fs::File::into_std` (no fd
+          // alloc — closes the EMFILE-during-drop_remove window). smol
+          // falls back to `fcntl_dupfd_cloexec` because async-fs has
+          // no into_std equivalent; on EMFILE the raw API returns Err
+          // and the file is not deleted (documented limitation; the
+          // wrapper's `drop_remove`/`remove` route through their own
+          // recovery path that retries via Drop).
           drop(self.mmap);
-          drop(self.file);
-          // Pre-open the parent dir handle so the post-unlink fsync hits
-          // the *original* parent inode even if the path's parent is
-          // renamed mid-operation.
-          let parent_handle = crate::utils::open_parent_for_sync(&path)?;
-          // See sync raw `drop_remove`: identity-check before unlink so a
-          // path-reused file isn't deleted in the window between handle
-          // drop and `remove_file`. Distinguish "path missing" (let the
-          // unlink return NotFound below) from "path-reuse mismatch"
-          // (refuse delete with a tagged error).
-          match std::fs::metadata(&path) {
-            Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
-            Err(e) => return Err(e),
-            Ok(probe) => {
-              let probe_id = crate::utils::FileIdentity::from_metadata(&probe);
-              if !identity.is_known_equal(&probe_id) {
-                return Err(Error::other(format!(
-                  "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink, or platform identity unavailable)",
-                  path.display(),
-                )));
+          #[cfg(unix)]
+          let inode_pin: Option<std::fs::File> = Some(extract_inode_pin(self.file).await?);
+          #[cfg(not(unix))]
+          let inode_pin: Option<std::fs::File> = {
+            drop(self.file);
+            None
+          };
+          // Run the entire blocking sequence on the runtime's
+          // blocking-task pool, matching the wrapper-level async paths
+          // so a slow filesystem can't stall the executor.
+          run_blocking_io(move || -> crate::error::Result<()> {
+            let _inode_pin = inode_pin;
+            let parent_handle = crate::utils::open_parent_for_sync(&path)?;
+            match crate::utils::identity_at_or_path(&parent_handle, &path) {
+              Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
+              Err(e) => return Err(e),
+              Ok(probe_id) => {
+                if !identity.is_known_equal(&probe_id) {
+                  return Err(Error::other(format!(
+                    "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
+                    path.display(),
+                  )));
+                }
               }
             }
-          }
-          // Initial-call semantics: NotFound is the user's error.
-          // Idempotency for the failed-mid-way retry path lives at the
-          // wrapper layer.
-          remove_file(&path).await?;
-          // Fsync the original parent inode handle. Tag a parent-sync
-          // failure so the caller can tell unlink-failed from
-          // unlink-succeeded-but-parent-fsync-failed.
-          crate::utils::sync_parent_handle(&parent_handle).map_err(|e| {
-            Error::new(
-              e.kind(),
-              format!(
-                "file '{}' unlinked but parent dir fsync failed: {e}; \
-                 the unlink is committed but not yet crash-durable",
-                path.display(),
-              ),
-            )
+            crate::utils::unlink_at_or_path(&parent_handle, &path, identity)?;
+            crate::utils::sync_parent_handle(&parent_handle).map_err(|e| {
+              Error::new(
+                e.kind(),
+                format!(
+                  "file '{}' unlinked but parent dir fsync failed: {e}; \
+                   the unlink is committed but not yet crash-durable",
+                  path.display(),
+                ),
+              )
+            })
           })
+          .await
         }
 
         /// Close and truncate the underlying file
@@ -1459,7 +1484,28 @@ cfg_async! {
             sync_parent_async(&path).await?;
           }
 
-          let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata().await?);
+          // Capture identity from the *already-open* async handle so
+          // an attacker can't race a path swap between our open and the
+          // identity probe. tokio::fs::File / smol::fs::File both impl
+          // AsRawFd / AsRawHandle, so we read the raw fd/handle and
+          // call the appropriate platform identity API on it.
+          let file_identity = {
+            #[cfg(unix)]
+            {
+              use std::os::fd::AsRawFd;
+              // SAFETY: `file` is alive for the duration of this call;
+              // we hold it across the unsafe call.
+              unsafe { crate::utils::FileIdentity::from_raw_fd(file.as_raw_fd()) }?
+            }
+            #[cfg(windows)]
+            {
+              use std::os::windows::io::AsRawHandle;
+              // SAFETY: `file` is alive for the duration of this call.
+              unsafe { crate::utils::FileIdentity::from_raw_handle(file.as_raw_handle()) }?
+            }
+            #[cfg(not(any(unix, windows)))]
+            crate::utils::FileIdentity::from_path(path_ref)?
+          };
           let mmap = unsafe {
             match &opts_bk {
               None => MmapMut::map_mut(&file)?,
@@ -1540,7 +1586,28 @@ cfg_async! {
             sync_parent_async(&path).await?;
           }
 
-          let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata().await?);
+          // Capture identity from the *already-open* async handle so
+          // an attacker can't race a path swap between our open and the
+          // identity probe. tokio::fs::File / smol::fs::File both impl
+          // AsRawFd / AsRawHandle, so we read the raw fd/handle and
+          // call the appropriate platform identity API on it.
+          let file_identity = {
+            #[cfg(unix)]
+            {
+              use std::os::fd::AsRawFd;
+              // SAFETY: `file` is alive for the duration of this call;
+              // we hold it across the unsafe call.
+              unsafe { crate::utils::FileIdentity::from_raw_fd(file.as_raw_fd()) }?
+            }
+            #[cfg(windows)]
+            {
+              use std::os::windows::io::AsRawHandle;
+              // SAFETY: `file` is alive for the duration of this call.
+              unsafe { crate::utils::FileIdentity::from_raw_handle(file.as_raw_handle()) }?
+            }
+            #[cfg(not(any(unix, windows)))]
+            crate::utils::FileIdentity::from_path(path_ref)?
+          };
           let mmap = match &opts_bk {
             None => unsafe {
               MmapMut::map_mut(&file)?
@@ -1601,7 +1668,28 @@ cfg_async! {
               (mmap, Some(opts_bk), offset, len)
             }
           };
-          let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata().await?);
+          // Capture identity from the *already-open* async handle so
+          // an attacker can't race a path swap between our open and the
+          // identity probe. tokio::fs::File / smol::fs::File both impl
+          // AsRawFd / AsRawHandle, so we read the raw fd/handle and
+          // call the appropriate platform identity API on it.
+          let file_identity = {
+            #[cfg(unix)]
+            {
+              use std::os::fd::AsRawFd;
+              // SAFETY: `file` is alive for the duration of this call;
+              // we hold it across the unsafe call.
+              unsafe { crate::utils::FileIdentity::from_raw_fd(file.as_raw_fd()) }?
+            }
+            #[cfg(windows)]
+            {
+              use std::os::windows::io::AsRawHandle;
+              // SAFETY: `file` is alive for the duration of this call.
+              unsafe { crate::utils::FileIdentity::from_raw_handle(file.as_raw_handle()) }?
+            }
+            #[cfg(not(any(unix, windows)))]
+            crate::utils::FileIdentity::from_path(path_ref)?
+          };
           Ok(Self {
             mmap,
             file,
@@ -1642,7 +1730,28 @@ cfg_async! {
             }
           };
 
-          let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata().await?);
+          // Capture identity from the *already-open* async handle so
+          // an attacker can't race a path swap between our open and the
+          // identity probe. tokio::fs::File / smol::fs::File both impl
+          // AsRawFd / AsRawHandle, so we read the raw fd/handle and
+          // call the appropriate platform identity API on it.
+          let file_identity = {
+            #[cfg(unix)]
+            {
+              use std::os::fd::AsRawFd;
+              // SAFETY: `file` is alive for the duration of this call;
+              // we hold it across the unsafe call.
+              unsafe { crate::utils::FileIdentity::from_raw_fd(file.as_raw_fd()) }?
+            }
+            #[cfg(windows)]
+            {
+              use std::os::windows::io::AsRawHandle;
+              // SAFETY: `file` is alive for the duration of this call.
+              unsafe { crate::utils::FileIdentity::from_raw_handle(file.as_raw_handle()) }?
+            }
+            #[cfg(not(any(unix, windows)))]
+            crate::utils::FileIdentity::from_path(path_ref)?
+          };
           Ok(Self {
             mmap,
             file,

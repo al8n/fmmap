@@ -1169,9 +1169,9 @@ mod axync {
     assert!(!path.exists());
   }
 
-  /// Codex round 15 (high) regression: async open_with_options used to
-  /// truncate before validating the mapping range. Verify a tokio caller
-  /// cannot lose existing file content when options are invalid.
+  /// async open_with_options used to truncate before validating the
+  /// mapping range. Verify a tokio caller cannot lose existing file
+  /// content when options are invalid.
   #[tokio::test]
   async fn async_invalid_options_with_truncate_preserve_existing_file() {
     use crate::tokio::AsyncOptions;
@@ -1563,9 +1563,8 @@ mod smol_tests {
     let _ = unsafe { f.unlock() };
   }
 
-  /// Codex round 15 (high) regression: see tokio counterpart. Validates
-  /// the smol async path also rejects invalid options before destructive
-  /// truncation.
+  /// See tokio counterpart. Validates the smol async path also
+  /// rejects invalid options before destructive truncation.
   #[smol_potat::test]
   async fn smol_invalid_options_with_truncate_preserve_existing_file() {
     use crate::smol::AsyncOptions;

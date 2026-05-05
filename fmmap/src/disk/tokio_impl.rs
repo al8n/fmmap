@@ -11,9 +11,32 @@ use crate::{
 
 use memmapix::{Mmap, MmapMut, MmapOptions};
 use std::path::{Path, PathBuf};
-use tokio::fs::{remove_file, File};
+use tokio::fs::File;
 
 use crate::disk::remmap;
+
+/// Run a blocking IO closure on tokio's blocking thread pool. Used by
+/// the raw async durable-delete path; mirrors the helper in
+/// `mmap_file::tokio_impl`.
+async fn run_blocking_io<F, T>(f: F) -> T
+where
+  F: FnOnce() -> T + Send + 'static,
+  T: Send + 'static,
+{
+  match tokio::task::spawn_blocking(f).await {
+    Ok(r) => r,
+    Err(e) => std::panic::resume_unwind(e.into_panic()),
+  }
+}
+
+/// Convert the runtime-specific async file into an owned
+/// `std::fs::File` to use as the inode pin during durable delete.
+/// `tokio::fs::File::into_std` moves the underlying `std::fs::File`
+/// out without allocating a new fd — no EMFILE risk.
+#[cfg(unix)]
+async fn extract_inode_pin(file: File) -> std::io::Result<std::fs::File> {
+  Ok(file.into_std().await)
+}
 
 declare_and_impl_async_fmmap_file!("tokio_async", "tokio_test", "tokio", File);
 

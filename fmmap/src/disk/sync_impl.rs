@@ -7,7 +7,7 @@ use crate::{
 };
 use memmapix::{Mmap, MmapMut, MmapOptions};
 use std::{
-  fs::{remove_file, File},
+  fs::File,
   path::{Path, PathBuf},
 };
 
@@ -381,7 +381,31 @@ impl MmapFileMutExt for DiskMmapFileMut {
     }
   }
 
-  /// Remove the underlying file
+  /// Remove the underlying file.
+  ///
+  /// # Durability semantics
+  ///
+  /// On success, the unlink is committed to disk: `unlinkat` succeeded
+  /// AND the parent directory's metadata was fsynced. On error, behavior
+  /// depends on which step failed:
+  ///
+  /// - **Identity / probe failure**: nothing was unlinked. The inode
+  ///   pin is dropped on return; the caller cannot retry.
+  /// - **Unlink failure**: nothing was unlinked. Same.
+  /// - **Parent-fsync failure after a successful unlink**: the unlink
+  ///   *is* committed (the directory entry is gone) but is not yet
+  ///   crash-durable. The error message reflects this. The raw API
+  ///   has no `NeedsParentSync` state machine — the parent handle is
+  ///   dropped on return, so the caller cannot retry the fsync on the
+  ///   *original* parent inode (a parent rename between the failed
+  ///   call and any later `std::fs::File::open(parent).sync_all()` could
+  ///   land on the wrong directory).
+  ///
+  /// **For crash-durable identity-checked deletion, prefer the wrapper
+  /// API** (`MmapFileMut::drop_remove` / `MmapFileMut::remove` and the
+  /// async equivalents). The wrapper carries the parent handle in
+  /// `PendingDelete::NeedsParentSync` and retries fsync on the same
+  /// inode.
   ///
   /// # Examples
   ///
@@ -404,7 +428,18 @@ impl MmapFileMutExt for DiskMmapFileMut {
     let path = self.path;
     let identity = self.file_identity;
     drop(self.mmap);
-    drop(self.file);
+    // Keep `self.file` alive across probe + unlink on POSIX so the
+    // inode it refers to cannot be recycled (which would let a fresh
+    // file at the same path pass the (dev, ino) identity check).
+    // Windows: the file must be dropped before unlink because it was
+    // opened without `FILE_SHARE_DELETE`.
+    #[cfg(unix)]
+    let _inode_pin: Option<File> = Some(self.file);
+    #[cfg(not(unix))]
+    let _inode_pin: Option<File> = {
+      drop(self.file);
+      None
+    };
     // Pre-open the parent dir handle so the post-unlink fsync commits
     // metadata on the *original* parent inode even if the path's parent
     // is renamed mid-operation.
@@ -414,24 +449,22 @@ impl MmapFileMutExt for DiskMmapFileMut {
     // before unlinking, distinguishing "path missing" from "path-reuse
     // mismatch": the former is the same NotFound semantics callers had
     // before identity tracking; the latter must refuse the delete.
-    match std::fs::metadata(&path) {
+    match crate::utils::identity_at_or_path(&parent_handle, &path) {
       Err(e) if e.kind() == ErrorKind::NotFound => return Err(e),
       Err(e) => return Err(e),
-      Ok(probe) => {
-        let probe_id = crate::utils::FileIdentity::from_metadata(&probe);
+      Ok(probe_id) => {
         if !identity.is_known_equal(&probe_id) {
           return Err(Error::other(format!(
-            "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink, or platform identity unavailable)",
+            "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
             path.display(),
           )));
         }
       }
     }
-    // Initial-call semantics: a missing file is the user's error; we do
-    // NOT treat NotFound as success here. (Idempotency for the
-    // post-failure-pre-sync window lives at the wrapper layer where
-    // `pending_drop_remove` is consulted.)
-    remove_file(&path)?;
+    // Bind the unlink to parent_handle on POSIX so the subsequent
+    // sync_parent_handle is durable for the directory the entry was
+    // actually removed from.
+    crate::utils::unlink_at_or_path(&parent_handle, &path, identity)?;
     // Sync the original parent inode handle. Tag a parent-sync failure
     // so the caller using the raw API can tell unlink-failed from
     // unlink-succeeded-but-parent-fsync-failed.
@@ -1048,7 +1081,7 @@ impl DiskMmapFileMut {
       sync_file_and_parent(&file, path_ref)?;
     }
 
-    let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata()?);
+    let file_identity = crate::utils::FileIdentity::from_file(&file)?;
     let mmap = unsafe {
       match &opts_bk {
         None => MmapMut::map_mut(&file)?,
@@ -1126,7 +1159,7 @@ impl DiskMmapFileMut {
       sync_file_and_parent(&file, path_ref)?;
     }
 
-    let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata()?);
+    let file_identity = crate::utils::FileIdentity::from_file(&file)?;
     let mmap = unsafe {
       match &opts_bk {
         None => MmapMut::map_mut(&file)?,
@@ -1180,7 +1213,7 @@ impl DiskMmapFileMut {
       }
     };
 
-    let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata()?);
+    let file_identity = crate::utils::FileIdentity::from_file(&file)?;
     Ok(Self {
       mmap,
       file,
@@ -1216,7 +1249,7 @@ impl DiskMmapFileMut {
       }
     };
 
-    let file_identity = crate::utils::FileIdentity::from_metadata(&file.metadata()?);
+    let file_identity = crate::utils::FileIdentity::from_file(&file)?;
     Ok(Self {
       mmap,
       file,

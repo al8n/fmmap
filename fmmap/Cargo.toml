@@ -31,6 +31,21 @@ pin-project-lite = { version = "0.2", optional = true }
 smol = { version = "2", optional = true }
 tokio = { version = "1", optional = true }
 
+# Unix: rustix is used for the safe POSIX path of identity-checked
+# delete (`statat`/`unlinkat` against an open parent fd) and for atomic
+# CLOEXEC fd duplication (`fcntl_dupfd_cloexec`). `rustix` returns an
+# `OwnedFd` directly, which avoids the borrowed-vs-owned hazard of
+# `libc::fcntl` + `File::from_raw_fd`.
+[target.'cfg(unix)'.dependencies]
+rustix = { version = "1", features = ["fs"] }
+
+# Windows: `GetFileInformationByHandle` for real (volume serial, file
+# index) identity on stable Rust (no nightly `windows_by_handle`), plus
+# `DuplicateHandle` for the async-handle identity capture (same
+# panic-safety reasoning as `libc::dup` on Unix).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Threading"] }
+
 [dev-dependencies]
 ctor = "0.12"
 criterion = "0.8"

@@ -25,30 +25,45 @@ fn sync_new_file_parent(path: &Path) -> Result<()> {
   crate::utils::sync_dir(&parent)
 }
 
-/// Initial-call durable unlink: identity-check, then `remove_file`, then
-/// parent fsync. `identity` was captured at file open; we use it here
-/// (and on every retry) to confirm the path still names the original
-/// inode before unlinking. Even the *first* unlink runs after the
-/// caller has dropped the original mapping/file, so a concurrent
-/// rename-and-recreate can already have happened by the time we get
-/// here — the pre-unlink identity check closes that window.
+/// Initial-call durable unlink with optional inode pin.
 ///
-/// Identity check distinguishes three cases:
-/// - path metadata `NotFound` → original inode is presumed already gone,
-///   treat the same as `NotFound` from `remove_file` (NeedsParentSync,
-///   surface the NotFound error to the caller).
-/// - metadata succeeds but identity mismatches → another file took the
-///   path (path-reuse). Refuse the unlink, keep `NeedsUnlink` state.
-/// - identity matches → proceed with `remove_file`.
+/// Sequence: open parent dir handle → probe identity at the path
+/// (`fstatat` on POSIX, bound to the same parent fd) → unlink at the
+/// path (`unlinkat` on POSIX, bound to the same parent fd) → fsync the
+/// parent handle. All four ops are bound to the same parent inode on
+/// POSIX, so a parent rename mid-operation can't direct durability to
+/// the wrong directory.
+///
+/// `inode_pin` is the original `File` handle, held alive across probe +
+/// unlink so the kernel cannot recycle the inode number while the
+/// identity check runs. Required on POSIX where `(dev, ino)` is the
+/// identity — without the pin, a concurrent replacement created right
+/// after the caller closed the file could land on the same inode and
+/// pass `is_known_equal`. On Windows, holding the handle without
+/// `FILE_SHARE_DELETE` would *prevent* unlink, so the caller must drop
+/// it before calling and pass `None`. The pin is dropped on function
+/// exit, after the unlink.
+///
+/// Identity check distinguishes three cases: `NotFound` (original inode
+/// presumed already gone, surface as `NeedsParentSync`); identity
+/// mismatch (path was reused, refuse unlink, keep `NeedsUnlink`);
+/// identity match (proceed with `unlinkat`).
 fn initial_remove_durably(
   path: &Path,
   identity: crate::utils::FileIdentity,
+  #[cfg(unix)] inode_pin: std::fs::File,
 ) -> std::result::Result<(), (crate::mmap_file::PendingDelete, Error)> {
+  // pin is a required parameter on POSIX (not Option). Callers must
+  // dup before calling and hard-fail on dup failure, so this function
+  // never sees a missing pin. The pin is moved into
+  // `PendingDelete::NeedsUnlink` on retryable failures so subsequent
+  // retries inherit it; otherwise dropped on function exit.
   // Pin a handle to the *original* parent inode BEFORE the unlink. If
   // the path's parent gets renamed/replaced between unlink and fsync, a
   // path-based fsync would commit metadata on the wrong inode; the
   // pre-opened handle commits to the inode that actually contained our
-  // directory entry.
+  // directory entry. The handle is also stashed in any `NeedsParentSync`
+  // pending state so retry fsyncs the same inode.
   let parent_handle = match crate::utils::open_parent_for_sync(path) {
     Ok(h) => h,
     Err(e) => {
@@ -56,15 +71,37 @@ fn initial_remove_durably(
         crate::mmap_file::PendingDelete::NeedsUnlink {
           path: path.to_path_buf(),
           identity,
+          #[cfg(unix)]
+          pin: inode_pin,
         },
         e,
       ));
     }
   };
-  match std::fs::metadata(path) {
+  // Probe identity *relative to* parent_handle on POSIX (fstatat) so
+  // the probe is bound to the same inode the unlink will go through —
+  // a path-based probe could race a parent rename between
+  // open_parent_for_sync and probe.
+  match crate::utils::identity_at_or_path(&parent_handle, path) {
     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+      // NotFound never proves crash-durable deletion. An nlink-based
+      // "durably gone" inference would be wrong because an external
+      // rename + unlink-elsewhere also produces `nlink == 0` while
+      // leaving the actual unlink in a parent we don't fsync —
+      // fsyncing OUR parent then doesn't make their unlink
+      // crash-durable. Always route NotFound to NeedsUnlink so retry
+      // surfaces NotFound rather than false-success-via-fsync.
+      // Drop's NeedsUnlink path still best-effort fsyncs the parent,
+      // which IS correct in the common "external rm in our parent"
+      // case — we just don't promise the caller that deletion
+      // succeeded.
       return Err((
-        crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
+        crate::mmap_file::PendingDelete::NeedsUnlink {
+          path: path.to_path_buf(),
+          identity,
+          #[cfg(unix)]
+          pin: inode_pin,
+        },
         e,
       ));
     }
@@ -73,43 +110,67 @@ fn initial_remove_durably(
         crate::mmap_file::PendingDelete::NeedsUnlink {
           path: path.to_path_buf(),
           identity,
+          #[cfg(unix)]
+          pin: inode_pin,
         },
         e,
       ));
     }
-    Ok(probe) => {
-      let probe_id = crate::utils::FileIdentity::from_metadata(&probe);
+    Ok(probe_id) => {
       if !identity.is_known_equal(&probe_id) {
         let err = Error::other(format!(
-          "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink, or platform identity unavailable)",
+          "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
           path.display(),
         ));
         return Err((
           crate::mmap_file::PendingDelete::NeedsUnlink {
             path: path.to_path_buf(),
             identity,
+            #[cfg(unix)]
+            pin: inode_pin,
           },
           err,
         ));
       }
     }
   }
-  match std::fs::remove_file(path) {
+  // Bind the unlink to parent_handle (POSIX `unlinkat`) so the
+  // subsequent `sync_parent_handle` is durable for the directory the
+  // entry was actually removed from. There's still an irreducible
+  // narrow TOCTOU between the identity probe and the unlinkat call,
+  // but the *broad* race against parent renames is now closed.
+  match crate::utils::unlink_at_or_path(&parent_handle, path, identity) {
     Ok(()) => match crate::utils::sync_parent_handle(&parent_handle) {
       Ok(()) => Ok(()),
       Err(e) => Err((
-        crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
+        crate::mmap_file::PendingDelete::NeedsParentSync {
+          path: path.to_path_buf(),
+          parent_handle,
+        },
         e,
       )),
     },
-    Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err((
-      crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
-      e,
-    )),
+    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+      // Same as pre-probe NotFound — never claim durable deletion.
+      // Post-probe NotFound from `unlinkat` could be a
+      // rename-then-unlink-elsewhere; our parent fsync wouldn't
+      // commit the right journal. Stay NeedsUnlink.
+      Err((
+        crate::mmap_file::PendingDelete::NeedsUnlink {
+          path: path.to_path_buf(),
+          identity,
+          #[cfg(unix)]
+          pin: inode_pin,
+        },
+        e,
+      ))
+    }
     Err(e) => Err((
       crate::mmap_file::PendingDelete::NeedsUnlink {
         path: path.to_path_buf(),
         identity,
+        #[cfg(unix)]
+        pin: inode_pin,
       },
       e,
     )),
@@ -128,57 +189,36 @@ fn retry_pending_delete(
   pending: crate::mmap_file::PendingDelete,
 ) -> std::result::Result<(), (crate::mmap_file::PendingDelete, Error)> {
   match pending {
-    crate::mmap_file::PendingDelete::NeedsParentSync(path) => match sync_parent_path(&path) {
+    crate::mmap_file::PendingDelete::NeedsParentSync {
+      path,
+      parent_handle,
+    } => match crate::utils::sync_parent_handle(&parent_handle) {
       Ok(()) => Ok(()),
-      Err(e) => Err((crate::mmap_file::PendingDelete::NeedsParentSync(path), e)),
-    },
-    crate::mmap_file::PendingDelete::NeedsUnlink { path, identity } => {
-      if !identity.matches_path(&path) {
-        let err = Error::other(format!(
-          "cannot retry remove on '{}': path no longer names the original file (path-reuse detected); the file you originally intended to delete is presumed gone or moved",
-          path.display(),
-        ));
-        return Err((
-          crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-          err,
-        ));
-      }
-      // Same parent-handle-before-unlink pattern as initial_remove_durably.
-      let parent_handle = match crate::utils::open_parent_for_sync(&path) {
-        Ok(h) => h,
-        Err(e) => {
-          return Err((
-            crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-            e,
-          ));
-        }
-      };
-      match std::fs::remove_file(&path) {
-        Ok(()) => match crate::utils::sync_parent_handle(&parent_handle) {
-          Ok(()) => Ok(()),
-          Err(e) => Err((crate::mmap_file::PendingDelete::NeedsParentSync(path), e)),
+      Err(e) => Err((
+        crate::mmap_file::PendingDelete::NeedsParentSync {
+          path,
+          parent_handle,
         },
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-          match crate::utils::sync_parent_handle(&parent_handle) {
-            Ok(()) => Ok(()),
-            Err(e2) => Err((crate::mmap_file::PendingDelete::NeedsParentSync(path), e2)),
-          }
-        }
-        Err(e) => Err((
-          crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-          e,
-        )),
-      }
+        e,
+      )),
+    },
+    crate::mmap_file::PendingDelete::NeedsUnlink {
+      path,
+      identity,
+      #[cfg(unix)]
+      pin,
+    } => {
+      // Just delegate to `initial_remove_durably`. It will re-stitch
+      // the pin into `NeedsUnlink` on Err so the next retry inherits
+      // a still-active inode pin.
+      initial_remove_durably(
+        &path,
+        identity,
+        #[cfg(unix)]
+        pin,
+      )
     }
   }
-}
-
-fn sync_parent_path(path: &Path) -> Result<()> {
-  let parent = match path.parent() {
-    Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-    _ => std::path::PathBuf::from("."),
-  };
-  crate::utils::sync_dir(&parent)
 }
 
 /// Utility methods to [`MmapFile`]
@@ -1175,8 +1215,22 @@ impl MmapFileMutExt for MmapFileMut {
         let path = disk.path.clone();
         let identity = disk.file_identity;
         drop(disk.mmap);
+        // Keep `disk.file` alive across the probe+unlink on POSIX so
+        // the inode it refers to cannot be recycled (which would let
+        // a fresh file at the same path pass identity). Windows:
+        // holding the file without FILE_SHARE_DELETE would prevent
+        // the unlink itself, so we drop it first and rely on
+        // `(volume_serial, file_index)` not being recycled.
+        #[cfg(unix)]
+        let pin: std::fs::File = disk.file;
+        #[cfg(not(unix))]
         drop(disk.file);
-        match initial_remove_durably(&path, identity) {
+        match initial_remove_durably(
+          &path,
+          identity,
+          #[cfg(unix)]
+          pin,
+        ) {
           Ok(()) => {
             self.deleted = true;
             Ok(())
@@ -1797,19 +1851,23 @@ impl MmapFileMut {
   /// If invoke [`MmapFileMut::freeze`], then the file will
   /// not be removed even though the field `remove_on_drop` is true.
   ///
-  /// # Path-reuse safety: this is best-effort, not guaranteed
+  /// # Path-reuse safety
   ///
-  /// As of v0.5.0 the auto-cleanup path no longer calls `remove_file` from
-  /// `Drop`. By the time `Drop` runs, the original `File` handle has been
-  /// moved out of the wrapper, so there is no way to verify that the path
-  /// still names the file you originally opened — and blind path-based
-  /// unlink could silently delete an unrelated file another actor created
-  /// at the same path. `Drop` now only fsyncs the parent directory.
+  /// `Drop` runs the same identity-checked, parent-bound unlink
+  /// sequence as the explicit `remove()` / `drop_remove()` paths
+  /// (POSIX: `fstatat` + `unlinkat` against a pre-opened parent dir
+  /// fd, with the original file's fd duped and held alive across the
+  /// probe + unlink so the `(dev, ino)` we compare to can't be
+  /// recycled). If the path no longer names the original inode — or
+  /// if it became a symlink — `Drop` leaves it alone. The residual
+  /// risks are the irreducible probe→unlink TOCTOU window (one
+  /// syscall) and Windows' lack of true openat-equivalents; see
+  /// `FileIdentity` for the full residual-race breakdown.
   ///
-  /// If you require deterministic, identity-checked cleanup, call
-  /// [`MmapFileMut::remove`] or [`MmapFileMut::drop_remove`] explicitly
-  /// before the wrapper is dropped — those run while a fresh `File`
-  /// handle is still in scope and can verify identity.
+  /// If you require synchronous error reporting, call
+  /// [`MmapFileMut::remove`] or [`MmapFileMut::drop_remove`]
+  /// explicitly before the wrapper is dropped — `Drop` swallows
+  /// errors because it cannot return a `Result`.
   ///
   /// [`MmapFileMut::freeze`]: structs.MmapFileMut.html#methods.freeze
   /// [`MmapFileMut::remove`]: structs.MmapFileMut.html#methods.remove
@@ -1885,18 +1943,24 @@ impl MmapFileMut {
       MmapFileMutInner::Disk(disk) => {
         let path = disk.path;
         let identity = disk.file_identity;
-        // On Windows we must close the handle before removing; on Unix
-        // unlink succeeds while the inode is still mapped, but for symmetry
-        // we drop first either way so the behavior is identical across
-        // platforms.
         drop(disk.mmap);
+        // Keep the inode pinned through probe+unlink on POSIX.
+        // Windows must drop first (see drop_remove sibling).
+        #[cfg(unix)]
+        let pin: std::fs::File = disk.file;
+        #[cfg(not(unix))]
         drop(disk.file);
         // Initial call: a missing file is the user's error. On other
         // failures we record `PendingDelete::NeedsUnlink`; if `remove_file`
         // itself succeeded but parent fsync didn't, we record
         // `NeedsParentSync` so retry doesn't re-call `remove_file` on a
         // possibly-reused path.
-        match initial_remove_durably(&path, identity) {
+        match initial_remove_durably(
+          &path,
+          identity,
+          #[cfg(unix)]
+          pin,
+        ) {
           Ok(()) => {
             self.deleted = true;
             Ok(())
@@ -1925,12 +1989,43 @@ impl_drop!(MmapFileMut, MmapFileMutInner, EmptyMmapFile);
 
 impl_sync_tests!("", MmapFile, MmapFileMut);
 
+/// Extract the inode pin from a sync `std::fs::File` owned at Drop
+/// time. Sync owns the file directly — just move it in. No fd
+/// allocation, no EMFILE failure mode. Called by `impl_drop!`'s
+/// `remove_on_drop` path; the macro's name resolution finds this
+/// per-impl-file (sync here, async in `mmap_file/{tokio,smol}_impl.rs`).
+#[cfg(unix)]
+fn sync_drop_pin(file: std::fs::File) -> Option<std::fs::File> {
+  Some(file)
+}
+#[cfg(not(unix))]
+fn sync_drop_pin(file: std::fs::File) -> Option<std::fs::File> {
+  drop(file);
+  None
+}
+
 #[cfg(test)]
 mod regression {
   use super::*;
   use crate::Options;
   use scopeguard::defer;
   use std::io::Write;
+
+  /// Test helper: dup a `File`'s descriptor via `F_DUPFD_CLOEXEC` and
+  /// wrap the new descriptor as an owned `File`. Mirrors the production
+  /// dup that wrappers do before calling `initial_remove_durably`. Used
+  /// to populate `PendingDelete::NeedsUnlink::pin` in tests that
+  /// construct the pending state directly.
+  #[cfg(unix)]
+  fn dup_for_pin(file: &std::fs::File) -> std::fs::File {
+    use std::os::fd::{AsRawFd, BorrowedFd};
+    let raw = file.as_raw_fd();
+    // SAFETY: `file` is a live, owned File; the borrow lives for the
+    // call and `fcntl_dupfd_cloexec` returns a fresh OwnedFd.
+    let borrowed = unsafe { BorrowedFd::borrow_raw(raw) };
+    let owned = rustix::io::fcntl_dupfd_cloexec(borrowed, 0).expect("fcntl dup");
+    std::fs::File::from(owned)
+  }
 
   /// Finding #1: even though the public `lock_shared` is `unsafe`, calling it
   /// on a writable mapping does in fact downgrade the auto-acquired exclusive
@@ -1988,9 +2083,9 @@ mod regression {
     assert_eq!(bytes, b"keep me");
   }
 
-  /// Codex review #3: a `truncate` failure that happens BEFORE the disk
-  /// backend swaps in the anonymous placeholder (e.g. the cow-unsupported
-  /// check) must NOT detach the live mapping. The original mapping should
+  /// A `truncate` failure that happens BEFORE the disk backend swaps
+  /// in the anonymous placeholder (e.g. the cow-unsupported check)
+  /// must NOT detach the live mapping. The original mapping should
   /// stay usable so the caller can flush/read it.
   #[test]
   fn pre_swap_truncate_failure_preserves_mapping() {
@@ -2023,9 +2118,10 @@ mod regression {
     assert_eq!(&cow.as_slice()[..b"modified".len()], b"modified");
   }
 
-  /// Codex finding #2 (truncate clamp): opening with a large `len` and then
-  /// truncating to a smaller size must NOT leave a mapping that extends past
-  /// EOF. The crate clamps the stored `len` to `(new_size - offset)` on remap.
+  /// Truncate clamp: opening with a large `len` and then truncating
+  /// to a smaller size must NOT leave a mapping that extends past
+  /// EOF. The crate clamps the stored `len` to `(new_size - offset)`
+  /// on remap.
   #[test]
   fn truncate_clamps_oversized_len() {
     let path = "_regression_truncate_clamps_len.txt";
@@ -2053,9 +2149,9 @@ mod regression {
     file.flush().unwrap();
   }
 
-  /// Codex finding #2 (offset past EOF): truncating to below the mapping's
-  /// offset must fail with InvalidInput rather than producing a broken
-  /// mapping. The object remains usable (not poisoned) since we check before
+  /// Offset past EOF: truncating to below the mapping's offset must
+  /// fail with InvalidInput rather than producing a broken mapping.
+  /// The object remains usable (not poisoned) since we check before
   /// touching the mapping.
   #[test]
   fn truncate_below_offset_errors() {
@@ -2084,9 +2180,9 @@ mod regression {
     file.flush().unwrap();
   }
 
-  /// Codex finding: `create_with_options` used to drop the user-set
-  /// `Options::mode` / `custom_flags` because `create_in` opened with the
-  /// hard-coded `create_file()` helper instead of routing through
+  /// `create_with_options` used to drop the user-set
+  /// `Options::mode` / `custom_flags` because `create_in` opened with
+  /// the hard-coded `create_file()` helper instead of routing through
   /// `opts.file_opts`. Verify on Unix that a custom mode is honored.
   #[cfg(unix)]
   #[test]
@@ -2105,13 +2201,17 @@ mod regression {
     assert_eq!(mode, 0o600);
   }
 
-  /// Codex finding: `remove()` swaps the inner to Empty before calling
-  /// `remove_file`. If the unlink fails, the original `MmapFileMut` is
-  /// left with an Empty inner whose path is `""`, so a subsequent `Drop`
-  /// can no longer attempt the unlink and the file leaks. Verify the
-  /// wrapper retains the original path on failure (in `pending_drop_remove`
-  /// because deletion was explicitly requested) so Drop has a chance to
-  /// retry regardless of `remove_on_drop`.
+  /// `remove()` swaps the inner to Empty before calling `remove_file`.
+  /// If the unlink fails, the original `MmapFileMut` is left with an
+  /// Empty inner whose path is `""`, so a subsequent `Drop` can no
+  /// longer attempt the unlink and the file leaks. Verify the
+  /// wrapper retains the original path on failure (in
+  /// `pending_drop_remove` because deletion was explicitly requested)
+  /// so Drop has a chance to retry regardless of `remove_on_drop`.
+  ///
+  /// Unix-only: setup uses `std::fs::remove_file` which would fail
+  /// against a still-open handle on Windows.
+  #[cfg(unix)]
   #[test]
   fn remove_failure_retains_path_for_drop_retry() {
     let path = crate::tests::get_random_filename();
@@ -2126,19 +2226,32 @@ mod regression {
     assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
     let pending = f.pending_drop_remove.as_ref().expect("pending state set");
     assert_eq!(pending.path(), path.as_path());
-    // NotFound on initial call → NeedsParentSync (path-reuse safe — retry
-    // must NOT call remove_file again).
+    // NotFound always routes to NeedsUnlink. An nlink-based
+    // NeedsParentSync routing would assume the entry was unlinked
+    // from OUR parent, but a rename + unlink-elsewhere also produces
+    // nlink==0 — fsyncing our parent then doesn't make the other
+    // directory's unlink crash-durable. Surfacing NeedsUnlink is
+    // conservative: caller knows we did not confirm crash-durable
+    // deletion.
     assert!(matches!(
       pending,
-      crate::mmap_file::PendingDelete::NeedsParentSync(_)
+      crate::mmap_file::PendingDelete::NeedsUnlink { .. }
     ));
   }
 
-  /// Codex finding (round 4, medium): a subsequent `remove()` after a
-  /// failed one used to short-circuit on the `_ => Ok(())` arm because the
-  /// inner was Empty, reporting a successful cleanup while the original
-  /// file still existed. Verify the retry actually attempts the unlink
+  /// A subsequent `remove()` after a failed one used to
+  /// short-circuit on the `_ => Ok(())` arm because the inner was
+  /// Empty, reporting a successful cleanup while the original file
+  /// still existed. Verify the retry actually attempts cleanup
   /// against the saved `pending_drop_remove`.
+  ///
+  /// NotFound at probe time stays NeedsUnlink. The retry re-probes;
+  /// against a path-reused (recreated) file the identity check fails
+  /// and we surface a path-reuse error. The recreated file is
+  /// preserved.
+  ///
+  /// Unix-only: see sibling test for rationale.
+  #[cfg(unix)]
   #[test]
   fn remove_retry_attempts_pending_path() {
     let path = crate::tests::get_random_filename();
@@ -2146,39 +2259,47 @@ mod regression {
     let mut f = unsafe { MmapFileMut::create(&path) }.unwrap();
     f.truncate(8).unwrap();
 
-    // First call: pre-delete the file so remove() fails with NotFound;
-    // pending state is `NeedsParentSync` (the inode is gone, only the
-    // parent fsync remains).
+    // First call: pre-delete the file so remove() fails with NotFound.
+    // Pending state is NeedsUnlink — we never confirmed the unlink
+    // happened in OUR parent, so we can't claim crash-durable
+    // deletion via parent fsync alone.
     drop(std::fs::remove_file(&path));
     assert!(f.remove().is_err());
     assert!(matches!(
       f.pending_drop_remove,
-      Some(crate::mmap_file::PendingDelete::NeedsParentSync(_))
+      Some(crate::mmap_file::PendingDelete::NeedsUnlink { .. })
     ));
 
-    // Re-create the file. The retry MUST NOT delete this file — it would
-    // be deleting an unrelated occupant of the same path. The retry only
-    // syncs the parent (path-reuse safety).
+    // Re-create a different file at the same path. The retry's
+    // identity probe sees a different inode and surfaces a
+    // path-reuse error; pending state stays NeedsUnlink. The
+    // recreated file is preserved (we don't touch it).
     {
       let mut g = std::fs::File::create(&path).unwrap();
       use std::io::Write as _;
       g.write_all(b"different file").unwrap();
     }
 
-    f.remove().unwrap();
-    assert!(f.pending_drop_remove.is_none());
-    // The recreated file is preserved — NOT unlinked by the retry.
-    assert!(path.exists());
+    let err = f
+      .remove()
+      .expect_err("retry against path-reused file must NOT succeed");
+    assert!(
+      err.to_string().contains("path-reuse detected") || err.kind() == std::io::ErrorKind::NotFound,
+      "expected path-reuse or NotFound, got: {err}"
+    );
+    assert!(path.exists(), "recreated file must remain");
     assert_eq!(std::fs::read(&path).unwrap(), b"different file");
+    assert!(!f.deleted, "deleted must NOT be set on path-reuse retry");
   }
 
-  /// Codex finding (round 6, medium): when an explicit deletion (via
-  /// `remove(&mut self)` or consuming `drop_remove(self)`) failed, the
-  /// retained path was stored in `pending_remove_path`, which `Drop` only
-  /// honors under `remove_on_drop=true` — and a caller asking for delete
-  /// usually does NOT set that flag. Result: transient unlink failures
-  /// silently leaked the file. Verify the new `pending_drop_remove`
-  /// channel triggers Drop's retry regardless of `remove_on_drop`.
+  /// When an explicit deletion (via `remove(&mut self)` or consuming
+  /// `drop_remove(self)`) fails, an older implementation stored the
+  /// retained path in `pending_remove_path`, which `Drop` only honors
+  /// under `remove_on_drop=true` — and a caller asking for delete
+  /// usually does NOT set that flag. Result: transient unlink
+  /// failures silently leaked the file. Verify the
+  /// `pending_drop_remove` channel triggers Drop's retry regardless
+  /// of `remove_on_drop`.
   #[test]
   fn explicit_remove_failure_drop_retries_unconditionally() {
     let path = crate::tests::get_random_filename();
@@ -2203,14 +2324,13 @@ mod regression {
     let _ = std::fs::remove_file(&path);
   }
 
-  /// Codex finding (round 12, high): the public `lock()` and
-  /// `lock_shared()` methods used to call `fs4::FileExt::lock` /
-  /// `lock_shared` blindly. POSIX `flock` is idempotent on the same
-  /// handle, but Windows `LockFileEx` waits indefinitely for the same
-  /// handle to release — deadlock. Verify that calling `lock()` /
-  /// `lock_shared()` / `try_lock()` / `try_lock_shared()` on an
-  /// auto-locked wrapper is reentrant-safe (no-op when state matches,
-  /// `WouldBlock` when state mismatches).
+  /// The public `lock()` and `lock_shared()` methods used to call
+  /// `fs4::FileExt::lock` / `lock_shared` blindly. POSIX `flock` is
+  /// idempotent on the same handle, but Windows `LockFileEx` waits
+  /// indefinitely for the same handle to release — deadlock. Verify
+  /// that calling `lock()` / `lock_shared()` / `try_lock()` /
+  /// `try_lock_shared()` on an auto-locked wrapper is reentrant-safe
+  /// (no-op when state matches, `WouldBlock` when state mismatches).
   #[test]
   fn reentrant_lock_methods_do_not_deadlock_on_auto_lock() {
     let path = crate::tests::get_random_filename();
@@ -2243,41 +2363,104 @@ mod regression {
     unsafe { f.unlock() }.unwrap();
   }
 
-  /// Codex finding (round 9, high): durable unlink retry was not
-  /// idempotent — after the first attempt unlinked the inode but failed
-  /// `sync_dir`, the retry's `remove_file` would hit NotFound and never
-  /// fsync the parent, so the unlink could still be lost on crash. Verify
-  /// the retry path now treats NotFound as "already unlinked, just finish
-  /// parent sync". Also verify basename paths (empty parent) still get
-  /// synced via `.`.
+  /// Durable unlink retry must be idempotent — after the first
+  /// attempt unlinks the inode but fails `sync_dir`, the retry's
+  /// parent fsync should still complete so the unlink isn't lost on
+  /// crash. Verify `NeedsParentSync` retries fsync-only and reports
+  /// success.
+  ///
+  /// We directly construct `NeedsParentSync` to exercise the
+  /// post-unlink path. (A test that pre-deletes the path and relies
+  /// on initial-call NotFound to produce `NeedsParentSync` does not
+  /// work, because pre-unlink NotFound is correctly routed to
+  /// `NeedsUnlink` — a renamed-away file isn't deleted, so that
+  /// setup wouldn't reach the NeedsParentSync code path.)
   #[test]
   fn pending_drop_remove_retry_tolerates_already_unlinked() {
     let path = crate::tests::get_random_filename();
     defer!(let _ = std::fs::remove_file(&path););
     let mut f = unsafe { MmapFileMut::create(&path) }.unwrap();
     f.truncate(8).unwrap();
-
-    // First, force the initial remove to fail by pre-deleting (NotFound).
     drop(std::fs::remove_file(&path));
-    assert!(f.remove().is_err());
-    assert!(f.pending_drop_remove.is_some());
 
-    // Now there's NO file at `path` (we pre-deleted). The retry must NOT
-    // fail with NotFound — it must treat the missing file as "already
-    // unlinked" and finish by syncing the parent. This proves the
-    // post-unlink-pre-sync recovery window is closed.
+    // Pre-open a parent handle to construct NeedsParentSync directly,
+    // mirroring the post-unlink-pre-sync state initial_remove_durably
+    // would have reached if `unlinkat` succeeded but
+    // `sync_parent_handle` failed. The path is gone (we pre-deleted it
+    // above) — the retry must still complete via parent fsync alone
+    // and clear the pending state.
+    let parent_handle = crate::utils::open_parent_for_sync(&path)
+      .expect("open parent for NeedsParentSync test fixture");
+    f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsParentSync {
+      path: path.clone(),
+      parent_handle,
+    });
+
     f.remove().unwrap();
     assert!(f.pending_drop_remove.is_none());
     assert!(f.deleted);
   }
 
-  /// Codex finding (round 8, high): `Drop` used to call `remove_file` on
-  /// `inner.path_buf()` whenever `remove_on_drop=true`, regardless of
-  /// inner variant. Memory variants store the user-supplied string as a
-  /// label, so `MmapFileMut::memory_from_vec("real_file", ...)` followed
-  /// by `set_remove_on_drop(true)` would delete `real_file` on Drop even
-  /// though no on-disk mapping owns it. Verify Drop now no-ops on Memory
-  /// variants (matching the explicit `remove()` method's behavior).
+  /// Pre-unlink NotFound after a *rename* (not an unlink) must keep
+  /// `NeedsUnlink` and never mark `deleted = true`. The pin's inode
+  /// is alive at the rename destination (`nlink > 0`), so the nlink
+  /// classifier correctly stays in NeedsUnlink. A `NeedsParentSync`
+  /// route would let the next retry trivially fsync and report
+  /// success while the original file is still alive at a new name.
+  #[cfg(unix)]
+  #[test]
+  fn pre_unlink_notfound_after_rename_keeps_needs_unlink() {
+    let path = crate::tests::get_random_filename();
+    let mut renamed = crate::tests::get_random_filename();
+    renamed.set_extension("renamed");
+    defer!(let _ = std::fs::remove_file(&path););
+    defer!(let _ = std::fs::remove_file(&renamed););
+    let mut f = unsafe { MmapFileMut::create(&path) }.unwrap();
+    f.truncate(8).unwrap();
+
+    // Rename the file away — directory entry at `path` is gone, but
+    // the inode lives on at `renamed` (nlink stays at 1).
+    std::fs::rename(&path, &renamed).unwrap();
+    assert!(!path.exists());
+    assert!(renamed.exists());
+
+    // First remove() — pre-unlink probe at `path` is NotFound.
+    // fstat on the pin sees nlink == 1 (alive at `renamed`), so we
+    // route to NeedsUnlink (the rename-then-NotFound case).
+    let err = f.remove().expect_err("path missing → NotFound");
+    assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    assert!(matches!(
+      f.pending_drop_remove,
+      Some(crate::mmap_file::PendingDelete::NeedsUnlink { .. })
+    ));
+    assert!(!f.deleted, "deleted must NOT be set on initial NotFound");
+
+    // Retry — still missing at `path`, still alive at `renamed`,
+    // still NeedsUnlink. No false-success.
+    let err = f
+      .remove()
+      .expect_err("retry against renamed-away file stays NotFound");
+    assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    assert!(matches!(
+      f.pending_drop_remove,
+      Some(crate::mmap_file::PendingDelete::NeedsUnlink { .. })
+    ));
+    assert!(
+      !f.deleted,
+      "false-success on retry: the renamed-away file is still alive, deletion did not happen"
+    );
+    // The renamed-away file is still alive — we never touched it.
+    assert!(renamed.exists());
+  }
+
+  /// `Drop` used to call `remove_file` on `inner.path_buf()` whenever
+  /// `remove_on_drop=true`, regardless of inner variant. Memory
+  /// variants store the user-supplied string as a label, so
+  /// `MmapFileMut::memory_from_vec("real_file", ...)` followed by
+  /// `set_remove_on_drop(true)` would delete `real_file` on Drop
+  /// even though no on-disk mapping owns it. Verify Drop now no-ops
+  /// on Memory variants (matching the explicit `remove()` method's
+  /// behavior).
   #[test]
   fn drop_on_memory_variant_does_not_unlink_label_path() {
     let real_file_path = crate::tests::get_random_filename();
@@ -2302,12 +2485,12 @@ mod regression {
     let _ = std::fs::remove_file(&real_file_path);
   }
 
-  /// Codex finding (round 7, high): `freeze`/`freeze_exec` on
-  /// `DiskMmapFileMut` did not check the `poisoned` flag, so a failed
-  /// truncate could be turned into a successful read-only `MmapFile`
-  /// whose `as_slice()` returns the anonymous placeholder bytes while
-  /// `path()`/`metadata()` refer to the real file — silently corrupt
-  /// views. Verify `freeze` and `freeze_exec` reject a poisoned mapping.
+  /// `freeze`/`freeze_exec` on `DiskMmapFileMut` must check the
+  /// `poisoned` flag — otherwise a failed truncate could be turned
+  /// into a successful read-only `MmapFile` whose `as_slice()`
+  /// returns the anonymous placeholder bytes while `path()`/
+  /// `metadata()` refer to the real file — silently corrupt views.
+  /// Verify `freeze` and `freeze_exec` reject a poisoned mapping.
   #[test]
   fn freeze_rejects_poisoned_mapping() {
     use crate::raw::DiskMmapFileMut;
@@ -2342,13 +2525,13 @@ mod regression {
     );
   }
 
-  /// Codex finding (round 5, high): consuming `drop_remove(self)` swapped
-  /// inner to Empty BEFORE running fallible disk I/O. On Err the wrapper
-  /// was consumed and `Drop`'s `remove_on_drop` cleanup silently no-op'd
-  /// against the Empty inner's `""` path. Verify `drop_remove` propagates
-  /// the Err (the `pending_remove_path` retention is verified by the
-  /// inherent-`remove` regression above; the consuming variant uses the
-  /// same retain-on-Err shape).
+  /// Consuming `drop_remove(self)` used to swap inner to Empty BEFORE
+  /// running fallible disk I/O. On Err the wrapper was consumed and
+  /// `Drop`'s `remove_on_drop` cleanup silently no-op'd against the
+  /// Empty inner's `""` path. Verify `drop_remove` propagates the
+  /// Err (the `pending_remove_path` retention is verified by the
+  /// inherent-`remove` regression above; the consuming variant uses
+  /// the same retain-on-Err shape).
   #[test]
   fn drop_remove_consuming_propagates_failure() {
     let path = crate::tests::get_random_filename();
@@ -2383,11 +2566,12 @@ mod regression {
     assert_eq!(bytes, b"abcd");
   }
 
-  /// Codex finding (high): a copy-on-write mapping must not mutate the
-  /// backing file. Both `close(max_sz)` (inherent) and `close_with_truncate`
-  /// (trait, dispatching to disk) used to call `set_len` on the backing file
-  /// regardless of mapping type. Verify both paths refuse with Unsupported
-  /// when `max_sz >= 0` AND the underlying file is preserved.
+  /// A copy-on-write mapping must not mutate the backing file. Both
+  /// `close(max_sz)` (inherent) and `close_with_truncate` (trait,
+  /// dispatching to disk) used to call `set_len` on the backing file
+  /// regardless of mapping type. Verify both paths refuse with
+  /// Unsupported when `max_sz >= 0` AND the underlying file is
+  /// preserved.
   #[test]
   fn cow_close_does_not_truncate_backing_file() {
     let path = crate::tests::get_random_filename();
@@ -2423,13 +2607,14 @@ mod regression {
     assert_eq!(std::fs::read(&path).unwrap(), b"keep me intact");
   }
 
-  /// Codex finding (round 14, critical): `Options::len` was previously
-  /// passed straight to memmapix without bounds-checking against the
-  /// backing file. memmapix accepts the configured length unconditionally,
-  /// so a 4096-byte mapping over a 1-byte file produces a mapping whose
-  /// pages past EOF SIGBUS on access — turning a safe-API entry point
-  /// into an unannounced UB trap. Verify each constructor rejects an
-  /// `offset+len` window that exceeds the file before invoking memmapix.
+  /// `Options::len` was previously passed straight to memmapix
+  /// without bounds-checking against the backing file. memmapix
+  /// accepts the configured length unconditionally, so a 4096-byte
+  /// mapping over a 1-byte file produces a mapping whose pages past
+  /// EOF SIGBUS on access — turning a safe-API entry point into an
+  /// unannounced UB trap. Verify each constructor rejects an
+  /// `offset+len` window that exceeds the file before invoking
+  /// memmapix.
   #[test]
   fn map_range_validation_rejects_oversized_window() {
     use crate::Options;
@@ -2481,13 +2666,13 @@ mod regression {
     assert_eq!(f.as_slice(), b"bc");
   }
 
-  /// Codex finding (round 14, high): the raw `DiskMmapFileMut::drop_remove`
-  /// is consuming and used to return parent-fsync errors in a generic
-  /// shape, so a caller couldn't tell unlink-failed from unlink-succeeded-
-  /// but-parent-sync-failed and would be tempted to retry `remove_file` on
-  /// a path that may have been reused. Verify the post-unlink failure is
-  /// reported with a message that names the parent dir and warns against
-  /// re-calling `remove_file`.
+  /// The raw `DiskMmapFileMut::drop_remove` is consuming and used to
+  /// return parent-fsync errors in a generic shape, so a caller
+  /// couldn't tell unlink-failed from
+  /// unlink-succeeded-but-parent-sync-failed and would be tempted to
+  /// retry `remove_file` on a path that may have been reused. Verify
+  /// the post-unlink failure is reported with a message that names
+  /// the parent dir and warns against re-calling `remove_file`.
   ///
   /// Triggering an actual `sync_dir` failure is intrusive (mocking fsync),
   /// so this test only covers the success path of the message-tagging code:
@@ -2507,11 +2692,11 @@ mod regression {
     assert!(!path.exists(), "file should be unlinked");
   }
 
-  /// Codex finding (round 15, high): `open_with_options` used to apply
-  /// `truncate(true)` and `max_size` extension *before* validating the
-  /// mapping range. An invalid `offset/len` combined with `truncate(true)`
-  /// would zero an existing file and only then return Err — silent data
-  /// loss. Verify the file content is preserved when validation rejects.
+  /// `open_with_options` used to apply `truncate(true)` and
+  /// `max_size` extension *before* validating the mapping range. An
+  /// invalid `offset/len` combined with `truncate(true)` would zero
+  /// an existing file and only then return Err — silent data loss.
+  /// Verify the file content is preserved when validation rejects.
   #[test]
   fn invalid_options_with_truncate_preserve_existing_file() {
     use crate::Options;
@@ -2551,12 +2736,11 @@ mod regression {
     );
   }
 
-  /// Round 17 regression: `pending_remove_path` (set when
-  /// `close_with_truncate` consumed the inner) does NOT carry identity
-  /// — by that point the `File` was already gone — so its Drop path
-  /// stays the path-reuse-safe "fsync parent only" behavior introduced
-  /// in round 16. Verify a wrapper whose only Drop signal is
-  /// `pending_remove_path` does not unlink.
+  /// `pending_remove_path` (set when `close_with_truncate` consumed
+  /// the inner) does NOT carry identity — by that point the `File`
+  /// was already gone — so its Drop path is the path-reuse-safe
+  /// "fsync parent only" behavior. Verify a wrapper whose only Drop
+  /// signal is `pending_remove_path` does not unlink.
   #[test]
   fn pending_remove_path_drop_does_not_unlink() {
     let path = crate::tests::get_random_filename();
@@ -2575,29 +2759,24 @@ mod regression {
     assert_eq!(std::fs::read(&path).unwrap(), b"keep");
   }
 
-  /// Codex finding (round 15, high): `drop_complete_pending_delete` used
-  /// to retry `remove_file` from `Drop` when state was `NeedsUnlink`,
-  /// which races path reuse — between the initial failure and Drop,
-  /// another actor could swap the path and our retry would delete an
-  /// unrelated file. Verify Drop no longer unlinks by path alone.
+  /// `drop_complete_pending_delete` used to retry `remove_file` from
+  /// `Drop` when state was `NeedsUnlink`, which races path reuse —
+  /// between the initial failure and Drop, another actor could swap
+  /// the path and our retry would delete an unrelated file. Verify
+  /// Drop no longer unlinks by path alone.
   ///
-  /// Construction: induce a `NeedsUnlink` pending state by pre-deleting
-  /// the file to make the explicit `drop_remove()` fail with a typed
-  /// non-NotFound error. (We can't easily provoke a non-NotFound failure
-  /// in tests without privilege escalation; instead we directly install
-  /// the pending state and observe Drop behavior.)
-  /// Codex round 17 (high) regression: explicit `remove()` retry of a
-  /// `NeedsUnlink` pending state must verify file identity (POSIX
-  /// dev+ino) before unlinking. If the path was reused between failure
-  /// and retry, retry must NOT delete the unrelated occupant.
+  /// Construction: induce a `NeedsUnlink` pending state by
+  /// pre-deleting the file to make the explicit `drop_remove()` fail
+  /// with a typed non-NotFound error. (We can't easily provoke a
+  /// non-NotFound failure in tests without privilege escalation;
+  /// instead we directly install the pending state and observe Drop
+  /// behavior.)
   ///
-  /// POSIX-only: on stable Rust, the natural Windows identity
-  /// (`file_index`) lives behind the unstable `windows_by_handle`
-  /// feature, so Windows uses a placeholder identity that trivially
-  /// matches and proceeds with the unlink — the path-reuse race is a
-  /// documented Windows limitation. POSIX has dev+ino so we can prove
-  /// the refusal path.
-  #[cfg(unix)]
+  /// Explicit `remove()` retry of a `NeedsUnlink` pending state must
+  /// verify file identity before unlinking. If the path was reused
+  /// between failure and retry, retry must NOT delete the unrelated
+  /// occupant. POSIX uses dev+ino; Windows uses
+  /// `GetFileInformationByHandle`'s volume serial + file index.
   #[test]
   fn explicit_retry_with_identity_check_refuses_path_reused_file() {
     let probe_path = crate::tests::get_random_filename();
@@ -2614,8 +2793,7 @@ mod regression {
     let mut original = original;
     original.write_all(b"original").unwrap();
     original.sync_all().unwrap();
-    let original_identity =
-      crate::utils::FileIdentity::from_metadata(&original.metadata().unwrap());
+    let original_identity = crate::utils::FileIdentity::from_file(&original).unwrap();
     // Unlink the directory entry but keep the inode pinned via `original`.
     std::fs::remove_file(&probe_path).unwrap();
     // Plant a *different* file at the same path. With `original` still
@@ -2626,6 +2804,8 @@ mod regression {
     f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
       path: probe_path.clone(),
       identity: original_identity,
+      #[cfg(unix)]
+      pin: dup_for_pin(&original),
     });
 
     let err = f.remove().unwrap_err();
@@ -2645,7 +2825,7 @@ mod regression {
     drop(original);
   }
 
-  /// Round 17: with a matching identity, retry succeeds and unlinks.
+  /// With a matching identity, retry succeeds and unlinks.
   #[test]
   fn explicit_retry_with_matching_identity_unlinks() {
     let probe_path = crate::tests::get_random_filename();
@@ -2653,18 +2833,21 @@ mod regression {
 
     // Create the file and capture its identity. Don't delete it; the
     // path still names the same inode, so retry must succeed.
-    let identity = {
-      let mut f = std::fs::File::create(&probe_path).unwrap();
-      f.write_all(b"to-be-deleted").unwrap();
-      f.sync_all().unwrap();
-      crate::utils::FileIdentity::from_metadata(&f.metadata().unwrap())
-    };
+    let mut original = std::fs::File::create(&probe_path).unwrap();
+    original.write_all(b"to-be-deleted").unwrap();
+    original.sync_all().unwrap();
+    let identity = crate::utils::FileIdentity::from_file(&original).unwrap();
+    #[cfg(unix)]
+    let pin = dup_for_pin(&original);
+    drop(original);
     assert!(probe_path.exists());
 
     let mut f = MmapFileMut::memory_from_vec("dummy.mem", vec![1u8]);
     f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
       path: probe_path.clone(),
       identity,
+      #[cfg(unix)]
+      pin,
     });
 
     f.remove().expect("identity matches → retry must unlink");
@@ -2672,11 +2855,119 @@ mod regression {
     assert!(f.pending_drop_remove.is_none());
   }
 
-  /// Round 17: Drop's pending-delete path must verify identity before
-  /// unlinking. With identity captured from the *original* file but the
-  /// path now naming a different inode, Drop must leave it alone.
-  /// POSIX-only — see sibling test for the Windows-stable rationale.
+  /// POSIX unlink permission is controlled by the parent dir, not by
+  /// the file's mode bits — a `chmod 000` file in a writable parent
+  /// must still be removable through fmmap's identity-checked path.
+  /// A previous implementation opened the file to probe identity and
+  /// so failed with EACCES on unreadable files; we now use
+  /// `metadata()` (stat), which only needs execute on the parent dir.
   #[cfg(unix)]
+  #[test]
+  fn unix_identity_check_works_on_chmod_000_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let probe_path = crate::tests::get_random_filename();
+    defer!(let _ = {
+      // Restore perms in case the test panics mid-way; otherwise the
+      // tempfile cleanup helper can't remove the file.
+      let _ = std::fs::set_permissions(&probe_path, std::fs::Permissions::from_mode(0o600));
+      std::fs::remove_file(&probe_path)
+    };);
+
+    // Create the file, dup for the inode pin, capture identity.
+    let original = std::fs::File::create(&probe_path).unwrap();
+    let identity = crate::utils::FileIdentity::from_file(&original).unwrap();
+    let pin = dup_for_pin(&original);
+    drop(original);
+    // Strip all permissions on the file. The parent dir (typically
+    // /tmp with 0o1777 or similar) still permits unlink.
+    std::fs::set_permissions(&probe_path, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+    // Identity probe via from_path uses metadata() now — works without
+    // read permission.
+    let probe = crate::utils::FileIdentity::from_path(&probe_path)
+      .expect("metadata-based identity probe must succeed for chmod 000 file");
+    assert!(identity.is_known_equal(&probe));
+    assert!(identity.matches_path(&probe_path));
+
+    // Wrap in PendingDelete and verify retry's identity check + unlink
+    // succeeds (the parent dir is writable, the file is unreadable).
+    let mut f = MmapFileMut::memory_from_vec("dummy.mem", vec![1u8]);
+    f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
+      path: probe_path.clone(),
+      identity,
+      pin,
+    });
+    f.remove()
+      .expect("chmod 000 file must still be removable via identity-checked retry");
+    assert!(!probe_path.exists());
+  }
+
+  /// When the user passes a symlink path, `remove_file(path)`
+  /// removes only the symlink, not the target — so even with
+  /// matching identity (the probe and the open file both follow the
+  /// symlink to the same inode), the wrapper would otherwise
+  /// succeed-and-leave-the-real-file-behind. Verify that
+  /// identity-checked cleanup refuses symlink paths instead.
+  #[cfg(unix)]
+  #[test]
+  fn identity_check_refuses_symlink_path() {
+    use std::os::unix::fs::symlink;
+
+    let target_path = crate::tests::get_random_filename();
+    let mut symlink_path = crate::tests::get_random_filename();
+    symlink_path.set_extension("symlink");
+    defer!(let _ = std::fs::remove_file(&target_path););
+    defer!(let _ = std::fs::remove_file(&symlink_path););
+
+    // Create the real file and a symlink pointing at it.
+    {
+      let f = std::fs::File::create(&target_path).unwrap();
+      drop(f);
+    }
+    symlink(&target_path, &symlink_path).unwrap();
+
+    // Capture identity through the symlink (follows). Both target and
+    // symlink resolve to the same inode, so the matching-identity
+    // happy path would otherwise green-light deletion.
+    let original = std::fs::File::open(&symlink_path).unwrap();
+    let identity = crate::utils::FileIdentity::from_file(&original).unwrap();
+    let pin = dup_for_pin(&original);
+    drop(original);
+    // matches_path: symlink_metadata sees the link itself → refuse.
+    assert!(
+      !identity.matches_path(&symlink_path),
+      "matches_path must refuse when path is a symlink",
+    );
+
+    // The from_path probe directly reports the symlink-refusal error.
+    let err = crate::utils::FileIdentity::from_path(&symlink_path).unwrap_err();
+    assert!(
+      err.to_string().contains("refuses to follow symlink"),
+      "expected symlink-refusal error, got: {err}",
+    );
+
+    // Plumbed through the wrapper: a NeedsUnlink retry against a
+    // symlink path must NOT remove the symlink (or the target).
+    let mut f = MmapFileMut::memory_from_vec("dummy.mem", vec![1u8]);
+    f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
+      path: symlink_path.clone(),
+      identity,
+      pin,
+    });
+    let err = f.remove().unwrap_err();
+    assert!(
+      err.to_string().contains("refuses to follow symlink")
+        || err.to_string().contains("path-reuse detected"),
+      "expected symlink/path-reuse refusal, got: {err}",
+    );
+    assert!(symlink_path.exists(), "symlink must remain");
+    assert!(target_path.exists(), "target must remain");
+  }
+
+  /// Drop's pending-delete path must verify identity before
+  /// unlinking. With identity captured from the *original* file but
+  /// the path now naming a different inode, Drop must leave it alone.
   #[test]
   fn drop_does_not_unlink_path_reused_file_for_needs_unlink() {
     let probe_path = crate::tests::get_random_filename();
@@ -2690,8 +2981,7 @@ mod regression {
     let mut original = original;
     original.write_all(b"original").unwrap();
     original.sync_all().unwrap();
-    let original_identity =
-      crate::utils::FileIdentity::from_metadata(&original.metadata().unwrap());
+    let original_identity = crate::utils::FileIdentity::from_file(&original).unwrap();
     std::fs::remove_file(&probe_path).unwrap();
     std::fs::write(&probe_path, b"unrelated content").unwrap();
 
@@ -2700,6 +2990,8 @@ mod regression {
       f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
         path: probe_path.clone(),
         identity: original_identity,
+        #[cfg(unix)]
+        pin: dup_for_pin(&original),
       });
       drop(f);
     }
@@ -2712,20 +3004,21 @@ mod regression {
     drop(original);
   }
 
-  /// Round 17: complement to the above — when identity matches, Drop's
-  /// pending-delete path *does* unlink (the cleanup that Codex round 16
-  /// disabled is now safely re-enabled by identity verification).
+  /// Complement to the above — when identity matches, Drop's
+  /// pending-delete path *does* unlink, now safely guarded by
+  /// identity verification.
   #[test]
   fn drop_unlinks_when_identity_matches() {
     let probe_path = crate::tests::get_random_filename();
     defer!(let _ = std::fs::remove_file(&probe_path););
 
-    let identity = {
-      let mut f = std::fs::File::create(&probe_path).unwrap();
-      f.write_all(b"to-be-deleted").unwrap();
-      f.sync_all().unwrap();
-      crate::utils::FileIdentity::from_metadata(&f.metadata().unwrap())
-    };
+    let mut original = std::fs::File::create(&probe_path).unwrap();
+    original.write_all(b"to-be-deleted").unwrap();
+    original.sync_all().unwrap();
+    let identity = crate::utils::FileIdentity::from_file(&original).unwrap();
+    #[cfg(unix)]
+    let pin = dup_for_pin(&original);
+    drop(original);
     assert!(probe_path.exists());
 
     {
@@ -2733,6 +3026,8 @@ mod regression {
       f.pending_drop_remove = Some(crate::mmap_file::PendingDelete::NeedsUnlink {
         path: probe_path.clone(),
         identity,
+        #[cfg(unix)]
+        pin,
       });
       drop(f);
     }
@@ -2743,19 +3038,15 @@ mod regression {
     );
   }
 
-  /// Codex round 18 (high) regression: the *initial* `remove()` /
-  /// `drop_remove()` call must identity-check before `remove_file`.
-  /// Between the wrapper dropping its file handle and the unlink, an
-  /// outside actor could rename + recreate the path with a different
-  /// file. Without the check, the initial unlink would delete that
-  /// unrelated file. Simulate the race by:
+  /// The *initial* `remove()` / `drop_remove()` call must
+  /// identity-check before `remove_file`. Between the wrapper
+  /// dropping its file handle and the unlink, an outside actor could
+  /// rename + recreate the path with a different file. Without the
+  /// check, the initial unlink would delete that unrelated file.
+  /// Simulate the race by:
   ///   1. opening the wrapper (captures identity from the original inode),
   ///   2. externally swapping the path with a different file,
   ///   3. calling `remove()`, which must refuse to unlink.
-  ///
-  /// POSIX-only — Windows-stable lacks file_index identity (see sibling
-  /// `explicit_retry_with_identity_check_refuses_path_reused_file`).
-  #[cfg(unix)]
   #[test]
   fn initial_remove_refuses_path_reused_file() {
     let path = crate::tests::get_random_filename();
@@ -2787,10 +3078,9 @@ mod regression {
     ));
   }
 
-  /// Codex round 18 (high) regression: same race, but for raw
-  /// `DiskMmapFileMut::drop_remove`. The raw API must not unlink either.
-  /// POSIX-only — see sibling for the Windows-stable rationale.
-  #[cfg(unix)]
+  /// Same race as the wrapper test, but for raw
+  /// `DiskMmapFileMut::drop_remove`. The raw API must not unlink
+  /// either.
   #[test]
   fn raw_drop_remove_refuses_path_reused_file() {
     use crate::raw::DiskMmapFileMut;
@@ -2816,9 +3106,8 @@ mod regression {
     assert_eq!(std::fs::read(&path).unwrap(), b"unrelated content");
   }
 
-  /// Round 17: `remove_on_drop` direct path now verifies identity from the
-  /// inner before unlinking — round-16 disabled this entirely; round-17
-  /// re-enables it safely. Verify the file IS unlinked when the path
+  /// `remove_on_drop` direct path verifies identity from the inner
+  /// before unlinking. Verify the file IS unlinked when the path
   /// still names the same inode at Drop time.
   #[test]
   fn remove_on_drop_unlinks_when_identity_matches() {
