@@ -37,9 +37,7 @@ where
 /// unreachable on tokio — but the shape is kept symmetric with smol
 /// for trait-free helper-name dispatch from the disk macro.
 #[cfg(unix)]
-async fn extract_pin_or_err(
-  file: File,
-) -> std::result::Result<std::fs::File, (File, Error)> {
+async fn extract_pin_or_err(file: File) -> std::result::Result<std::fs::File, (File, Error)> {
   Ok(file.into_std().await)
 }
 

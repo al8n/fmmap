@@ -38,9 +38,7 @@ where
 /// `drop_remove`/`remove`) can decide whether to surface the error,
 /// reconstruct itself, or trigger a retry.
 #[cfg(unix)]
-async fn extract_pin_or_err(
-  file: File,
-) -> std::result::Result<std::fs::File, (File, Error)> {
+async fn extract_pin_or_err(file: File) -> std::result::Result<std::fs::File, (File, Error)> {
   use std::os::fd::{AsRawFd, BorrowedFd};
   let raw = file.as_raw_fd();
   // SAFETY: file is alive for the duration of this borrow.
