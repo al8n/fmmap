@@ -2453,6 +2453,82 @@ mod regression {
     assert!(renamed.exists());
   }
 
+  /// Cross-directory rename + external unlink: the documented residual
+  /// race that the README's "External rename + unlink elsewhere"
+  /// section covers. A concurrent actor renames our file into a
+  /// different directory, then unlinks it there. The pin's `nlink`
+  /// drops to 0 — but the actual unlink happened in a parent we don't
+  /// hold a handle to, so fsyncing OUR parent doesn't make their
+  /// unlink crash-durable. fmmap must surface this as `NotFound`
+  /// (i.e., `NeedsUnlink`) rather than claiming durable success — even
+  /// though the file is genuinely gone from the namespace, we can't
+  /// prove crash-durability from our side.
+  #[cfg(unix)]
+  #[test]
+  fn external_rename_to_other_dir_then_unlink_surfaces_notfound() {
+    let dir_a = std::env::temp_dir().join(format!(
+      "fmmap-test-dir-a-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+    ));
+    let dir_b = std::env::temp_dir().join(format!(
+      "fmmap-test-dir-b-{}-{}",
+      std::process::id(),
+      std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+    ));
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+    defer!(let _ = std::fs::remove_dir_all(&dir_a););
+    defer!(let _ = std::fs::remove_dir_all(&dir_b););
+
+    let path_a = dir_a.join("original.txt");
+    let path_b = dir_b.join("moved.txt");
+    let mut f = unsafe { MmapFileMut::create(&path_a) }.unwrap();
+    f.truncate(8).unwrap();
+
+    // Simulate external actor: rename to a different directory, then
+    // unlink there. fmmap's pin keeps the inode alive in memory but
+    // nlink drops to 0; our parent_handle still points at dir_a, where
+    // the entry hasn't existed since the rename.
+    std::fs::rename(&path_a, &path_b).unwrap();
+    std::fs::remove_file(&path_b).unwrap();
+    assert!(!path_a.exists());
+    assert!(!path_b.exists());
+
+    // First remove() — probe at path_a is NotFound. fmmap stays in
+    // NeedsUnlink and surfaces NotFound; we MUST NOT claim durable
+    // deletion (round-30 attempted that via nlink==0; round-36
+    // reverted because the actual unlink was in dir_b's journal,
+    // not ours).
+    let err = f.remove().expect_err("path missing → NotFound");
+    assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    assert!(matches!(
+      f.pending_drop_remove,
+      Some(crate::mmap_file::PendingDelete::NeedsUnlink { .. })
+    ));
+    assert!(
+      !f.deleted,
+      "deleted must NOT be set: we cannot crash-durably commit dir_b's unlink"
+    );
+
+    // Retry — same surface area, same conservative answer.
+    let err = f
+      .remove()
+      .expect_err("retry against externally-deleted-elsewhere file stays NotFound");
+    assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    assert!(matches!(
+      f.pending_drop_remove,
+      Some(crate::mmap_file::PendingDelete::NeedsUnlink { .. })
+    ));
+    assert!(!f.deleted);
+  }
+
   /// `Drop` used to call `remove_file` on `inner.path_buf()` whenever
   /// `remove_on_drop=true`, regardless of inner variant. Memory
   /// variants store the user-supplied string as a label, so
