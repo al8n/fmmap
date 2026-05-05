@@ -23,19 +23,35 @@ Inspired by Dgraph's mmap file implementation in [ristretto](https://github.com/
 A file-backed memory map exposes the kernel's view of an inode as a `&[u8]`/`&mut [u8]`. That makes it easy to reach for, but it also means UB the moment another actor truncates, unlinks, or rewrites the file out from under the mapping — SIGBUS on Unix, mapping detachment on Windows, silent torn reads in either. `fmmap` raises a safe API over `memmapix` by treating those concerns as first-class:
 
 - **Auto-acquired advisory lock** on every constructor — exclusive on writable maps, shared on read-only / COW maps. Aliased writable mappings of the same file (and mut-then-COW) are rejected up front.
-- **Identity-checked deletion** (POSIX `dev`+`ino`). Captured at open, used by every unlink path to refuse to delete a file someone else has swapped in at the path. Windows on stable Rust falls back to "path resolves" semantics — `file_index` is still nightly-only — and the residual race window is documented.
+- **Best-effort path-reuse mitigation on deletion**. Identity is captured at open and re-checked before every unlink so a file someone else has swapped in at the path won't be silently deleted. POSIX uses `(st_dev, st_ino)`; Windows uses `(volumeSerial, fileIndex)` from `GetFileInformationByHandle` (via `windows-sys`, no nightly required). **This is not an absolute guarantee** — see the [path-reuse limitations](#path-reuse-limitations) below.
 - **Pre-validated mapping ranges**. Constructors reject `offset`/`len` overflow, ranges past EOF, and effective lengths > `isize::MAX` *before* any destructive `set_len` runs, so an invalid `Options` never zeroes or extends an existing file.
-- **Crash-durable unlink**. The parent directory is pinned by a handle opened *before* `remove_file`, then fsynced through that same handle, so a parent rename between unlink and fsync can't direct the durability to the wrong inode.
+- **Crash-durable unlink**. The parent directory is pinned by a handle opened *before* `remove_file`, then fsynced through that same handle. Failed-fsync retries fsync the *same* handle (not a freshly-opened parent), so a parent rename between unlink and fsync can't direct the durability to the wrong inode.
 - **Reentrant-safe lock methods**. `LockFileEx` deadlocks on the same Windows handle; `lock` / `lock_shared` short-circuit when the desired state is already held. The lock methods take `&mut self` so single-owner serialization is enforced by the borrow checker.
 - **Poison-safe truncate / freeze**. A failed truncate marks the wrapper poisoned; subsequent reads return `&[]` and writes/flushes/freezes return `Err` rather than handing back an anonymous-mapped placeholder pretending to be the original file.
 
 `std` plus tokio and smol are first-class. The async surface is built from the same set of macros, so adding a new runtime is small and mechanical — see `fmmap/src/disk/{tokio,smol}_impl.rs`.
 
+### Path-reuse limitations
+
+Identity-checked deletion is best-effort and the rest of the safety surface assumes a non-adversarial filesystem. Specifically:
+
+- **One-syscall probe→unlink TOCTOU.** Between the identity probe and the actual `remove_file`, an attacker with rights to mutate the parent directory could swap the entry. Closing this fully needs atomic primitives that `std` doesn't expose — `unlinkat(parent_fd, basename, 0)` after `fstatat` on POSIX, or `SetFileInformationByHandle(FileDispositionInfo)` on a `FILE_SHARE_DELETE` handle on Windows. The narrow window (one syscall) is dramatically smaller than the broad handle-drop-to-retry window the identity check *does* close, but it isn't zero.
+- **POSIX inode recycling.** The kernel can reuse recently-freed inode numbers; on small-id filesystems (tmpfs in particular) a fresh file may occasionally land on the original inode, defeating the comparison. Holding any other handle on the original inode pins it (we keep the parent dir handle alive across the unlink, which already pins the parent inode).
+- **External NotFound never claims durable deletion.** When the path probe returns `NotFound` (the file is missing at probe time, or `unlinkat` finds nothing), fmmap stays in `NeedsUnlink` and surfaces `NotFound` rather than claiming the deletion succeeded. Earlier versions used a `nlink == 0` check to converge on "durably gone", but that signal can't distinguish "unlink in our parent" from "rename + unlink in another parent" — and our parent's fsync only commits the former. Drop's best-effort fsync of our parent still helps in the typical "external `rm` in our parent" case, but the API contract is now: explicit `remove()` only returns `Ok` if fmmap itself observed `unlinkat` succeed in the parent it then fsynced. Callers who want crash-durable identity-checked deletion under concurrent rename should serialize external mutations or `fsync` the relevant parents themselves.
+
+### Async wrapper EMFILE on consuming `drop_remove`
+
+On smol, `AsyncMmapFileMut::drop_remove(self)` allocates a duplicate file descriptor for the inode pin (smol's `async-fs::File` has no `into_std()` equivalent). Under fd pressure (`EMFILE`) the dup fails and `drop_remove` returns `Err` deterministically — the file is *not* deleted, no hidden Drop-time retry attempts to clean up. Callers can recover by calling `std::fs::remove_file(path)` themselves, or use `AsyncMmapFileMut::remove(&mut self)` which preserves `self` for an explicit retry once fd pressure subsides.
+
+Tokio's wrapper extracts the inode pin via `tokio::fs::File::into_std()` (no fd allocation), so EMFILE doesn't apply on tokio.
+
+If your threat model includes an active local adversary, do not rely on identity-checked delete for safety — perform the cleanup yourself with whatever atomic primitives your platform provides.
+
 ## Features
 - [x] file-backed memory maps with auto-locked construction
 - [x] read-only / copy-on-write / mutable / executable maps
-- [x] identity-checked, path-reuse-safe deletion
-- [x] crash-durable unlink with pre-opened parent fsync
+- [x] best-effort path-reuse mitigation on deletion (POSIX dev+ino, Windows volume+fileIndex via `windows-sys`; see [Design](#design) for limits)
+- [x] crash-durable unlink with pre-opened parent fsync (the same handle is reused on retry)
 - [x] pre-validated mapping ranges (rejects past-EOF and `> isize::MAX` before any destructive `set_len`)
 - [x] poison-safe `truncate` / `freeze` / `freeze_exec`
 - [x] synchronous and asynchronous flushing

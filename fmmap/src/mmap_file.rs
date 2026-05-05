@@ -66,16 +66,39 @@ pub(crate) enum PendingDelete {
   /// recorded *before* the original handle was dropped, so retry can
   /// re-open the path and confirm that it still names the same inode
   /// (path-reuse safety) before unlinking.
+  ///
+  /// On POSIX, `pin` is an `F_DUPFD_CLOEXEC`-duplicate of the original
+  /// file descriptor, held alive across every retry. The kernel cannot
+  /// recycle `(dev, ino)` while ANY descriptor referring to that
+  /// open-file description is alive, so the identity check stays valid
+  /// across as many retries as the user attempts. Without this, a
+  /// retry on a tmpfs-style filesystem (which recycles inodes
+  /// aggressively after the last fd closes) could match `(dev, ino)`
+  /// against a totally unrelated file that happened to land at the
+  /// same path with the same recycled inode number — and unlink it.
   NeedsUnlink {
     path: ::std::path::PathBuf,
     identity: crate::utils::FileIdentity,
+    #[cfg(unix)]
+    pin: std::fs::File,
   },
   /// Either `remove_file` succeeded but the parent fsync did not, or
   /// `remove_file` reported `NotFound` (the file was already gone before
   /// our call). Either way, the inode is presumed gone; retry MUST NOT
   /// call `remove_file` again — that could delete a new occupant of the
   /// same path. Only the parent fsync remains.
-  NeedsParentSync(::std::path::PathBuf),
+  ///
+  /// `parent_handle` holds a `File` opened on the *original* parent
+  /// directory inode (captured before unlink). Retry fsyncs THAT handle,
+  /// not a freshly-opened one — without that, a parent-rename between
+  /// unlink and retry would silently fsync the wrong inode and the
+  /// wrapper would clear the pending state while the original unlink
+  /// was never made crash-durable. `path` is retained for diagnostics
+  /// only.
+  NeedsParentSync {
+    path: ::std::path::PathBuf,
+    parent_handle: std::fs::File,
+  },
 }
 
 #[cfg(any(feature = "sync", feature = "smol", feature = "tokio"))]
@@ -84,7 +107,7 @@ impl PendingDelete {
   #[allow(dead_code)]
   pub(crate) fn path(&self) -> &::std::path::Path {
     match self {
-      Self::NeedsUnlink { path, .. } | Self::NeedsParentSync(path) => path,
+      Self::NeedsUnlink { path, .. } | Self::NeedsParentSync { path, .. } => path,
     }
   }
 }
@@ -96,27 +119,67 @@ impl PendingDelete {
 /// `NeedsUnlink` carries a `FileIdentity` captured at construction time,
 /// so even though the original `File` handle is gone we can still verify
 /// the path still names the same inode before unlinking. If identity
-/// matches: unlink, then parent fsync. If not (path was reused): leave
-/// alone. Either way we fsync the parent.
+/// matches: unlink, then parent fsync (on a freshly-opened parent — we
+/// don't have a stashed handle on this branch). If not (path was reused):
+/// leave alone.
+///
+/// `NeedsParentSync` carries the pre-opened parent dir handle from the
+/// initial unlink; we fsync THAT handle so the durability commits to the
+/// inode that contained our entry, even if the parent path has since
+/// been renamed.
 ///
 /// All errors are swallowed because `Drop` cannot return a `Result`.
 #[cfg(any(feature = "sync", feature = "smol", feature = "tokio"))]
 pub(crate) fn drop_complete_pending_delete(pending: PendingDelete) {
-  let path = match &pending {
-    PendingDelete::NeedsUnlink { path, identity } => {
-      if identity.matches_path(path) {
-        let _ = std::fs::remove_file(path);
+  match pending {
+    PendingDelete::NeedsUnlink {
+      path,
+      identity,
+      #[cfg(unix)]
+      pin,
+    } => {
+      // Bind the probe + unlink + fsync to the same parent dir handle
+      // (POSIX `fstatat` + `unlinkat` against an open parent fd).
+      // Without this, a parent rename between probe and remove could
+      // let us unlink an entry in a different directory and then fsync
+      // the wrong parent. If we can't even open the parent, fall
+      // through to a best-effort path-based parent fsync — never a
+      // path-based unlink.
+      //
+      // `pin` (POSIX) is an alive dup of the original fd, so the
+      // kernel cannot recycle `(dev, ino)` while we run the probe and
+      // unlink below. Held to function exit — drop it AFTER the unlink
+      // call returns.
+      #[cfg(unix)]
+      let _inode_pin = pin;
+      let parent_handle = match crate::utils::open_parent_for_sync(&path) {
+        Ok(h) => h,
+        Err(_) => {
+          let parent = match path.parent() {
+            Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+            _ => ::std::path::PathBuf::from("."),
+          };
+          let _ = crate::utils::sync_directory(&parent);
+          return;
+        }
+      };
+      if let Ok(probe) = crate::utils::identity_at_or_path(&parent_handle, &path) {
+        if identity.is_known_equal(&probe) {
+          let _ = crate::utils::unlink_at_or_path(&parent_handle, &path, identity);
+        }
+        // Identity mismatch → path was reused, do not unlink.
       }
-      // Identity mismatch → path was reused, do not unlink.
-      path.clone()
+      // Identity probe failure (path missing, symlink, etc.) → skip
+      // unlink. Either way, fsync the parent we opened.
+      let _ = crate::utils::sync_parent_handle(&parent_handle);
     }
-    PendingDelete::NeedsParentSync(p) => p.clone(),
-  };
-  let parent = match path.parent() {
-    Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-    _ => ::std::path::PathBuf::from("."),
-  };
-  let _ = crate::utils::sync_directory(&parent);
+    PendingDelete::NeedsParentSync {
+      path: _,
+      parent_handle,
+    } => {
+      let _ = crate::utils::sync_parent_handle(&parent_handle);
+    }
+  }
 }
 
 /// Drop-time best-effort cleanup for the opt-in `remove_on_drop` /
@@ -148,23 +211,75 @@ pub(crate) fn drop_unlink_durably(path: &::std::path::Path) {
 }
 
 /// Identity-checked Drop-time unlink for the direct `remove_on_drop`
-/// path: we still hold an identity captured from the inner (recorded at
-/// construction). If `path` still names the same inode (path-reuse-free),
-/// unlink it; otherwise leave alone. Then fsync the parent. All errors
-/// swallowed because `Drop` cannot return a `Result`.
+/// path. Uses the same parent-bound sequence as `initial_remove_durably`
+/// — open the parent dir handle once, probe identity bound to it
+/// (`fstatat` on POSIX), unlink bound to it (`unlinkat`), fsync the
+/// same handle. `inode_pin` (POSIX only — Windows passes `None`) is
+/// the original file handle, held alive through probe + unlink so the
+/// `(dev, ino)` we compare against can't be recycled to a replacement.
+/// All errors swallowed because `Drop` cannot return a `Result`.
 #[cfg(any(feature = "sync", feature = "smol", feature = "tokio"))]
 pub(crate) fn drop_unlink_with_identity(
   path: &::std::path::Path,
   identity: crate::utils::FileIdentity,
+  inode_pin: Option<std::fs::File>,
 ) {
-  if identity.matches_path(path) {
-    let _ = std::fs::remove_file(path);
-  }
-  let parent = match path.parent() {
-    Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-    _ => ::std::path::PathBuf::from("."),
+  // On POSIX, identity-checked unlink without an active pin is
+  // unsafe — between the original handle's close and the identity
+  // probe, the kernel can recycle `(dev, ino)` so a path-reused file
+  // unrelated to ours passes the identity comparison and gets
+  // unlinked. If the caller couldn't dup the fd (EMFILE etc.) and
+  // passed `None`, refuse the unlink and fsync the parent only.
+  #[cfg(unix)]
+  let _inode_pin: std::fs::File = match inode_pin {
+    Some(f) => f,
+    None => {
+      let parent = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => ::std::path::PathBuf::from("."),
+      };
+      let _ = crate::utils::sync_directory(&parent);
+      return;
+    }
   };
-  let _ = crate::utils::sync_directory(&parent);
+  #[cfg(not(unix))]
+  // Windows: file_index/volume_serial isn't recycled the way Unix
+  // (dev, ino) is; no pin is required for path-reuse safety.
+  let _inode_pin = inode_pin;
+  let parent = match crate::utils::open_parent_for_sync(path) {
+    Ok(p) => p,
+    Err(_) => {
+      // Can't even open parent — fall back to fsync-by-path of the
+      // path's parent component. No unlink (we'd be path-based
+      // without the parent_handle that binds the unlink to the same
+      // open directory we identity-probed).
+      let parent = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => ::std::path::PathBuf::from("."),
+      };
+      let _ = crate::utils::sync_directory(&parent);
+      return;
+    }
+  };
+  // Probe identity bound to parent.
+  let probe = match crate::utils::identity_at_or_path(&parent, path) {
+    Ok(p) => p,
+    Err(_) => {
+      // Identity probe failed (path missing, symlink refused, etc.)
+      // Skip the unlink; just sync the parent for any pending state.
+      let _ = crate::utils::sync_parent_handle(&parent);
+      return;
+    }
+  };
+  if !identity.is_known_equal(&probe) {
+    // Path-reuse: leave the path-reused file alone.
+    let _ = crate::utils::sync_parent_handle(&parent);
+    return;
+  }
+  // Unlink bound to the same parent handle (Unix) / same handle as
+  // identity probe (Windows).
+  let _ = crate::utils::unlink_at_or_path(&parent, path, identity);
+  let _ = crate::utils::sync_parent_handle(&parent);
 }
 
 macro_rules! impl_drop {
@@ -196,14 +311,25 @@ macro_rules! impl_drop {
           }
           // Direct `remove_on_drop` path: the Disk inner is still alive,
           // so we can capture identity from `disk.file_identity` (recorded
-          // at construction) and pass it to an identity-checked unlink
-          // that only deletes if the path still names the original inode.
-          if let $inner::Disk(disk) = &self.inner {
-            let identity = disk.file_identity;
-            let path = disk.path.clone();
+          // at construction), pin the inode via the file's fd (POSIX),
+          // and run the same parent-bound unlink sequence as
+          // `initial_remove_durably`.
+          if matches!(&self.inner, $inner::Disk(_)) {
             let empty = <$inner>::Empty(<$empty>::default());
-            drop(mem::replace(&mut self.inner, empty));
-            crate::mmap_file::drop_unlink_with_identity(&path, identity);
+            let inner = mem::replace(&mut self.inner, empty);
+            if let $inner::Disk(disk) = inner {
+              let identity = disk.file_identity;
+              let path = disk.path;
+              drop(disk.mmap);
+              // Take the inode pin via a per-impl-file helper. Sync
+              // owns the std::fs::File directly — moving it costs
+              // nothing and never fails (no fd alloc). Async helpers
+              // extract via `try_into_std` (tokio) or dup (smol). The
+              // helper consumes disk.file, so the pin and the original
+              // handle never coexist as separate fd owners.
+              let pin: Option<std::fs::File> = sync_drop_pin(disk.file);
+              crate::mmap_file::drop_unlink_with_identity(&path, identity, pin);
+            }
           }
         }
       }
@@ -549,7 +675,8 @@ cfg_async! {
           let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
           let inner = mem::replace(&mut self.inner, empty);
           match inner {
-            AsyncMmapFileMutInner::Disk(disk) => {
+            #[allow(unused_mut)] // `mut` only needed on Unix smol-EMFILE recovery
+            AsyncMmapFileMutInner::Disk(mut disk) => {
               // Run the durable unlink at the wrapper layer so we can
               // classify failures correctly (`NeedsUnlink` vs
               // `NeedsParentSync`). Delegating to the disk inner would
@@ -558,9 +685,48 @@ cfg_async! {
               // already been unlinked and possibly reused.
               let path = disk.path.clone();
               let identity = disk.file_identity;
-              drop(disk.mmap);
+              // Take the inode pin via a runtime-specific helper.
+              // tokio's `extract_pin_or_err` uses
+              // `tokio::fs::File::into_std` (no fd alloc — never fails
+              // for fd reasons). smol's helper still needs to dup;
+              // on EMFILE the original file is returned in Err and
+              // we restore self.inner for a clean Err to the caller.
+              //
+              // Deterministic Err semantics: we do NOT set
+              // `remove_on_drop = true` here — that would trigger a
+              // hidden Drop-time dup retry which, if it happens to
+              // succeed, would delete the file *despite* the caller
+              // having seen Err. For retryable delete, callers should
+              // use the wrapper's `remove(&mut self)` API which
+              // preserves `self` for an explicit retry.
+              #[cfg(unix)]
+              let pin: std::fs::File = {
+                let async_file = disk.file;
+                match extract_pin_or_err(async_file).await {
+                  Ok(p) => p,
+                  Err((file_back, e)) => {
+                    // smol EMFILE: clean Err. File remains on disk;
+                    // caller can use std::fs::remove_file or retry
+                    // via remove(&mut self) once fd pressure subsides.
+                    disk.file = file_back;
+                    self.inner = AsyncMmapFileMutInner::Disk(disk);
+                    return Err(e);
+                  }
+                }
+              };
+              #[cfg(not(unix))]
               drop(disk.file);
-              match initial_remove_durably_async(&path, identity).await {
+              // disk.file already moved into the helper on Unix Ok
+              // path; mmap drops cleanly here.
+              drop(disk.mmap);
+              match initial_remove_durably_async(
+                &path,
+                identity,
+                #[cfg(unix)]
+                pin,
+              )
+              .await
+              {
                 Ok(()) => {
                   self.deleted = true;
                   Ok(())
@@ -1908,108 +2074,149 @@ cfg_async! {
 
   macro_rules! delcare_and_impl_async_mmap_file_mut {
     ($filename_prefix: literal, $doc_test_runtime: literal, $path_str: literal) => {
-      async fn sync_parent_path_async(path: &::std::path::Path) -> Result<()> {
-        let parent = match path.parent() {
-          Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-          _ => ::std::path::PathBuf::from("."),
-        };
-        sync_dir_async(&parent).await
-      }
-
       /// Initial-call durable unlink: see sync sibling
       /// `initial_remove_durably`. Identity-check first, then unlink. The
       /// first unlink runs after the wrapper has dropped its handle, so a
       /// concurrent rename + recreate could already have happened — the
       /// pre-unlink identity check refuses to delete a different file at
       /// the same path.
+      /// `inode_pin` mirrors the sync sibling: a `std::fs::File`
+      /// duplicated from the original async file descriptor (POSIX) so
+      /// the inode it refers to cannot be recycled while the identity
+      /// probe + unlink run. Windows callers pass `None`.
+      ///
+      /// The entire blocking sequence (open parent, fstatat, unlinkat,
+      /// fsync) runs through the runtime's blocking-task pool
+      /// (`tokio::task::spawn_blocking` / `smol::unblock`) so a slow
+      /// filesystem can't stall the async executor.
       async fn initial_remove_durably_async(
         path: &::std::path::Path,
         identity: crate::utils::FileIdentity,
+        #[cfg(unix)] inode_pin: std::fs::File,
       ) -> ::std::result::Result<
         (),
         (crate::mmap_file::PendingDelete, Error),
       > {
-        // Pre-open the parent dir handle (sync — single short syscall;
-        // tokio/smol's async-File would just dispatch to the same blocking
-        // I/O thread pool). This pins the original parent inode so the
-        // post-unlink fsync is durable even if the path's parent is
-        // renamed mid-operation.
-        let parent_handle = match crate::utils::open_parent_for_sync(path) {
-          Ok(h) => h,
-          Err(e) => {
-            return Err((
-              crate::mmap_file::PendingDelete::NeedsUnlink {
-                path: path.to_path_buf(),
-                identity,
-              },
-              e,
-            ));
-          }
-        };
-        // Synchronous metadata is fine here: we just need the identity
-        // tokens, which `std::fs::metadata` returns directly. The async
-        // runtime's `metadata()` would block on a thread pool anyway for
-        // a single fstat-equivalent.
-        match std::fs::metadata(path) {
-          Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => {
-            return Err((
-              crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
-              e,
-            ));
-          }
-          Err(e) => {
-            return Err((
-              crate::mmap_file::PendingDelete::NeedsUnlink {
-                path: path.to_path_buf(),
-                identity,
-              },
-              e,
-            ));
-          }
-          Ok(probe) => {
-            let probe_id = crate::utils::FileIdentity::from_metadata(&probe);
-            if !identity.is_known_equal(&probe_id) {
-              let err = Error::other(format!(
-                "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink, or platform identity unavailable)",
-                path.display(),
-              ));
+        // pin is required (not Option) on POSIX. Callers must dup
+        // before calling and hard-fail on dup failure. The pin is
+        // moved into `PendingDelete::NeedsUnlink` on retryable
+        // failures so retries inherit it; otherwise dropped when the
+        // closure exits.
+        let path = path.to_path_buf();
+        run_blocking_io(move || -> ::std::result::Result<(), (crate::mmap_file::PendingDelete, Error)> {
+          #[cfg(unix)]
+          let inode_pin = inode_pin;
+          let parent_handle = match crate::utils::open_parent_for_sync(&path) {
+            Ok(h) => h,
+            Err(e) => {
               return Err((
                 crate::mmap_file::PendingDelete::NeedsUnlink {
-                  path: path.to_path_buf(),
+                  path: path.clone(),
                   identity,
+                  #[cfg(unix)]
+                  pin: inode_pin,
                 },
-                err,
+                e,
               ));
             }
+          };
+          match crate::utils::identity_at_or_path(&parent_handle, &path) {
+            Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => {
+              // See sync `initial_remove_durably` for the rationale.
+              // NotFound never proves crash-durable deletion
+              // (rename-then-unlink-elsewhere produces nlink==0 too,
+              // but the entry was removed from a parent we don't
+              // fsync). Always NeedsUnlink.
+              return Err((
+                crate::mmap_file::PendingDelete::NeedsUnlink {
+                  path: path.clone(),
+                  identity,
+                  #[cfg(unix)]
+                  pin: inode_pin,
+                },
+                e,
+              ));
+            }
+            Err(e) => {
+              return Err((
+                crate::mmap_file::PendingDelete::NeedsUnlink {
+                  path: path.clone(),
+                  identity,
+                  #[cfg(unix)]
+                  pin: inode_pin,
+                },
+                e,
+              ));
+            }
+            Ok(probe_id) => {
+              if !identity.is_known_equal(&probe_id) {
+                let err = Error::other(format!(
+                  "cannot unlink '{}': path no longer names the original file (path-reuse detected between handle drop and unlink)",
+                  path.display(),
+                ));
+                return Err((
+                  crate::mmap_file::PendingDelete::NeedsUnlink {
+                    path: path.clone(),
+                    identity,
+                    #[cfg(unix)]
+                    pin: inode_pin,
+                  },
+                  err,
+                ));
+              }
+            }
           }
-        }
-        match remove_file(path).await {
-          Ok(()) => match crate::utils::sync_parent_handle(&parent_handle) {
-            Ok(()) => Ok(()),
+          match crate::utils::unlink_at_or_path(&parent_handle, &path, identity) {
+            Ok(()) => match crate::utils::sync_parent_handle(&parent_handle) {
+              Ok(()) => Ok(()),
+              Err(e) => Err((
+                crate::mmap_file::PendingDelete::NeedsParentSync {
+                  path: path.clone(),
+                  parent_handle,
+                },
+                e,
+              )),
+            },
+            Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => {
+              // NotFound from `unlinkat` after a matching probe could
+              // still be a rename-then-unlink-elsewhere. We can't
+              // claim our parent fsync makes anything crash-durable.
+              // Stay NeedsUnlink.
+              Err((
+                crate::mmap_file::PendingDelete::NeedsUnlink {
+                  path: path.clone(),
+                  identity,
+                  #[cfg(unix)]
+                  pin: inode_pin,
+                },
+                e,
+              ))
+            }
             Err(e) => Err((
-              crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
+              crate::mmap_file::PendingDelete::NeedsUnlink {
+                path: path.clone(),
+                identity,
+                #[cfg(unix)]
+                pin: inode_pin,
+              },
               e,
             )),
-          },
-          Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => Err((
-            crate::mmap_file::PendingDelete::NeedsParentSync(path.to_path_buf()),
-            e,
-          )),
-          Err(e) => Err((
-            crate::mmap_file::PendingDelete::NeedsUnlink {
-              path: path.to_path_buf(),
-              identity,
-            },
-            e,
-          )),
-        }
+          }
+        })
+        .await
       }
 
-      /// Retry a pending delete in a path-reuse-safe way. `NeedsUnlink`
-      /// re-checks the captured identity against the path before
-      /// unlinking; if the identity no longer matches (path was reused),
-      /// we keep state and return a tagged error rather than deleting an
-      /// unrelated file.
+      /// Retry a pending delete in a path-reuse-safe way.
+      ///
+      /// `NeedsParentSync` only fsyncs the parent — never re-calls
+      /// `remove_file`. `NeedsUnlink` delegates to
+      /// `initial_remove_durably_async` so the nlink classification
+      /// (nlink==0 → NeedsParentSync, nlink>0 → NeedsUnlink) and
+      /// NotFound handling apply uniformly to both initial and retry
+      /// paths. Previously this branch open-coded a probe-then-unlink
+      /// that converted every probe error into a path-reuse refusal,
+      /// missing the "renamed away then unlinked at the new name"
+      /// case (pin nlink==0 → should converge to NeedsParentSync).
       async fn retry_pending_delete_async(
         pending: crate::mmap_file::PendingDelete,
       ) -> ::std::result::Result<
@@ -2017,55 +2224,37 @@ cfg_async! {
         (crate::mmap_file::PendingDelete, Error),
       > {
         match pending {
-          crate::mmap_file::PendingDelete::NeedsParentSync(path) => {
-            match sync_parent_path_async(&path).await {
-              Ok(()) => Ok(()),
-              Err(e) => Err((crate::mmap_file::PendingDelete::NeedsParentSync(path), e)),
-            }
-          }
-          crate::mmap_file::PendingDelete::NeedsUnlink { path, identity } => {
-            if !identity.matches_path(&path) {
-              let err = Error::other(format!(
-                "cannot retry remove on '{}': path no longer names the original file (path-reuse detected); the file you originally intended to delete is presumed gone or moved",
-                path.display(),
-              ));
-              return Err((
-                crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-                err,
-              ));
-            }
-            // Pre-open parent dir handle for the original-inode fsync.
-            let parent_handle = match crate::utils::open_parent_for_sync(&path) {
-              Ok(h) => h,
-              Err(e) => {
-                return Err((
-                  crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-                  e,
-                ));
-              }
-            };
-            match remove_file(&path).await {
-              Ok(()) => match crate::utils::sync_parent_handle(&parent_handle) {
+          crate::mmap_file::PendingDelete::NeedsParentSync {
+            path,
+            parent_handle,
+          } => {
+            run_blocking_io(move || -> ::std::result::Result<(), (crate::mmap_file::PendingDelete, Error)> {
+              match crate::utils::sync_parent_handle(&parent_handle) {
                 Ok(()) => Ok(()),
                 Err(e) => Err((
-                  crate::mmap_file::PendingDelete::NeedsParentSync(path),
+                  crate::mmap_file::PendingDelete::NeedsParentSync {
+                    path,
+                    parent_handle,
+                  },
                   e,
                 )),
-              },
-              Err(e) if e.kind() == ::std::io::ErrorKind::NotFound => {
-                match crate::utils::sync_parent_handle(&parent_handle) {
-                  Ok(()) => Ok(()),
-                  Err(e2) => Err((
-                    crate::mmap_file::PendingDelete::NeedsParentSync(path),
-                    e2,
-                  )),
-                }
               }
-              Err(e) => Err((
-                crate::mmap_file::PendingDelete::NeedsUnlink { path, identity },
-                e,
-              )),
-            }
+            })
+            .await
+          }
+          crate::mmap_file::PendingDelete::NeedsUnlink {
+            path,
+            identity,
+            #[cfg(unix)]
+            pin,
+          } => {
+            initial_remove_durably_async(
+              &path,
+              identity,
+              #[cfg(unix)]
+              pin,
+            )
+            .await
           }
         }
       }
@@ -2663,20 +2852,24 @@ cfg_async! {
         /// If invoke [`AsyncMmapFileMut::freeze`], then the file will
         /// not be removed even though the field `remove_on_drop` is true.
         ///
-        /// # Path-reuse safety: this is best-effort, not guaranteed
+        /// # Path-reuse safety
         ///
-        /// As of v0.5.0 the auto-cleanup path no longer calls `remove_file`
-        /// from `Drop`. By the time `Drop` runs, the original `File` handle
-        /// has been moved out of the wrapper, so there is no way to verify
-        /// that the path still names the file you originally opened — and
-        /// blind path-based unlink could delete an unrelated file another
-        /// actor created at the same path. `Drop` only fsyncs the parent
-        /// directory now.
+        /// `Drop` runs the same identity-checked, parent-bound unlink
+        /// sequence as the explicit `remove()` / `drop_remove()` paths
+        /// (POSIX: `fstatat` + `unlinkat` against a pre-opened parent
+        /// dir fd, with the original async file's fd duped and held
+        /// alive across the probe + unlink so the `(dev, ino)` we
+        /// compare to can't be recycled). If the path no longer names
+        /// the original inode — or if it became a symlink — `Drop`
+        /// leaves it alone. The residual risks are the irreducible
+        /// probe→unlink TOCTOU window and Windows' lack of true
+        /// openat-equivalents; see `FileIdentity` for the full
+        /// residual-race breakdown.
         ///
-        /// If you require deterministic, identity-checked cleanup, call
-        /// [`AsyncMmapFileMut::remove`] or [`AsyncMmapFileMut::drop_remove`]
-        /// explicitly before the wrapper is dropped — those run while a
-        /// fresh `File` handle is still in scope and can verify identity.
+        /// If you require synchronous error reporting, call
+        /// [`AsyncMmapFileMut::remove`] or
+        /// [`AsyncMmapFileMut::drop_remove`] explicitly — `Drop`
+        /// swallows errors because it cannot return a `Result`.
         ///
         /// [`AsyncMmapFileMut::freeze`]: structs.AsyncMmapFileMut.html#methods.freeze
         /// [`AsyncMmapFileMut::remove`]: structs.AsyncMmapFileMut.html#methods.remove
@@ -2740,12 +2933,38 @@ cfg_async! {
           let empty = AsyncMmapFileMutInner::Empty(AsyncEmptyMmapFile::default());
           let inner = mem::replace(&mut self.inner, empty);
           match inner {
-            AsyncMmapFileMutInner::Disk(disk) => {
-              let path = disk.path;
+            #[allow(unused_mut)] // `mut` only needed on Unix smol-EMFILE recovery
+            AsyncMmapFileMutInner::Disk(mut disk) => {
+              let path = disk.path.clone();
               let identity = disk.file_identity;
-              drop(disk.mmap);
+              // Same runtime-specific helper as drop_remove. tokio
+              // uses `into_std` (no fd alloc); smol falls back to dup
+              // and on EMFILE returns the file so we can restore
+              // self.inner — `remove(&mut self)` itself preserves self
+              // for the caller to retry.
+              #[cfg(unix)]
+              let pin: std::fs::File = {
+                let async_file = disk.file;
+                match extract_pin_or_err(async_file).await {
+                  Ok(p) => p,
+                  Err((file_back, e)) => {
+                    disk.file = file_back;
+                    self.inner = AsyncMmapFileMutInner::Disk(disk);
+                    return Err(e);
+                  }
+                }
+              };
+              #[cfg(not(unix))]
               drop(disk.file);
-              match initial_remove_durably_async(&path, identity).await {
+              drop(disk.mmap);
+              match initial_remove_durably_async(
+                &path,
+                identity,
+                #[cfg(unix)]
+                pin,
+              )
+              .await
+              {
                 Ok(()) => {
                   self.deleted = true;
                   Ok(())
