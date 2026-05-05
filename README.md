@@ -68,7 +68,7 @@ If your threat model includes an active local adversary, do not rely on identity
 
 ## Installation
 
-`fmmap` requires Rust **1.75** or later.
+`fmmap` requires Rust **1.81** or later.
 
 - std
     ```toml

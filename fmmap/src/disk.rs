@@ -150,7 +150,7 @@ macro_rules! impl_flush {
 // $ext is the fs4 file-extension trait providing the lock/unlock methods on
 // `self.file` (`fs4::FileExt` for sync, `fs4::AsyncFileExt` for async). UFCS
 // is required so that on Rust 1.89+ we still call fs4's trait method instead
-// of std's inherent `File::lock`, keeping our MSRV at fs4's 1.75.
+// of std's inherent `File::lock`, keeping our MSRV at 1.81.
 macro_rules! impl_file_lock {
   ($ext: path) => {
     // The lock methods take `&mut self`, so the borrow checker forbids
