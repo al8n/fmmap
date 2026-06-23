@@ -46,15 +46,15 @@ jobs:
         # Install both stable (used to compile cargo-hack itself) and the
         # crate's MSRV (used to actually run the checks). Recent cargo-hack
         # releases require a newer rustc than our MSRV, so we cannot install
-        # it under 1.75.
+        # it under 1.81.
         run: |
           rustup toolchain install stable --no-self-update
-          rustup toolchain install 1.75.0 --no-self-update
-          rustup default 1.75.0
+          rustup toolchain install 1.81.0 --no-self-update
+          rustup default 1.81.0
       - name: Install cargo-hack
         run: cargo +stable install cargo-hack
       - name: Check each feature at MSRV
-        run: cargo +1.75.0 hack check --each-feature --no-dev-deps --skip smol,futures-util
+        run: cargo +1.81.0 hack check --each-feature --no-dev-deps --skip smol,futures-util
 
   # Separate MSRV track for smol. Its transitive dependencies currently
   # require Rust 1.85, so this job keeps that higher feature-specific floor
