@@ -23,13 +23,13 @@ smol = ["dep:smol", "fs4/smol", "dep:pin-project-lite"]
 [dependencies]
 bytes = "1"
 byteorder = "1"
-enum_dispatch = "0.3"
 fs4 = { version = "1", optional = true }
 futures-util = { version = "0.3", optional = true }
 memmapix = "0.9"
 pin-project-lite = { version = "0.2", optional = true }
 smol = { version = "2", optional = true }
 tokio = { version = "1", optional = true }
+whichever = "0.4"
 
 # Unix: rustix is used for the safe POSIX path of identity-checked
 # delete (`statat`/`unlinkat` against an open parent fd) and for atomic

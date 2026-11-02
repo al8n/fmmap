@@ -224,7 +224,7 @@ fn retry_pending_delete(
 /// Utility methods to [`MmapFile`]
 ///
 /// [`MmapFile`]: structs.MmapFile.html
-#[enum_dispatch]
+#[whichever::dispatchable]
 pub trait MmapFileExt {
   /// Returns the current mmap length
   fn len(&self) -> usize;
@@ -645,7 +645,7 @@ pub trait MmapFileExt {
 /// Utility methods to [`MmapFileMut`]
 ///
 /// [`MmapFileMut`]: structs.MmapFileMut.html
-#[enum_dispatch]
+#[whichever::dispatchable]
 pub trait MmapFileMutExt {
   /// Returns the mutable underlying slice of the mmap
   fn as_mut_slice(&mut self) -> &mut [u8];
@@ -949,7 +949,7 @@ pub trait MmapFileMutExt {
   }
 }
 
-#[enum_dispatch(MmapFileExt)]
+#[whichever::dispatch(MmapFileExt)]
 enum MmapFileInner {
   Empty(EmptyMmapFile),
   Memory(MemoryMmapFile),
@@ -965,11 +965,10 @@ enum MmapFileInner {
 ///
 /// [`Bytes`]: https://docs.rs/bytes/1.1.0/bytes/struct.Bytes.html
 #[repr(transparent)]
+#[whichever::dispatch(MmapFileExt)]
 pub struct MmapFile {
   inner: MmapFileInner,
 }
-
-impl_mmap_file_ext!(MmapFile);
 
 impl_from!(
   MmapFile,
@@ -1119,7 +1118,8 @@ impl MmapFile {
 
 impl_constructor_for_memory_mmap_file!(MemoryMmapFile, MmapFile, "MmapFile", "sync");
 
-#[enum_dispatch(MmapFileExt, MmapFileMutExt)]
+#[whichever::dispatch(MmapFileExt)]
+#[whichever::dispatch(MmapFileMutExt)]
 enum MmapFileMutInner {
   Empty(EmptyMmapFile),
   Memory(MemoryMmapFileMut),
@@ -1134,7 +1134,9 @@ enum MmapFileMutInner {
 /// - __Empty__: a state represents null mmap, which is helpful for drop, remove, close the `MmapFileMut`. This state cannot be constructed directly.
 ///
 /// [`BytesMut`]: https://docs.rs/bytes/1.1.0/bytes/struct.BytesMut.html
+#[whichever::dispatch(MmapFileExt)]
 pub struct MmapFileMut {
+  #[dispatch]
   inner: MmapFileMutInner,
   remove_on_drop: bool,
   deleted: bool,
@@ -1157,30 +1159,14 @@ impl_from_mut!(
   [EmptyMmapFile, MemoryMmapFileMut, DiskMmapFileMut]
 );
 
-impl_mmap_file_ext!(MmapFileMut);
-
+// `drop_remove` and `close_with_truncate` run the durable unlink and the
+// close-time truncation at the wrapper layer; every other method is forwarded
+// to the inner mapping. `truncate` in particular is only forwarded: the disk
+// backend keeps a poisoned `DiskMmapFileMut` installed with its `path`/`file`
+// intact, so `Drop`'s `remove_on_drop` cleanup and a `remove()` /
+// `drop_remove()` retry can still find the (possibly-resized) file.
+#[whichever::dispatch]
 impl MmapFileMutExt for MmapFileMut {
-  fn as_mut_slice(&mut self) -> &mut [u8] {
-    self.inner.as_mut_slice()
-  }
-
-  fn is_cow(&self) -> bool {
-    self.inner.is_cow()
-  }
-
-  impl_flush!();
-
-  fn truncate(&mut self, max_sz: u64) -> Result<()> {
-    // Just dispatch — the disk backend's `truncate` already keeps the
-    // poisoned `DiskMmapFileMut` installed with its `path`/`file` intact,
-    // and the disk-side `len` / `as_slice` / `as_mut_slice` accessors all
-    // short-circuit to empty when `poisoned == true`. Swapping the inner
-    // to `Empty` here would silently lose the path so `Drop`'s
-    // `remove_on_drop` cleanup (and any subsequent `remove()` /
-    // `drop_remove()` retry) couldn't find the (possibly-resized) file.
-    self.inner.truncate(max_sz)
-  }
-
   /// Remove the underlying file
   ///
   /// # Examples
