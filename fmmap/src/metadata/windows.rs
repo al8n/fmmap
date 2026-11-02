@@ -1,7 +1,6 @@
 use crate::{
   error::{Error, Result},
   metadata::{DiskMetaData, EmptyMetaData, MemoryMetaData},
-  MetaData,
 };
 use std::{
   os::windows::fs::MetadataExt,
@@ -9,7 +8,7 @@ use std::{
 };
 
 /// Utility methods to MetaData
-#[enum_dispatch]
+#[whichever::dispatchable]
 pub trait MetaDataExt {
   /// Returns the last access time of this metadata.
   ///
@@ -217,53 +216,6 @@ impl MetaDataExt for EmptyMetaData {
 
   fn file_size(&self) -> u64 {
     0
-  }
-}
-
-#[cfg(windows)]
-impl MetaDataExt for MetaData {
-  fn accessed(&self) -> std::result::Result<SystemTime, Error> {
-    self.inner.accessed()
-  }
-
-  fn created(&self) -> std::result::Result<SystemTime, Error> {
-    self.inner.created()
-  }
-
-  fn is_file(&self) -> bool {
-    self.inner.is_file()
-  }
-
-  fn is_symlink(&self) -> bool {
-    self.inner.is_symlink()
-  }
-
-  fn len(&self) -> u64 {
-    self.inner.len()
-  }
-
-  fn modified(&self) -> std::result::Result<SystemTime, Error> {
-    self.inner.modified()
-  }
-
-  fn file_attributes(&self) -> u32 {
-    self.inner.file_attributes()
-  }
-
-  fn creation_time(&self) -> u64 {
-    self.inner.creation_time()
-  }
-
-  fn last_access_time(&self) -> u64 {
-    self.inner.last_access_time()
-  }
-
-  fn last_write_time(&self) -> u64 {
-    self.inner.last_write_time()
-  }
-
-  fn file_size(&self) -> u64 {
-    self.inner.file_size()
   }
 }
 

@@ -684,6 +684,39 @@ mod sync {
     assert!(file.read_u8(4).is_err());
     assert!(file.read_i8(4).is_err());
   }
+
+  // `remove()` leaves the wrapper holding `EmptyMmapFile`, whose overrides
+  // of the trait's provided methods have to reach the public type: a copy
+  // of a removed file is refused, not created empty.
+  #[test]
+  fn removed_wrapper_uses_empty_overrides() {
+    use crate::{MmapFileExt, MmapFileMut, MmapFileMutExt};
+    use scopeguard::defer;
+    use std::io::ErrorKind;
+
+    let path = super::get_random_filename();
+    let copy = super::get_random_filename();
+    defer!(let _ = std::fs::remove_file(&path););
+    defer!(let _ = std::fs::remove_file(&copy););
+
+    let mut file = unsafe { MmapFileMut::create(&path) }.unwrap();
+    file.truncate(8).unwrap();
+    file.remove().unwrap();
+
+    let err = file.write_all_to_new_file(&copy).unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert!(!copy.exists());
+    let err = file.write_range_to_new_file(&copy, 0, 0).unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert!(!copy.exists());
+    assert_eq!(file.reader(0).unwrap_err().kind(), ErrorKind::Unsupported);
+    assert_eq!(file.writer(0).unwrap_err().kind(), ErrorKind::Unsupported);
+    assert_eq!(file.read_u8(0).unwrap_err().kind(), ErrorKind::Unsupported);
+    assert_eq!(
+      file.write_all(b"x", 0).unwrap_err().kind(),
+      ErrorKind::Unsupported
+    );
+  }
 }
 
 #[cfg(feature = "tokio")]
@@ -1327,6 +1360,33 @@ mod axync {
     let _ = unsafe { AsyncMmapFileExt::try_lock_shared(&mut raw) };
     let _ = unsafe { AsyncMmapFileExt::unlock(&mut raw) };
   }
+
+  // `remove()` leaves the wrapper holding `AsyncEmptyMmapFile`, whose
+  // overrides of the trait's provided methods have to reach the public type,
+  // and the forwarded futures stay `Send`.
+  #[tokio::test]
+  async fn tokio_removed_wrapper_uses_empty_overrides() {
+    use crate::tokio::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    use scopeguard::defer;
+    use std::io::ErrorKind;
+
+    let path = super::get_random_filename();
+    let copy = super::get_random_filename();
+    defer!(let _ = std::fs::remove_file(&path););
+    defer!(let _ = std::fs::remove_file(&copy););
+
+    let mut file = unsafe { AsyncMmapFileMut::create(&path).await }.unwrap();
+    file.truncate(8).await.unwrap();
+    file.remove().await.unwrap();
+
+    let target = copy.clone();
+    let err = tokio::spawn(async move { file.write_all_to_new_file(target).await })
+      .await
+      .unwrap()
+      .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert!(!copy.exists());
+  }
 }
 
 #[cfg(feature = "smol")]
@@ -1764,5 +1824,31 @@ mod smol_tests {
     let _ = AsyncMmapFileExt::try_lock(&mut raw);
     let _ = unsafe { AsyncMmapFileExt::try_lock_shared(&mut raw) };
     let _ = unsafe { AsyncMmapFileExt::unlock(&mut raw) };
+  }
+
+  // `remove()` leaves the wrapper holding `AsyncEmptyMmapFile`, whose
+  // overrides of the trait's provided methods have to reach the public type,
+  // and the forwarded futures stay `Send`.
+  #[smol_potat::test]
+  async fn smol_removed_wrapper_uses_empty_overrides() {
+    use crate::smol::{AsyncMmapFileExt, AsyncMmapFileMut, AsyncMmapFileMutExt};
+    use scopeguard::defer;
+    use std::io::ErrorKind;
+
+    let path = super::get_random_filename();
+    let copy = super::get_random_filename();
+    defer!(let _ = std::fs::remove_file(&path););
+    defer!(let _ = std::fs::remove_file(&copy););
+
+    let mut file = unsafe { AsyncMmapFileMut::create(&path).await }.unwrap();
+    file.truncate(8).await.unwrap();
+    file.remove().await.unwrap();
+
+    let target = copy.clone();
+    let err = smol::spawn(async move { file.write_all_to_new_file(target).await })
+      .await
+      .unwrap_err();
+    assert_eq!(err.kind(), ErrorKind::Unsupported);
+    assert!(!copy.exists());
   }
 }

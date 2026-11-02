@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Minimum supported Rust version is now 1.88 (was 1.81; 1.85 with `smol`).
+- The backend enums are dispatched with `whichever` instead of
+  `enum_dispatch`, and the async ones no longer forward by hand.
+
+### Fixed
+
+- `MmapFileMut` and `AsyncMmapFileMut` forward every `MmapFileExt` /
+  `MmapFileMutExt` method (and the async counterparts) to the backend they
+  hold, provided methods included. After `remove()` or `close()`, methods such
+  as `write_all_to_new_file`, `reader`, `writer`, `read_*` and `write_all` now
+  fail with `ErrorKind::Unsupported`, as the empty backend intends, instead
+  of running the default body over an empty slice;
+  `write_all_to_new_file` used to create an empty file.
+
 ## [0.5.0] - unreleased
 
 Rebuilds the safe-API surface around identity, range validation, and

@@ -47,9 +47,6 @@
 //
 // Memory-backed constructors (`*::memory*`) hold their bytes in `BytesMut`
 // and are not subject to this contract — they are safe.
-#[macro_use]
-extern crate enum_dispatch;
-
 macro_rules! cfg_smol {
   ($($item:item)*) => {
     $(

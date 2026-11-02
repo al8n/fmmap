@@ -33,10 +33,8 @@ jobs:
   #
   # Tests are not run here because dev-dependencies may require a newer
   # compiler. `cargo hack --each-feature` guards against per-feature MSRV
-  # drift for the library itself. The `smol` feature is tracked in
-  # `minrust-smol` because its transitive dependencies currently need a
-  # higher compiler than the crate-level MSRV. The implicit `futures-util`
-  # feature is a dependency switch, not a standalone backend.
+  # drift for the library itself. The implicit `futures-util` feature is a
+  # dependency switch, not a standalone backend.
   minrust:
     name: minrust
     runs-on: ubuntu-latest
@@ -46,28 +44,15 @@ jobs:
         # Install both stable (used to compile cargo-hack itself) and the
         # crate's MSRV (used to actually run the checks). Recent cargo-hack
         # releases require a newer rustc than our MSRV, so we cannot install
-        # it under 1.81.
+        # it under 1.88.
         run: |
           rustup toolchain install stable --no-self-update
-          rustup toolchain install 1.81.0 --no-self-update
-          rustup default 1.81.0
+          rustup toolchain install 1.88.0 --no-self-update
+          rustup default 1.88.0
       - name: Install cargo-hack
         run: cargo +stable install cargo-hack
       - name: Check each feature at MSRV
-        run: cargo +1.81.0 hack check --each-feature --no-dev-deps --skip smol,futures-util
-
-  # Separate MSRV track for smol. Its transitive dependencies currently
-  # require Rust 1.85, so this job keeps that higher feature-specific floor
-  # visible instead of silently folding it into the crate-level MSRV.
-  minrust-smol:
-    name: minrust-smol
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Install Rust
-        run: rustup update 1.85.0 && rustup default 1.85.0
-      - name: Check smol feature
-        run: cargo check --no-default-features --features smol
+        run: cargo +1.88.0 hack check --each-feature --no-dev-deps --skip futures-util
 
   rustfmt:
     name: rustfmt

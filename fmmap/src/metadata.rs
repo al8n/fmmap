@@ -76,11 +76,12 @@ impl DerefMut for DiskMetaData {
 /// symlink_metadata function or method and represents
 /// known metadata about a file such as its permissions, size, modification times, etc
 #[repr(transparent)]
+#[whichever::dispatch(MetaDataExt)]
 pub struct MetaData {
   inner: MetaDataInner,
 }
 
-#[enum_dispatch(MetaDataExt)]
+#[whichever::dispatch(MetaDataExt)]
 enum MetaDataInner {
   Empty(EmptyMetaData),
   Memory(MemoryMetaData),
